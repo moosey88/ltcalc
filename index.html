@@ -278,14 +278,21 @@
     </div>
   </div>
 
-  <!-- Tab 1: Cost + Price -> Margin, Markup, Profit (LT fee included) -->
+  <!-- Tab 1: Labour + Materials + Price -> Margin, Markup, Profit (LT fee excludes materials) -->
   <section class="panel" id="panel-margin" style="display:none">
     <div class="card">
       <div class="field">
-        <label for="m-cost">Cost</label>
+        <label for="m-labour">Labour</label>
         <div class="input-wrap">
           <span class="prefix">£</span>
-          <input type="text" inputmode="decimal" id="m-cost" placeholder="0.00" />
+          <input type="text" inputmode="decimal" id="m-labour" placeholder="0.00" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="m-materials">Materials</label>
+        <div class="input-wrap">
+          <span class="prefix">£</span>
+          <input type="text" inputmode="decimal" id="m-materials" placeholder="0.00" />
         </div>
       </div>
       <div class="field">
@@ -303,17 +310,24 @@
       <div class="result"><div class="label">Margin (Net)</div><div class="value" id="m-margin">0%</div></div>
       <div class="result full"><div class="label">Markup</div><div class="value" id="m-markup">0%</div></div>
     </div>
-    <p class="hint">Margin = net profit (after LT fee) ÷ selling price. Markup = profit before fee ÷ cost.</p>
+    <p class="hint">Margin = net profit (after LT fee) ÷ selling price. The LT fee is charged on price minus materials. Markup = profit before fee ÷ (labour + materials).</p>
   </section>
 
-  <!-- Tab 2: Cost + Target Net Margin -> Price (LT fee included) -->
+  <!-- Tab 2: Labour + Materials + Target Net Margin -> Price (LT fee excludes materials) -->
   <section class="panel" id="panel-price" style="display:none">
     <div class="card">
       <div class="field">
-        <label for="p-cost">Cost</label>
+        <label for="p-labour">Labour</label>
         <div class="input-wrap">
           <span class="prefix">£</span>
-          <input type="text" inputmode="decimal" id="p-cost" placeholder="0.00" />
+          <input type="text" inputmode="decimal" id="p-labour" placeholder="0.00" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="p-materials">Materials</label>
+        <div class="input-wrap">
+          <span class="prefix">£</span>
+          <input type="text" inputmode="decimal" id="p-materials" placeholder="0.00" />
         </div>
       </div>
       <div class="field">
@@ -331,10 +345,10 @@
       <div class="result"><div class="label">Net Profit</div><div class="value" id="p-net">£0.00</div></div>
       <div class="result full"><div class="label">Markup</div><div class="value" id="p-markup">0%</div></div>
     </div>
-    <p class="hint">Enter your cost and the net margin you want after the LT fee — this shows what to charge.</p>
+    <p class="hint">Enter labour, materials, and the net margin you want after the LT fee (charged on price minus materials) — this shows what to charge.</p>
   </section>
 
-  <!-- Tab 3: Price + Target Net Margin -> Max Cost (LT fee included) -->
+  <!-- Tab 3: Price + Materials + Target Net Margin -> Max Labour (LT fee excludes materials) -->
   <section class="panel" id="panel-cost" style="display:none">
     <div class="card">
       <div class="field">
@@ -342,6 +356,13 @@
         <div class="input-wrap">
           <span class="prefix">£</span>
           <input type="text" inputmode="decimal" id="c-price" placeholder="0.00" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="c-materials">Materials</label>
+        <div class="input-wrap">
+          <span class="prefix">£</span>
+          <input type="text" inputmode="decimal" id="c-materials" placeholder="0.00" />
         </div>
       </div>
       <div class="field">
@@ -353,13 +374,14 @@
       </div>
     </div>
     <div class="results">
-      <div class="result"><div class="label">Max Cost</div><div class="value" id="c-cost">£0.00</div></div>
+      <div class="result"><div class="label">Max Labour</div><div class="value" id="c-labour">£0.00</div></div>
+      <div class="result"><div class="label">Total Cost</div><div class="value" id="c-totalcost">£0.00</div></div>
       <div class="result"><div class="label">Profit (before fee)</div><div class="value" id="c-profit">£0.00</div></div>
       <div class="result"><div class="label">LT Fee</div><div class="value" id="c-ltfee">£0.00</div></div>
       <div class="result"><div class="label">Net Profit</div><div class="value" id="c-net">£0.00</div></div>
-      <div class="result full"><div class="label">Markup</div><div class="value" id="c-markup">0%</div></div>
+      <div class="result"><div class="label">Markup</div><div class="value" id="c-markup">0%</div></div>
     </div>
-    <p class="hint">Enter your selling price and the net margin you want after the LT fee — this shows the most you can pay for it.</p>
+    <p class="hint">Enter your selling price, materials, and the net margin you want after the LT fee — this shows the most you can pay for labour.</p>
   </section>
 
   <!-- Tab 4: Local Treasures Pricing Tool — Option 1 (Customer Price + Labour + Materials -> Margin/Markup) -->
@@ -396,7 +418,7 @@
       <div class="result"><div class="label">Markup %</div><div class="value" id="lt-markup">0%</div></div>
       <div class="result full"><div class="label">Labour % Cost</div><div class="value" id="lt-labour-pct">0%</div></div>
     </div>
-    <p class="hint">Local Treasures Pricing Tool — Option 1: enter Customer Price, Labour, and Materials to see HHH's margin and markup.</p>
+    <p class="hint">Local Treasures Pricing Tool — Option 1: enter Customer Price, Labour, and Materials to see HHH's margin and markup. The LT fee is charged on Customer Price minus Materials.</p>
   </section>
 </main>
 

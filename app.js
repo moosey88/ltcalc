@@ -39,7 +39,8 @@
     });
   });
 
-  // Shared LT fee settings — used by every tab so the fee is always part of margin
+  // Shared LT fee settings — used by every tab. The fee is always charged
+  // on (price - materials), never on the materials portion of the price.
   const BANK_FEE_PCT = 1.8;
   const feeRateInput = document.getElementById("fee-rate");
   const bankFeeToggle = document.getElementById("bank-fee");
@@ -52,69 +53,83 @@
       `Effective rate: ${effectiveRatePct.toFixed(1)}%${bankFeeToggle.checked ? ` (${baseRate.toFixed(1)}% + ${BANK_FEE_PCT}% bank fee)` : ""}`;
     return effectiveRatePct / 100;
   }
-  [feeRateInput, bankFeeToggle].forEach((el) =>
-    el.addEventListener(feeRateInput === el ? "input" : "change", () => recalcAll())
-  );
+  feeRateInput.addEventListener("input", () => recalcAll());
+  bankFeeToggle.addEventListener("change", () => recalcAll());
 
-  // Tab 1: cost + price -> profit/fee/margin/markup
-  const mCost = document.getElementById("m-cost");
+  // Tab 1: labour + materials + price -> profit/fee/margin/markup
+  // Fee = feeRate * (price - materials)
+  const mLabour = document.getElementById("m-labour");
+  const mMaterials = document.getElementById("m-materials");
   const mPrice = document.getElementById("m-price");
   function calcMargin(feeRate) {
-    const cost = num(mCost);
+    const labour = num(mLabour);
+    const materials = num(mMaterials);
     const price = num(mPrice);
-    const profitBeforeFee = price - cost;
-    const ltFeeAmount = price * feeRate;
+    const profitBeforeFee = price - labour - materials;
+    const ltFeeAmount = feeRate * (price - materials);
     const netProfit = profitBeforeFee - ltFeeAmount;
     const margin = price !== 0 ? (netProfit / price) * 100 : 0;
-    const markup = cost !== 0 ? (profitBeforeFee / cost) * 100 : 0;
+    const costs = labour + materials;
+    const markup = costs !== 0 ? (profitBeforeFee / costs) * 100 : 0;
     setValue("m-profit", money(profitBeforeFee), profitBeforeFee < 0);
     setValue("m-ltfee", money(ltFeeAmount), ltFeeAmount < 0);
     setValue("m-net", money(netProfit), netProfit < 0);
     setValue("m-margin", pct(margin), margin < 0);
     setValue("m-markup", pct(markup), markup < 0);
   }
-  [mCost, mPrice].forEach((el) => el.addEventListener("input", () => recalcAll()));
+  [mLabour, mMaterials, mPrice].forEach((el) => el.addEventListener("input", () => recalcAll()));
 
-  // Tab 2: cost + target net margin -> price (net margin = after LT fee)
-  const pCost = document.getElementById("p-cost");
+  // Tab 2: labour + materials + target net margin -> price
+  // netProfit = price - labour - materials - feeRate*(price - materials) = target * price
+  // => price = (labour + materials*(1 - feeRate)) / (1 - feeRate - target)
+  const pLabour = document.getElementById("p-labour");
+  const pMaterials = document.getElementById("p-materials");
   const pMargin = document.getElementById("p-margin");
   function calcPrice(feeRate) {
-    const cost = num(pCost);
-    const margin = num(pMargin) / 100;
-    const denom = 1 - feeRate - margin;
-    const price = denom !== 0 ? cost / denom : 0;
-    const profitBeforeFee = price - cost;
-    const ltFeeAmount = price * feeRate;
+    const labour = num(pLabour);
+    const materials = num(pMaterials);
+    const target = num(pMargin) / 100;
+    const denom = 1 - feeRate - target;
+    const price = denom !== 0 ? (labour + materials * (1 - feeRate)) / denom : 0;
+    const profitBeforeFee = price - labour - materials;
+    const ltFeeAmount = feeRate * (price - materials);
     const netProfit = profitBeforeFee - ltFeeAmount;
-    const markup = cost !== 0 ? (profitBeforeFee / cost) * 100 : 0;
+    const costs = labour + materials;
+    const markup = costs !== 0 ? (profitBeforeFee / costs) * 100 : 0;
     setValue("p-price", money(price), price < 0);
     setValue("p-profit", money(profitBeforeFee), profitBeforeFee < 0);
     setValue("p-ltfee", money(ltFeeAmount), ltFeeAmount < 0);
     setValue("p-net", money(netProfit), netProfit < 0);
     setValue("p-markup", pct(markup), markup < 0);
   }
-  [pCost, pMargin].forEach((el) => el.addEventListener("input", () => recalcAll()));
+  [pLabour, pMaterials, pMargin].forEach((el) => el.addEventListener("input", () => recalcAll()));
 
-  // Tab 3: price + target net margin -> max cost (net margin = after LT fee)
+  // Tab 3: price + materials + target net margin -> max labour
+  // labour = price*(1 - target - feeRate) - materials*(1 - feeRate)
   const cPrice = document.getElementById("c-price");
+  const cMaterials = document.getElementById("c-materials");
   const cMargin = document.getElementById("c-margin");
   function calcCost(feeRate) {
     const price = num(cPrice);
-    const margin = num(cMargin) / 100;
-    const cost = price * (1 - feeRate - margin);
-    const profitBeforeFee = price - cost;
-    const ltFeeAmount = price * feeRate;
+    const materials = num(cMaterials);
+    const target = num(cMargin) / 100;
+    const labour = price * (1 - target - feeRate) - materials * (1 - feeRate);
+    const totalCost = labour + materials;
+    const profitBeforeFee = price - totalCost;
+    const ltFeeAmount = feeRate * (price - materials);
     const netProfit = profitBeforeFee - ltFeeAmount;
-    const markup = cost !== 0 ? (profitBeforeFee / cost) * 100 : 0;
-    setValue("c-cost", money(cost), cost < 0);
+    const markup = totalCost !== 0 ? (profitBeforeFee / totalCost) * 100 : 0;
+    setValue("c-labour", money(labour), labour < 0);
+    setValue("c-totalcost", money(totalCost), totalCost < 0);
     setValue("c-profit", money(profitBeforeFee), profitBeforeFee < 0);
     setValue("c-ltfee", money(ltFeeAmount), ltFeeAmount < 0);
     setValue("c-net", money(netProfit), netProfit < 0);
     setValue("c-markup", pct(markup), markup < 0);
   }
-  [cPrice, cMargin].forEach((el) => el.addEventListener("input", () => recalcAll()));
+  [cPrice, cMaterials, cMargin].forEach((el) => el.addEventListener("input", () => recalcAll()));
 
   // Tab 4: LT Pricing Tool — Option 1
+  // Fee = feeRate * (revenue - materials)
   const ltCustomer = document.getElementById("lt-customer");
   const ltLabour = document.getElementById("lt-labour");
   const ltMaterials = document.getElementById("lt-materials");
@@ -124,7 +139,7 @@
     const materials = num(ltMaterials);
 
     const profitBeforeFee = revenue - labour - materials;
-    const ltFeeAmount = revenue * feeRate;
+    const ltFeeAmount = feeRate * (revenue - materials);
     const netProfit = profitBeforeFee - ltFeeAmount;
     const marginBeforeFee = revenue !== 0 ? (profitBeforeFee / revenue) * 100 : 0;
     const marginNet = revenue !== 0 ? (netProfit / revenue) * 100 : 0;
