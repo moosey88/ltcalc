@@ -173,6 +173,65 @@
     padding: 0 4px;
   }
 
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .toggle-label {
+    display: block;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0;
+  }
+  .toggle-sub {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-top: 2px;
+  }
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 28px;
+    flex-shrink: 0;
+  }
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .switch .slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: var(--border);
+    border-radius: 999px;
+    transition: background 0.15s ease;
+  }
+  .switch .slider::before {
+    content: "";
+    position: absolute;
+    height: 22px;
+    width: 22px;
+    left: 3px;
+    top: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.15s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  }
+  .switch input:checked + .slider {
+    background: var(--accent);
+  }
+  .switch input:checked + .slider::before {
+    transform: translateX(20px);
+  }
+
   footer {
     text-align: center;
     font-size: 11px;
@@ -277,11 +336,24 @@
   <section class="panel" id="panel-lt">
     <div class="card">
       <div class="field">
-        <label for="lt-fee">LT Fee Rate</label>
+        <label for="lt-fee">LT Fee Rate (base)</label>
         <div class="input-wrap">
           <input type="text" inputmode="decimal" id="lt-fee" placeholder="0" value="9" />
           <span class="suffix">%</span>
         </div>
+      </div>
+      <div class="field">
+        <div class="toggle-row">
+          <label for="lt-bank-fee" class="toggle-label">
+            Include bank fees
+            <span class="toggle-sub">+1.8%</span>
+          </label>
+          <label class="switch">
+            <input type="checkbox" id="lt-bank-fee" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <p class="hint" id="lt-effective-rate">Effective rate: 9.0%</p>
       </div>
       <div class="field">
         <label for="lt-customer">Customer Price</label>

@@ -86,12 +86,18 @@
   [cPrice, cMargin].forEach((el) => el.addEventListener("input", calcCost));
 
   // Tab 4: LT Pricing Tool — Option 1
+  const BANK_FEE_PCT = 1.8;
   const ltFee = document.getElementById("lt-fee");
+  const ltBankFee = document.getElementById("lt-bank-fee");
   const ltCustomer = document.getElementById("lt-customer");
   const ltLabour = document.getElementById("lt-labour");
   const ltMaterials = document.getElementById("lt-materials");
   function calcLT() {
-    const feeRate = num(ltFee) / 100;
+    const baseRate = num(ltFee);
+    const effectiveRatePct = baseRate + (ltBankFee.checked ? BANK_FEE_PCT : 0);
+    document.getElementById("lt-effective-rate").textContent =
+      `Effective rate: ${effectiveRatePct.toFixed(1)}%${ltBankFee.checked ? ` (${baseRate.toFixed(1)}% + ${BANK_FEE_PCT}% bank fee)` : ""}`;
+    const feeRate = effectiveRatePct / 100;
     const revenue = num(ltCustomer);
     const labour = num(ltLabour);
     const materials = num(ltMaterials);
@@ -114,6 +120,7 @@
     setValue("lt-labour-pct", pct(labourPct), labourPct < 0);
   }
   [ltFee, ltCustomer, ltLabour, ltMaterials].forEach((el) => el.addEventListener("input", calcLT));
+  ltBankFee.addEventListener("change", calcLT);
 
   calcMargin();
   calcPrice();
