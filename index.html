@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>Margin Calc</title>
+<meta name="theme-color" content="#059669" />
+<meta name="description" content="Fast margin, markup, price and cost calculator." />
+
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icons/icon-32.png" sizes="32x32" />
+<link rel="apple-touch-icon" href="icons/icon-180.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Margin Calc" />
+
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --card: #ffffff;
+    --text: #14181f;
+    --text-dim: #6b7280;
+    --accent: #059669;
+    --accent-dim: #d1fae5;
+    --border: #e5e7eb;
+    --danger: #dc2626;
+    --radius: 16px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b0d10;
+      --card: #16191d;
+      --text: #f2f3f5;
+      --text-dim: #9aa1ab;
+      --accent: #10b981;
+      --accent-dim: #0f2e24;
+      --border: #262b31;
+      --danger: #f87171;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    height: 100%;
+    overscroll-behavior-y: none;
+  }
+  body {
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  header {
+    padding: 20px 20px 8px;
+    text-align: center;
+  }
+  header h1 {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  main {
+    flex: 1;
+    padding: 12px 16px 24px;
+    max-width: 480px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .tabs {
+    display: flex;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 4px;
+    gap: 4px;
+    margin-bottom: 16px;
+  }
+  .tab {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 4px;
+    border-radius: 9px;
+    cursor: pointer;
+  }
+  .tab.active {
+    background: var(--accent);
+    color: white;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  .input-wrap {
+    display: flex;
+    align-items: center;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0 14px;
+  }
+  .input-wrap .prefix, .input-wrap .suffix {
+    font-size: 18px;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+  input[type="text"], input[type="number"] {
+    flex: 1;
+    border: none;
+    background: transparent;
+    outline: none;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text);
+    padding: 12px 8px;
+    width: 100%;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .results {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .result {
+    background: var(--accent-dim);
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+  .result.full { grid-column: 1 / -1; }
+  .result .label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-bottom: 2px;
+  }
+  .result .value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .result .value.negative { color: var(--danger); }
+
+  .hint {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    padding: 0 4px;
+  }
+
+  footer {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-dim);
+    padding: 8px 16px calc(16px + env(safe-area-inset-bottom));
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Margin Calculator</h1>
+</header>
+
+<main>
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-tab="margin">Margin</button>
+    <button class="tab" data-tab="price">Find Price</button>
+    <button class="tab" data-tab="cost">Find Cost</button>
+  </div>
+
+  <!-- Tab 1: Cost + Price -> Margin, Markup, Profit -->
+  <section class="panel" id="panel-margin">
+    <div class="card">
+      <div class="field">
+        <label for="m-cost">Cost</label>
+        <div class="input-wrap">
+          <span class="prefix">$</span>
+          <input type="text" inputmode="decimal" id="m-cost" placeholder="0.00" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="m-price">Selling Price</label>
+        <div class="input-wrap">
+          <span class="prefix">$</span>
+          <input type="text" inputmode="decimal" id="m-price" placeholder="0.00" />
+        </div>
+      </div>
+    </div>
+    <div class="results">
+      <div class="result"><div class="label">Profit</div><div class="value" id="m-profit">$0.00</div></div>
+      <div class="result"><div class="label">Margin</div><div class="value" id="m-margin">0%</div></div>
+      <div class="result full"><div class="label">Markup</div><div class="value" id="m-markup">0%</div></div>
+    </div>
+    <p class="hint">Margin = profit ÷ selling price. Markup = profit ÷ cost. They're different — margin is always the lower number when there's a profit.</p>
+  </section>
+
+  <!-- Tab 2: Cost + Margin -> Price -->
+  <section class="panel" id="panel-price" style="display:none">
+    <div class="card">
+      <div class="field">
+        <label for="p-cost">Cost</label>
+        <div class="input-wrap">
+          <span class="prefix">$</span>
+          <input type="text" inputmode="decimal" id="p-cost" placeholder="0.00" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="p-margin">Target Margin</label>
+        <div class="input-wrap">
+          <input type="text" inputmode="decimal" id="p-margin" placeholder="0" />
+          <span class="suffix">%</span>
+        </div>
+      </div>
+    </div>
+    <div class="results">
+      <div class="result"><div class="label">Selling Price</div><div class="value" id="p-price">$0.00</div></div>
+      <div class="result"><div class="label">Profit</div><div class="value" id="p-profit">$0.00</div></div>
+      <div class="result full"><div class="label">Markup</div><div class="value" id="p-markup">0%</div></div>
+    </div>
+    <p class="hint">Enter your cost and the margin you want to earn, and this shows what to charge.</p>
+  </section>
+
+  <!-- Tab 3: Price + Margin -> Cost -->
+  <section class="panel" id="panel-cost" style="display:none">
+    <div class="card">
+      <div class="field">
+        <label for="c-price">Selling Price</label>
+        <div class="input-wrap">
+          <span class="prefix">$</span>
+          <input type="text" inputmode="decimal" id="c-price" placeholder="0.00" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="c-margin">Target Margin</label>
+        <div class="input-wrap">
+          <input type="text" inputmode="decimal" id="c-margin" placeholder="0" />
+          <span class="suffix">%</span>
+        </div>
+      </div>
+    </div>
+    <div class="results">
+      <div class="result"><div class="label">Max Cost</div><div class="value" id="c-cost">$0.00</div></div>
+      <div class="result"><div class="label">Profit</div><div class="value" id="c-profit">$0.00</div></div>
+      <div class="result full"><div class="label">Markup</div><div class="value" id="c-markup">0%</div></div>
+    </div>
+    <p class="hint">Enter your selling price and target margin to see the most you can pay for it.</p>
+  </section>
+</main>
+
+<footer>Works offline · Add to Home Screen for the full app feel</footer>
+
+<script src="app.js"></script>
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>
