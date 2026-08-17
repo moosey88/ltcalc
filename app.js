@@ -1,10 +1,10 @@
 (() => {
   "use strict";
 
-  const money = (n) => {
-    if (!isFinite(n)) return "$0.00";
+  const money = (n, symbol = "$") => {
+    if (!isFinite(n)) return `${symbol}0.00`;
     const sign = n < 0 ? "-" : "";
-    return `${sign}$${Math.abs(n).toFixed(2)}`;
+    return `${sign}${symbol}${Math.abs(n).toFixed(2)}`;
   };
   const pct = (n) => {
     if (!isFinite(n)) return "0%";
@@ -27,6 +27,7 @@
     margin: document.getElementById("panel-margin"),
     price: document.getElementById("panel-price"),
     cost: document.getElementById("panel-cost"),
+    lt: document.getElementById("panel-lt"),
   };
   tabs.forEach((tab) => {
     tab.addEventListener("click", () => {
@@ -84,7 +85,38 @@
   }
   [cPrice, cMargin].forEach((el) => el.addEventListener("input", calcCost));
 
+  // Tab 4: LT Pricing Tool — Option 1
+  const ltFee = document.getElementById("lt-fee");
+  const ltCustomer = document.getElementById("lt-customer");
+  const ltLabour = document.getElementById("lt-labour");
+  const ltMaterials = document.getElementById("lt-materials");
+  function calcLT() {
+    const feeRate = num(ltFee) / 100;
+    const revenue = num(ltCustomer);
+    const labour = num(ltLabour);
+    const materials = num(ltMaterials);
+
+    const profitBeforeFee = revenue - labour - materials;
+    const ltFeeAmount = revenue * feeRate;
+    const netProfit = profitBeforeFee - ltFeeAmount;
+    const marginBeforeFee = revenue !== 0 ? (profitBeforeFee / revenue) * 100 : 0;
+    const marginNet = revenue !== 0 ? (netProfit / revenue) * 100 : 0;
+    const costs = labour + materials;
+    const markup = costs !== 0 ? (profitBeforeFee / costs) * 100 : 0;
+    const labourPct = revenue !== 0 ? (labour / revenue) * 100 : 0;
+
+    setValue("lt-profit", money(profitBeforeFee, "£"), profitBeforeFee < 0);
+    setValue("lt-ltfee", money(ltFeeAmount, "£"), ltFeeAmount < 0);
+    setValue("lt-net", money(netProfit, "£"), netProfit < 0);
+    setValue("lt-margin-before", pct(marginBeforeFee), marginBeforeFee < 0);
+    setValue("lt-margin-net", pct(marginNet), marginNet < 0);
+    setValue("lt-markup", pct(markup), markup < 0);
+    setValue("lt-labour-pct", pct(labourPct), labourPct < 0);
+  }
+  [ltFee, ltCustomer, ltLabour, ltMaterials].forEach((el) => el.addEventListener("input", calcLT));
+
   calcMargin();
   calcPrice();
   calcCost();
+  calcLT();
 })();

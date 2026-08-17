@@ -192,6 +192,7 @@
     <button class="tab active" data-tab="margin">Margin</button>
     <button class="tab" data-tab="price">Find Price</button>
     <button class="tab" data-tab="cost">Find Cost</button>
+    <button class="tab" data-tab="lt">LT Pricing</button>
   </div>
 
   <!-- Tab 1: Cost + Price -> Margin, Markup, Profit -->
@@ -270,6 +271,50 @@
       <div class="result full"><div class="label">Markup</div><div class="value" id="c-markup">0%</div></div>
     </div>
     <p class="hint">Enter your selling price and target margin to see the most you can pay for it.</p>
+  </section>
+
+  <!-- Tab 4: Local Treasures Pricing Tool — Option 1 (Customer Price + Labour + Materials -> Margin/Markup) -->
+  <section class="panel" id="panel-lt" style="display:none">
+    <div class="card">
+      <div class="field">
+        <label for="lt-fee">LT Fee Rate</label>
+        <div class="input-wrap">
+          <input type="text" inputmode="decimal" id="lt-fee" placeholder="0" value="6.65" />
+          <span class="suffix">%</span>
+        </div>
+      </div>
+      <div class="field">
+        <label for="lt-customer">Customer Price</label>
+        <div class="input-wrap">
+          <span class="prefix">£</span>
+          <input type="text" inputmode="decimal" id="lt-customer" placeholder="0.00" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="lt-labour">Treasure Price / Labour</label>
+        <div class="input-wrap">
+          <span class="prefix">£</span>
+          <input type="text" inputmode="decimal" id="lt-labour" placeholder="0.00" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="lt-materials">Materials</label>
+        <div class="input-wrap">
+          <span class="prefix">£</span>
+          <input type="text" inputmode="decimal" id="lt-materials" placeholder="0.00" />
+        </div>
+      </div>
+    </div>
+    <div class="results">
+      <div class="result"><div class="label">HHH Profit (before fee)</div><div class="value" id="lt-profit">£0.00</div></div>
+      <div class="result"><div class="label">LT Fee</div><div class="value" id="lt-ltfee">£0.00</div></div>
+      <div class="result"><div class="label">HHH Net Profit</div><div class="value" id="lt-net">£0.00</div></div>
+      <div class="result"><div class="label">Margin % before Fee</div><div class="value" id="lt-margin-before">0%</div></div>
+      <div class="result"><div class="label">Margin % (Net ÷ Revenue)</div><div class="value" id="lt-margin-net">0%</div></div>
+      <div class="result"><div class="label">Markup %</div><div class="value" id="lt-markup">0%</div></div>
+      <div class="result full"><div class="label">Labour % Cost</div><div class="value" id="lt-labour-pct">0%</div></div>
+    </div>
+    <p class="hint">Local Treasures Pricing Tool — Option 1: enter Customer Price, Labour, and Materials to see HHH's margin and markup.</p>
   </section>
 </main>
 
