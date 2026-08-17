@@ -254,44 +254,70 @@
     <button class="tab" data-tab="cost">Find Cost</button>
   </div>
 
-  <!-- Tab 1: Cost + Price -> Margin, Markup, Profit -->
+  <!-- Shared LT fee settings, applied to every tab's margin/profit figures -->
+  <div class="card">
+    <div class="field">
+      <label for="fee-rate">LT Fee Rate (base)</label>
+      <div class="input-wrap">
+        <input type="text" inputmode="decimal" id="fee-rate" placeholder="0" value="9" />
+        <span class="suffix">%</span>
+      </div>
+    </div>
+    <div class="field">
+      <div class="toggle-row">
+        <label for="bank-fee" class="toggle-label">
+          Include bank fees
+          <span class="toggle-sub">+1.8%</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="bank-fee" />
+          <span class="slider"></span>
+        </label>
+      </div>
+      <p class="hint" id="effective-rate">Effective rate: 9.0%</p>
+    </div>
+  </div>
+
+  <!-- Tab 1: Cost + Price -> Margin, Markup, Profit (LT fee included) -->
   <section class="panel" id="panel-margin" style="display:none">
     <div class="card">
       <div class="field">
         <label for="m-cost">Cost</label>
         <div class="input-wrap">
-          <span class="prefix">$</span>
+          <span class="prefix">£</span>
           <input type="text" inputmode="decimal" id="m-cost" placeholder="0.00" />
         </div>
       </div>
       <div class="field">
         <label for="m-price">Selling Price</label>
         <div class="input-wrap">
-          <span class="prefix">$</span>
+          <span class="prefix">£</span>
           <input type="text" inputmode="decimal" id="m-price" placeholder="0.00" />
         </div>
       </div>
     </div>
     <div class="results">
-      <div class="result"><div class="label">Profit</div><div class="value" id="m-profit">$0.00</div></div>
-      <div class="result"><div class="label">Margin</div><div class="value" id="m-margin">0%</div></div>
+      <div class="result"><div class="label">Profit (before fee)</div><div class="value" id="m-profit">£0.00</div></div>
+      <div class="result"><div class="label">LT Fee</div><div class="value" id="m-ltfee">£0.00</div></div>
+      <div class="result"><div class="label">Net Profit</div><div class="value" id="m-net">£0.00</div></div>
+      <div class="result"><div class="label">Margin (Net)</div><div class="value" id="m-margin">0%</div></div>
       <div class="result full"><div class="label">Markup</div><div class="value" id="m-markup">0%</div></div>
     </div>
-    <p class="hint">Margin = profit ÷ selling price. Markup = profit ÷ cost. They're different — margin is always the lower number when there's a profit.</p>
+    <p class="hint">Margin = net profit (after LT fee) ÷ selling price. Markup = profit before fee ÷ cost.</p>
   </section>
 
-  <!-- Tab 2: Cost + Margin -> Price -->
+  <!-- Tab 2: Cost + Target Net Margin -> Price (LT fee included) -->
   <section class="panel" id="panel-price" style="display:none">
     <div class="card">
       <div class="field">
         <label for="p-cost">Cost</label>
         <div class="input-wrap">
-          <span class="prefix">$</span>
+          <span class="prefix">£</span>
           <input type="text" inputmode="decimal" id="p-cost" placeholder="0.00" />
         </div>
       </div>
       <div class="field">
-        <label for="p-margin">Target Margin</label>
+        <label for="p-margin">Target Net Margin</label>
         <div class="input-wrap">
           <input type="text" inputmode="decimal" id="p-margin" placeholder="0" />
           <span class="suffix">%</span>
@@ -299,25 +325,27 @@
       </div>
     </div>
     <div class="results">
-      <div class="result"><div class="label">Selling Price</div><div class="value" id="p-price">$0.00</div></div>
-      <div class="result"><div class="label">Profit</div><div class="value" id="p-profit">$0.00</div></div>
+      <div class="result"><div class="label">Selling Price</div><div class="value" id="p-price">£0.00</div></div>
+      <div class="result"><div class="label">Profit (before fee)</div><div class="value" id="p-profit">£0.00</div></div>
+      <div class="result"><div class="label">LT Fee</div><div class="value" id="p-ltfee">£0.00</div></div>
+      <div class="result"><div class="label">Net Profit</div><div class="value" id="p-net">£0.00</div></div>
       <div class="result full"><div class="label">Markup</div><div class="value" id="p-markup">0%</div></div>
     </div>
-    <p class="hint">Enter your cost and the margin you want to earn, and this shows what to charge.</p>
+    <p class="hint">Enter your cost and the net margin you want after the LT fee — this shows what to charge.</p>
   </section>
 
-  <!-- Tab 3: Price + Margin -> Cost -->
+  <!-- Tab 3: Price + Target Net Margin -> Max Cost (LT fee included) -->
   <section class="panel" id="panel-cost" style="display:none">
     <div class="card">
       <div class="field">
         <label for="c-price">Selling Price</label>
         <div class="input-wrap">
-          <span class="prefix">$</span>
+          <span class="prefix">£</span>
           <input type="text" inputmode="decimal" id="c-price" placeholder="0.00" />
         </div>
       </div>
       <div class="field">
-        <label for="c-margin">Target Margin</label>
+        <label for="c-margin">Target Net Margin</label>
         <div class="input-wrap">
           <input type="text" inputmode="decimal" id="c-margin" placeholder="0" />
           <span class="suffix">%</span>
@@ -325,36 +353,18 @@
       </div>
     </div>
     <div class="results">
-      <div class="result"><div class="label">Max Cost</div><div class="value" id="c-cost">$0.00</div></div>
-      <div class="result"><div class="label">Profit</div><div class="value" id="c-profit">$0.00</div></div>
+      <div class="result"><div class="label">Max Cost</div><div class="value" id="c-cost">£0.00</div></div>
+      <div class="result"><div class="label">Profit (before fee)</div><div class="value" id="c-profit">£0.00</div></div>
+      <div class="result"><div class="label">LT Fee</div><div class="value" id="c-ltfee">£0.00</div></div>
+      <div class="result"><div class="label">Net Profit</div><div class="value" id="c-net">£0.00</div></div>
       <div class="result full"><div class="label">Markup</div><div class="value" id="c-markup">0%</div></div>
     </div>
-    <p class="hint">Enter your selling price and target margin to see the most you can pay for it.</p>
+    <p class="hint">Enter your selling price and the net margin you want after the LT fee — this shows the most you can pay for it.</p>
   </section>
 
   <!-- Tab 4: Local Treasures Pricing Tool — Option 1 (Customer Price + Labour + Materials -> Margin/Markup) -->
   <section class="panel" id="panel-lt">
     <div class="card">
-      <div class="field">
-        <label for="lt-fee">LT Fee Rate (base)</label>
-        <div class="input-wrap">
-          <input type="text" inputmode="decimal" id="lt-fee" placeholder="0" value="9" />
-          <span class="suffix">%</span>
-        </div>
-      </div>
-      <div class="field">
-        <div class="toggle-row">
-          <label for="lt-bank-fee" class="toggle-label">
-            Include bank fees
-            <span class="toggle-sub">+1.8%</span>
-          </label>
-          <label class="switch">
-            <input type="checkbox" id="lt-bank-fee" />
-            <span class="slider"></span>
-          </label>
-        </div>
-        <p class="hint" id="lt-effective-rate">Effective rate: 9.0%</p>
-      </div>
       <div class="field">
         <label for="lt-customer">Customer Price</label>
         <div class="input-wrap">
