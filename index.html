@@ -189,14 +189,14 @@
 
 <main>
   <div class="tabs" role="tablist">
-    <button class="tab active" data-tab="margin">Margin</button>
+    <button class="tab active" data-tab="lt">LT Pricing</button>
+    <button class="tab" data-tab="margin">Margin</button>
     <button class="tab" data-tab="price">Find Price</button>
     <button class="tab" data-tab="cost">Find Cost</button>
-    <button class="tab" data-tab="lt">LT Pricing</button>
   </div>
 
   <!-- Tab 1: Cost + Price -> Margin, Markup, Profit -->
-  <section class="panel" id="panel-margin">
+  <section class="panel" id="panel-margin" style="display:none">
     <div class="card">
       <div class="field">
         <label for="m-cost">Cost</label>
@@ -274,7 +274,7 @@
   </section>
 
   <!-- Tab 4: Local Treasures Pricing Tool — Option 1 (Customer Price + Labour + Materials -> Margin/Markup) -->
-  <section class="panel" id="panel-lt" style="display:none">
+  <section class="panel" id="panel-lt">
     <div class="card">
       <div class="field">
         <label for="lt-fee">LT Fee Rate</label>
