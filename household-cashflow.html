@@ -1,0 +1,645 @@
+<title>Household Cashflow</title>
+<style>
+/* Layout: sticky header + wrapped tab row; single column of panels that become 2-col on wide screens. Blue = bank, violet = Amex, status colours separate. */
+:root{
+  --bg:#f2f5f7; --surface:#ffffff; --surface2:#e9eff3; --ink:#15232e; --ink2:#4a5d6b; --muted:#7a8b97; --line:#d5dee5;
+  --bank:#1f5fd6; --amex:#7a45d1; --good:#1f8a4f; --warn:#b97800; --bad:#c23b2b;
+  --good-bg:#e0f3e7; --warn-bg:#fbeecb; --bad-bg:#f9dcd7; --bank-bg:#dde8fb;
+  --f-disp:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif; --f-body:'Figtree','Segoe UI',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d171d; --surface:#15232c; --surface2:#1c2f3a; --ink:#e7eff4; --ink2:#a9bac6; --muted:#7d909d; --line:#27404e;
+  --bank:#6b9cff; --amex:#b08cf5; --good:#4cc585; --warn:#e4b04a; --bad:#f07a69;
+  --good-bg:#15382a; --warn-bg:#3b3116; --bad-bg:#431f1a; --bank-bg:#1a2c4d; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d171d; --surface:#15232c; --surface2:#1c2f3a; --ink:#e7eff4; --ink2:#a9bac6; --muted:#7d909d; --line:#27404e;
+  --bank:#6b9cff; --amex:#b08cf5; --good:#4cc585; --warn:#e4b04a; --bad:#f07a69;
+  --good-bg:#15382a; --warn-bg:#3b3116; --bad-bg:#431f1a; --bank-bg:#1a2c4d; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;padding-inline:16px;padding-block:0 48px}
+.wrap{max-width:1120px;margin:0 auto}
+h1,h2,h3{font-family:var(--f-disp);margin:0;text-wrap:balance;letter-spacing:-.01em}
+h2{font-size:1.25rem} h3{font-size:1.02rem}
+.num,td.n,.kpi b,.big{font-variant-numeric:tabular-nums}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:12px 6px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.top h1{font-size:1.35rem}
+.sync{font-size:.8rem;color:var(--muted);display:flex;gap:8px;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block}
+.dot.ok{background:var(--good)} .dot.bad{background:var(--bad)}
+nav{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
+nav button{font:inherit;font-weight:600;font-size:.88rem;background:none;border:1px solid transparent;color:var(--ink2);padding:7px 12px;border-radius:8px;cursor:pointer}
+nav button[aria-selected="true"]{background:var(--ink);color:var(--bg)}
+nav button:hover:not([aria-selected="true"]){background:var(--surface2)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--bank);outline-offset:2px}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(12,minmax(0,1fr))}
+.c12{grid-column:span 12}.c8{grid-column:span 8}.c6{grid-column:span 6}.c4{grid-column:span 4}.c3{grid-column:span 3}
+@media(max-width:860px){.c8,.c6,.c4,.c3{grid-column:span 12}}
+.kpis{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0}
+.panel>h2,.panel>h3{margin-bottom:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}
+.kpi span{display:block;font-size:.76rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.kpi b{display:block;font-family:var(--f-disp);font-size:1.6rem;margin:2px 0;font-weight:700}
+.kpi small{color:var(--ink2);font-size:.8rem}
+.pos{color:var(--good)} .neg{color:var(--bad)} .warnc{color:var(--warn)}
+.pill{display:inline-block;font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:99px;letter-spacing:.03em}
+.pill.good{background:var(--good-bg);color:var(--good)} .pill.warn{background:var(--warn-bg);color:var(--warn)} .pill.bad{background:var(--bad-bg);color:var(--bad)} .pill.info{background:var(--bank-bg);color:var(--bank)}
+.banner{border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:.92rem;display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.banner.warn{background:var(--warn-bg);color:var(--ink)} .banner.bad{background:var(--bad-bg);color:var(--ink)} .banner.good{background:var(--good-bg);color:var(--ink)}
+.tblwrap{overflow-x:auto;max-width:100%}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;font-weight:700;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.n,th.n{text-align:right} tr.tot td{font-weight:700;border-top:2px solid var(--line)}
+input,select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:5px 7px;min-width:0;max-width:100%}
+td input[type=text]{width:100%;min-width:120px} td input[type=number]{width:92px;text-align:right} td input[type=date]{width:140px}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--amex)}
+.btn{font:inherit;font-weight:600;font-size:.86rem;background:var(--ink);color:var(--bg);border:0;border-radius:8px;padding:7px 12px;cursor:pointer}
+.btn.ghost{background:none;color:var(--ink);border:1px solid var(--line)} .btn.sm{padding:3px 8px;font-size:.78rem}
+.btn.danger{background:none;color:var(--bad);border:1px solid var(--line)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.muted{color:var(--muted)} .small{font-size:.82rem} .ink2{color:var(--ink2)}
+.lbl{font-size:.76rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
+.sl{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;margin-bottom:12px}
+.sl label{font-weight:600;font-size:.9rem} .sl output{font-weight:700;font-variant-numeric:tabular-nums}
+.sl input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--bank);padding:0}
+.sl .hint{grid-column:1/-1;font-size:.76rem;color:var(--muted)}
+.bar{height:10px;background:var(--surface2);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--bank);border-radius:99px}
+.bar i.g{background:var(--good)} .bar i.w{background:var(--warn)} .bar i.r{background:var(--bad)}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{display:flex;justify-content:space-between;gap:10px;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0} .item .l{min-width:0}
+.tabs2{display:flex;gap:4px} .tabs2 button{font:inherit;font-size:.8rem;padding:4px 10px;border:1px solid var(--line);background:none;color:var(--ink2);border-radius:99px;cursor:pointer}
+.tabs2 button[aria-pressed="true"]{background:var(--bank);color:#fff;border-color:var(--bank)}
+svg text{fill:var(--muted);font-family:var(--f-body);font-size:11px}
+.chart{position:relative;width:100%}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:.78rem;padding:6px 9px;border-radius:7px;white-space:nowrap;display:none;z-index:2}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--ink2);margin-top:6px}
+.legend i{display:inline-block;width:14px;height:0;border-top:3px solid;vertical-align:middle;margin-right:5px}
+.ex{font-size:.7rem;font-weight:700;color:var(--warn);margin-left:6px}
+.compare{display:grid;grid-template-columns:minmax(0,1.3fr) repeat(3,minmax(0,1fr));gap:6px 10px;font-size:.9rem;align-items:baseline}
+.compare .h{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
+.compare div.n{text-align:right;font-variant-numeric:tabular-nums}
+.note{background:var(--surface2);border-radius:8px;padding:10px 12px;font-size:.86rem;color:var(--ink2)}
+.fileBox{border:2px dashed var(--line);border-radius:12px;padding:18px;text-align:center}
+@media(prefers-reduced-motion:no-preference){.bar i{transition:width .25s}}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&display=swap">
+
+<div class="wrap">
+<header>
+  <div class="top">
+    <h1>Household Cashflow</h1>
+    <div class="sync"><span id="who"></span><span class="dot" id="syncDot"></span><span id="syncTxt">Loading…</span>
+      <button class="btn ghost sm" id="themeBtn" title="Switch light or dark">Theme</button></div>
+  </div>
+  <nav id="nav" role="tablist"></nav>
+</header>
+<main id="main"></main>
+</div>
+
+<script>
+/* ============ helpers ============ */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const GBP=v=>{if(v==null||isNaN(v))return'–';const s=Math.abs(v).toLocaleString('en-GB',{minimumFractionDigits:0,maximumFractionDigits:0});return(v<0?'−':'')+'£'+s};
+const GBP2=v=>{if(v==null||isNaN(v))return'–';return(v<0?'−':'')+'£'+Math.abs(v).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})};
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const DAY=864e5;
+const U=(y,m,d)=>Date.UTC(y,m,d);
+const parseISO=s=>{const[a,b,c]=s.split('-').map(Number);return U(a,b-1,c)};
+const iso=t=>new Date(t).toISOString().slice(0,10);
+const ym=t=>iso(t).slice(0,7);
+const dim=(y,m)=>new Date(Date.UTC(y,m+1,0)).getUTCDate();
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const fdate=t=>{const d=new Date(t);return d.getUTCDate()+' '+MON[d.getUTCMonth()]+(d.getUTCFullYear()!==new Date().getFullYear()?' '+String(d.getUTCFullYear()).slice(2):'')};
+const fmonth=k=>{const[y,m]=k.split('-').map(Number);return MON[m-1]+' '+String(y).slice(2)};
+const uid=()=>Math.random().toString(36).slice(2,8);
+const todayISO=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const clone=o=>JSON.parse(JSON.stringify(o));
+
+/* ============ starting plan (from the Sept 26 tab of Finances.xlsx) ============ */
+function defaultPlan(){return{
+  v:1, asOf:todayISO(), bank:null, horizon:24, buffer:500, amexShare:0,
+  income:[
+    {id:'i_annie',name:'Annie wages',amount:8333,day:28},
+    {id:'i_sander',name:'Sander wages (varies)',amount:1500,day:29}],
+  bills:[
+    {id:'b_mort',name:'Mortgage',amount:1818.69,day:2,card:false,fee:0},
+    {id:'b_ctax',name:'Council tax',amount:260,day:2,card:false,fee:0},
+    {id:'b_vet',name:'Vet cover',amount:20,day:2,card:false,fee:0,guess:1},
+    {id:'b_phone',name:'Annie / girls phone',amount:77.94,day:2,card:false,fee:0},
+    {id:'b_gym',name:'Sander and Erin gym',amount:67,day:2,card:false,fee:0,guess:1},
+    {id:'b_water',name:'Water',amount:53,day:2,card:false,fee:0,guess:1},
+    {id:'b_bb',name:'Broadband and TV',amount:9.1,day:2,card:false,fee:0,guess:1},
+    {id:'b_netflix',name:'Netflix',amount:18.99,day:10,card:false,fee:0},
+    {id:'b_phyl',name:'Phyliss',amount:8.68,day:10,card:false,fee:0,guess:1},
+    {id:'b_prime',name:'Amazon Prime',amount:8.99,day:10,card:false,fee:0,guess:1},
+    {id:'b_spot',name:'Spotify',amount:21.99,day:24,card:false,fee:0},
+    {id:'b_gas',name:'Gas & electric',amount:282,day:21,card:false,fee:0}],
+  debts:[
+    {id:'d_tax',name:'Tax bill repayment',balance:null,apr:0,pay:1000,day:9},
+    {id:'d_mbna',name:'MBNA loan (Annie car)',balance:null,apr:0,pay:0,day:1},
+    {id:'d_ikea',name:'Ikea repayment',balance:null,apr:0,pay:0,day:1}],
+  vars:[
+    {id:'v_acash',name:'Annie Cash',budget:750,cardOK:false},
+    {id:'v_scash',name:'Sander Cash',budget:500,cardOK:false},
+    {id:'v_shop',name:'Shopping',budget:650,cardOK:true},
+    {id:'v_round',name:'Roundups',budget:15,cardOK:false},
+    {id:'v_gen',name:'General Merchandise',budget:200,cardOK:true},
+    {id:'v_eat',name:'Takeout / Restaurants / Entertainment',budget:200,cardOK:true},
+    {id:'v_home',name:'Home maintenance',budget:100,cardOK:true}],
+  savings:{monthly:2000,day:1,general:9.54},
+  goals:[
+    {id:'g_xmas',name:'Christmas 2026',target:1500,saved:0,date:'2026-12-15',monthly:0,spend:true,example:1},
+    {id:'g_hol',name:'Summer holiday 2027',target:4000,saved:0,date:'2027-07-15',monthly:0,spend:true,example:1}],
+  oneoffs:[
+    {id:'o_ex',name:'Example: car service and MOT',amount:600,date:addDays(todayISO(),45),pay:'bank',example:1}],
+  amex:{closeDay:5,dueDays:25,rate:1,pv:1.2,owed:0,limit:null},
+  mortgage:{balance:null,rate:null,overpay:0},
+  rules:[
+    {k:'TESCO',c:'v_shop'},{k:'SAINSBURY',c:'v_shop'},{k:'ASDA',c:'v_shop'},{k:'LIDL',c:'v_shop'},{k:'ALDI',c:'v_shop'},{k:'WAITROSE',c:'v_shop'},{k:'MORRISONS',c:'v_shop'},{k:'OCADO',c:'v_shop'},{k:'CO-OP',c:'v_shop'},
+    {k:'ROUND UP',c:'v_round'},{k:'ROUNDUP',c:'v_round'},
+    {k:'AMAZON',c:'v_gen'},{k:'ARGOS',c:'v_gen'},
+    {k:'DELIVEROO',c:'v_eat'},{k:'JUST EAT',c:'v_eat'},{k:'UBER EATS',c:'v_eat'},{k:'COSTA',c:'v_eat'},{k:'STARBUCKS',c:'v_eat'},{k:'PRET',c:'v_eat'},{k:'NANDO',c:'v_eat'},{k:'MCDONALD',c:'v_eat'},{k:'CINEMA',c:'v_eat'},
+    {k:'B&Q',c:'v_home'},{k:'SCREWFIX',c:'v_home'},{k:'WICKES',c:'v_home'},
+    {k:'CASH',c:'v_acash'},{k:'ATM',c:'v_acash'}]
+}}
+function addDays(s,n){return iso(parseISO(s)+n*DAY)}
+
+/* ============ forecast engine ============ */
+function withScenario(plan,sc){
+  if(!sc)return plan;
+  const p=clone(plan);
+  p.income.forEach(i=>{if(sc.inc[i.id]!=null)i.amount=sc.inc[i.id]});
+  p.vars.forEach(v=>{if(sc.vars[v.id]!=null)v.budget=sc.vars[v.id]});
+  p.savings.monthly=sc.sav; p.mortgage.overpay=sc.over; p.amexShare=sc.share; p.buffer=sc.buffer;
+  return p;
+}
+function monthsBetween(a,b){const x=new Date(a),y=new Date(b);return(y.getUTCFullYear()-x.getUTCFullYear())*12+y.getUTCMonth()-x.getUTCMonth()}
+
+function simulate(p){
+  const start=parseISO(p.asOf)+DAY, end=U(new Date(start).getUTCFullYear(),new Date(start).getUTCMonth()+p.horizon,new Date(start).getUTCDate());
+  const A=p.amex;
+  let bank=p.bank||0, cycle=A.owed||0, stmts=[], owedStmts=0, cardSpendTotal=0, feeTotal=0;
+  const pots={general:p.savings.general||0}; p.goals.forEach(g=>pots[g.id]=g.saved||0);
+  const done={}; const hit={}; const goalSpend={};
+  const dbal={}; p.debts.forEach(d=>dbal[d.id]=d.balance);
+  // savings event dates
+  const sdays=[]; {let d=start;while(d<=end){const dt=new Date(d);const dd=Math.min(p.savings.day,dim(dt.getUTCFullYear(),dt.getUTCMonth()));if(dt.getUTCDate()===dd)sdays.push(d);d+=DAY}}
+  const days=[], months={}, events=[], statementsOut=[];
+  let lowBank={v:1e12,t:0}, lowTrue={v:1e12,t:0};
+  const mkey=t=>ym(t);
+  for(let t=start;t<=end;t+=DAY){
+    const dt=new Date(t),y=dt.getUTCFullYear(),m=dt.getUTCMonth(),d=dt.getUTCDate(),n=dim(y,m);
+    const M=months[mkey(t)]||(months[mkey(t)]={k:mkey(t),inc:0,bills:0,debt:0,vars:0,one:0,sav:0,over:0,feeN:0,cardSpend:0,amexPaid:0,goalOut:0});
+    const onDay=day=>d===Math.min(day,n);
+    const charge=(amt,card,fee)=>{ // returns nothing; handles bank vs amex
+      if(card){cycle+=amt;cardSpendTotal+=amt;const f=amt*(fee||0)/100;if(f>0){bank-=f;feeTotal+=f;M.feeN+=f}}else bank-=amt};
+    // income
+    p.income.forEach(i=>{if(onDay(i.day)){bank+=i.amount;M.inc+=i.amount;events.push({t,k:'in',n:i.name,a:i.amount})}});
+    // fixed bills
+    p.bills.forEach(b=>{if(onDay(b.day)){charge(b.amount,b.card,b.fee);M.bills+=b.amount;if(b.id==='b_mort'||/mortgage/i.test(b.name)){if(p.mortgage.overpay>0){bank-=p.mortgage.overpay;M.over+=p.mortgage.overpay}}}});
+    // debts
+    p.debts.forEach(x=>{if(onDay(x.day)&&x.pay>0){let pay=x.pay;const b=dbal[x.id];
+      if(b!=null){if(b<=0)return;const bal=b*(1+(x.apr||0)/1200);pay=Math.min(pay,bal);dbal[x.id]=bal-pay;if(dbal[x.id]<=0.005){dbal[x.id]=0;x.__end=x.__end||t}}
+      bank-=pay;M.debt+=pay}});
+    // variable spend, evenly each day
+    const share=Math.min(1,Math.max(0,(p.amexShare||0)/100));
+    p.vars.forEach(v=>{const a=v.budget/n;const cardPart=v.cardOK?a*share:0;if(cardPart>0){cycle+=cardPart;cardSpendTotal+=cardPart}bank-=a-cardPart;M.vars+=a});
+    // one-offs
+    p.oneoffs.forEach(o=>{if(o.date===iso(t)){M.one+=o.amount;events.push({t,k:'one',n:o.name,a:-o.amount,pay:o.pay});
+      if(o.pay==='amex'){cycle+=o.amount;cardSpendTotal+=o.amount}
+      else if(o.pay==='savings'){const take=Math.min(pots.general,o.amount);pots.general-=take;bank-=o.amount-take}
+      else bank-=o.amount}});
+    // savings transfer + goal allocation
+    if(sdays.includes(t)){
+      let avail=Math.min(p.savings.monthly,Math.max(0,bank)+0); avail=p.savings.monthly; bank-=avail; M.sav+=avail;
+      const idx=sdays.indexOf(t);
+      const live=p.goals.filter(g=>!done[g.id]).sort((a,b)=>a.date<b.date?-1:1);
+      live.forEach(g=>{const gt=parseISO(g.date);let last=-1;sdays.forEach((s,i)=>{if(s<=gt)last=i});const left=Math.max(1,last-idx+1);
+        const need=Math.max(0,g.target-pots[g.id]);let give=g.monthly>0?Math.min(g.monthly,need):Math.min(need/left,need);give=Math.min(give,avail);
+        pots[g.id]+=give;avail-=give});
+      pots.general+=avail;
+    }
+    // goals reached / spent on date
+    p.goals.forEach(g=>{if(!hit[g.id]&&pots[g.id]>=g.target-0.005&&!done[g.id])hit[g.id]=t;
+      if(!done[g.id]&&iso(t)===g.date){const sp=g.spend?Math.min(pots[g.id],g.target):0;if(g.spend){pots[g.id]-=sp;M.goalOut+=sp}goalSpend[g.id]={t,spent:sp,short:Math.max(0,g.target-sp)};done[g.id]=true;events.push({t,k:'goal',n:g.name,a:-sp,short:Math.max(0,g.target-sp)})}});
+    // amex statement close + payment
+    if(d===Math.min(A.closeDay,n)){if(cycle>0.005){const s={close:t,due:t+A.dueDays*DAY,amt:cycle};stmts.push(s);owedStmts+=cycle;statementsOut.push(s)}cycle=0}
+    stmts.forEach(s=>{if(!s.paid&&s.due===t){bank-=s.amt;owedStmts-=s.amt;s.paid=true;M.amexPaid+=s.amt;events.push({t,k:'amex',n:'Amex statement due',a:-s.amt})}});
+    const owed=cycle+owedStmts, tru=bank-owed, sav=Object.values(pots).reduce((a,b)=>a+b,0);
+    if(bank<lowBank.v)lowBank={v:bank,t};if(tru<lowTrue.v)lowTrue={v:tru,t};
+    days.push({t,bank,owed,tru,sav});
+    M.endBank=bank;M.endTrue=tru;M.endSav=sav;M.endOwed=owed;
+  }
+  const goals=p.goals.map(g=>{const ht=hit[g.id];const gs=goalSpend[g.id];const dl=parseISO(g.date);
+    let status='ok';if(gs&&gs.short>1)status='late';else if(ht&&ht>dl)status='late';else if(!ht&&!gs)status='beyond';
+    return{...g,hit:ht,gs,status,pot:pots[g.id]}});
+  // Amex verdict
+  let verdict='good',why='Every statement is covered by cash you will hold on the due date.';
+  if(cardSpendTotal>0||(A.owed||0)>0){
+    if(lowBank.v<0){verdict='bad';why='The bank balance drops below zero on '+fdate(lowBank.t)+'. A card payment could not be made in full.'}
+    else if(lowTrue.v<p.buffer){verdict='warn';why='After setting aside what you owe Amex, cash falls to '+GBP(lowTrue.v)+' on '+fdate(lowTrue.t)+', below your '+GBP(p.buffer)+' buffer.'}
+  } else {verdict='none';why='No spend is on the card in this plan.'}
+  const float=cardSpendTotal>0?(()=>{const cl=A.closeDay;return Math.round(30.4/2+A.dueDays)})():0;
+  const nMonths=Math.max(1,monthsBetween(start,end));
+  return{days,months:Object.values(months),events,goals,pots,lowBank,lowTrue,stmts:statementsOut,verdict,why,cardSpendTotal,feeTotal,float,dbal,start,end,nMonths,
+    debtEnd:p.debts.map(d=>({id:d.id,name:d.name,end:d.__end||null}))}
+}
+function mortgageCalc(p,over){
+  const m=p.mortgage,b=p.bills.find(x=>x.id==='b_mort');if(!m.balance||m.rate==null||!b)return null;
+  const r=m.rate/1200,pay=b.amount;const run=ex=>{let bal=m.balance,i=0,int=0;while(bal>0&&i<1200){const it=bal*r;if(pay+ex<=it)return null;int+=it;bal=bal+it-pay-ex;i++}return{n:i,int}};
+  return{base:run(0),over:run(over)}
+}
+
+/* ============ persistence ============ */
+let plan=defaultPlan(), sc=null, tab='overview', txMonths={}, me=null, dbh=null, canWrite=true, lastAt=0, saveT=null, view={win:90,share:null};
+const LS='hhc_plan_v1';
+function setSync(t,cls){$('#syncTxt').textContent=t;$('#syncDot').className='dot '+(cls||'')}
+function loadLocal(){try{const s=localStorage.getItem(LS);if(s){const o=JSON.parse(s);if(o&&o.v===1){plan=o;return true}}}catch(e){}return false}
+function saveLocal(){try{localStorage.setItem(LS,JSON.stringify(plan))}catch(e){}}
+function persist(){
+  saveLocal();clearTimeout(saveT);setSync('Saving…','');
+  saveT=setTimeout(async()=>{
+    if(!dbh){setSync('Saved on this device only','bad');return}
+    try{lastAt=Date.now();await dbh.doc('hh/plan').set({json:JSON.stringify(plan),at:lastAt,by:me||''});setSync('Saved · shared with Annie','ok')}
+    catch(e){setSync(e&&e.code==='invalid_argument'?'Read-only: ask for Contributor access':'Not synced ('+(e&&e.code||'error')+')','bad')}
+  },500);
+}
+function mutate(fn){fn(plan);sc=null;persist();render()}
+function setPath(path,val){const ks=path.split('.');let o=plan;for(let i=0;i<ks.length-1;i++)o=o[ks[i]];o[ks[ks.length-1]]=val}
+
+/* ============ derived ============ */
+function scenarioInit(){sc={inc:{},vars:{},sav:plan.savings.monthly,over:plan.mortgage.overpay||0,share:plan.amexShare||0,buffer:plan.buffer};
+  plan.income.forEach(i=>sc.inc[i.id]=i.amount);plan.vars.forEach(v=>sc.vars[v.id]=v.budget)}
+const scDirty=()=>sc&&JSON.stringify(sc)!==JSON.stringify((()=>{const s=sc;scenarioInit();const r=JSON.stringify(sc);sc=s;return JSON.parse(r)})());
+function sim(p){return simulate(clone(p))}
+function monthNow(S){return S.months[0]}
+function firstFullMonth(S){return S.months.find(m=>m.k>ym(S.start-DAY))||S.months[0]}
+
+/* ============ charts ============ */
+function lineChart(id,days,opt){
+  const W=760,H=240,L=54,R=12,T=12,B=26;const n=days.length;if(!n)return'';
+  const series=opt.series;let lo=Math.min(0,opt.buffer!=null?Math.min(opt.buffer,0):0),hi=-1e12;
+  series.forEach(s=>days.forEach(d=>{const v=d[s.k];if(v<lo)lo=v;if(v>hi)hi=v}));
+  if(opt.buffer!=null&&opt.buffer>hi)hi=opt.buffer; hi=Math.max(hi,100);
+  const pad=(hi-lo)*.06;lo-=pad;hi+=pad;
+  const x=i=>L+(W-L-R)*i/Math.max(1,n-1), y=v=>T+(H-T-B)*(1-(v-lo)/(hi-lo));
+  const nice=(()=>{const span=hi-lo,raw=span/4,mag=Math.pow(10,Math.floor(Math.log10(raw))),f=raw/mag,st=(f<1.5?1:f<3?2:f<7?5:10)*mag;const a=[];for(let v=Math.ceil(lo/st)*st;v<=hi;v+=st)a.push(v);return a})();
+  let g='';nice.forEach(v=>g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="${v===0?1.5:1}"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${GBP(v)}</text>`);
+  // x labels: month starts
+  let xl='';let last='';days.forEach((d,i)=>{const k=ym(d.t);if(k!==last){last=k;if(i%Math.max(1,Math.round(n/9))<31||i===0){const dt=new Date(d.t);if(dt.getUTCDate()<=3||i===0)xl+=`<text x="${x(i)}" y="${H-7}" text-anchor="middle">${MON[dt.getUTCMonth()]}</text>`}}});
+  let paths=series.map(s=>{let d='';days.forEach((p,i)=>d+=(i?'L':'M')+x(i).toFixed(1)+' '+y(p[s.k]).toFixed(1));return`<path d="${d}" fill="none" stroke="${s.c}" stroke-width="2" ${s.dash?'stroke-dasharray="6 4"':''} stroke-linejoin="round"/>`}).join('');
+  let buf=opt.buffer!=null?`<line x1="${L}" x2="${W-R}" y1="${y(opt.buffer)}" y2="${y(opt.buffer)}" stroke="var(--warn)" stroke-width="1.5" stroke-dasharray="3 4"/><text x="${W-R}" y="${y(opt.buffer)-4}" text-anchor="end" style="fill:var(--warn)">buffer ${GBP(opt.buffer)}</text>`:'';
+  // marks for lows
+  let marks='';(opt.marks||[]).forEach(mk=>{const i=days.findIndex(d=>d.t===mk.t);if(i<0)return;marks+=`<circle cx="${x(i)}" cy="${y(mk.v)}" r="5" fill="${mk.c}" stroke="var(--surface)" stroke-width="2"/>`});
+  const html=`<div class="chart" id="${id}"><svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(opt.label)}">${g}${xl}${buf}${paths}${marks}<line class="xh" y1="${T}" y2="${H-B}" stroke="var(--ink2)" stroke-width="1" style="display:none"/></svg><div class="tip"></div></div>`;
+  setTimeout(()=>{const el=document.getElementById(id);if(!el)return;const svg=el.querySelector('svg'),tip=el.querySelector('.tip'),xh=el.querySelector('.xh');
+    const mv=e=>{const r=svg.getBoundingClientRect();const px=(e.clientX-r.left)/r.width*W;let i=Math.round((px-L)/(W-L-R)*(n-1));i=Math.max(0,Math.min(n-1,i));const d=days[i];
+      xh.style.display='';xh.setAttribute('x1',x(i));xh.setAttribute('x2',x(i));tip.style.display='block';
+      tip.innerHTML='<b>'+fdate(d.t)+'</b><br>'+series.map(s=>s.name+': '+GBP(d[s.k])).join('<br>');
+      const tx=x(i)/W*r.width;tip.style.left=Math.min(Math.max(0,tx+10),r.width-150)+'px';tip.style.top='6px'};
+    svg.addEventListener('pointermove',mv);svg.addEventListener('pointerleave',()=>{tip.style.display='none';xh.style.display='none'})},0);
+  return html;
+}
+function barChart(months){
+  const W=760,H=220,L=54,R=8,T=10,B=26;const mx=Math.max(...months.map(m=>Math.max(m.inc,m.out)),1)*1.08;
+  const y=v=>T+(H-T-B)*(1-v/mx);const bw=(W-L-R)/months.length;
+  let g='';const st=Math.pow(10,Math.floor(Math.log10(mx)))*(mx/Math.pow(10,Math.floor(Math.log10(mx)))>5?2:1);
+  for(let v=0;v<=mx;v+=st)g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${GBP(v)}</text>`;
+  let b='';months.forEach((m,i)=>{const x0=L+i*bw+bw*.14,w=bw*.34;
+    b+=`<g><title>${fmonth(m.k)}: in ${GBP(m.inc)}, out ${GBP(m.out)}</title><rect x="${x0}" y="${y(m.inc)}" width="${w}" height="${y(0)-y(m.inc)}" rx="3" fill="var(--bank)"/><rect x="${x0+w+2}" y="${y(m.out)}" width="${w}" height="${y(0)-y(m.out)}" rx="3" fill="var(--amex)"/><text x="${L+i*bw+bw/2}" y="${H-7}" text-anchor="middle">${MON[+m.k.slice(5)-1]}</text></g>`});
+  return`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Money in and out each month">${g}${b}</svg><div class="legend"><span><i style="border-color:var(--bank)"></i>Money in</span><span><i style="border-color:var(--amex)"></i>Money out (bills, spend, savings, one-offs)</span></div>`;
+}
+
+/* ============ field helpers ============ */
+function F(path,type,val,extra=''){
+  if(type==='bool')return`<input type="checkbox" data-p="${path}" data-t="bool" ${val?'checked':''} ${extra}>`;
+  if(type==='num')return`<input type="number" step="any" data-p="${path}" data-t="num" value="${val??''}" ${extra}>`;
+  if(type==='date')return`<input type="date" data-p="${path}" data-t="date" value="${val||''}" ${extra}>`;
+  return`<input type="text" data-p="${path}" data-t="str" value="${esc(val)}" ${extra}>`;
+}
+function delBtn(list,i){return`<button class="btn danger sm" data-act="del" data-list="${list}" data-i="${i}" aria-label="Remove">✕</button>`}
+
+/* ============ views ============ */
+function banners(){
+  let h='';
+  if(plan.bank==null)h+=`<div class="banner warn"><span><b>Add today's NatWest balance.</b> Until you do, the forecast starts from £0, so the lines show change rather than real cash.</span><span class="row"><input type="number" id="quickBal" placeholder="Current balance £" style="width:150px"><button class="btn sm" data-act="setbal">Save</button><button class="btn ghost sm" data-go="import">or upload CSV</button></span></div>`;
+  if(plan.debts.some(d=>d.balance==null))h+=`<div class="banner warn"><span><b>Debt balances are missing</b> for ${plan.debts.filter(d=>d.balance==null).map(d=>esc(d.name)).join(', ')}. Payments run forever until you add balances, so payoff dates can't be shown.</span><button class="btn ghost sm" data-go="bills">Add them</button></div>`;
+  if(plan.income.some(i=>/vary|varies/i.test(i.name)))h+='';
+  return h;
+}
+function verdictPill(S){return S.verdict==='good'?'<span class="pill good">Safe</span>':S.verdict==='warn'?'<span class="pill warn">Tight</span>':S.verdict==='bad'?'<span class="pill bad">Unsafe</span>':'<span class="pill info">Not used</span>'}
+
+function vOverview(){
+  const S=sim(plan),fm=firstFullMonth(S);const d90=S.days.slice(0,90);
+  const low90=d90.reduce((a,b)=>b.bank<a.bank?b:a,d90[0]);
+  const s12=S.days[Math.min(364,S.days.length-1)];
+  const win=view.win;const dd=S.days.slice(0,win===90?90:win===365?365:S.days.length);
+  const cardOn=S.cardSpendTotal>0;
+  const upcoming=S.events.filter(e=>e.t<=S.start+90*DAY&&e.k!=='in').slice(0,12);
+  const up90=S.events.filter(e=>e.t<=S.start+90*DAY);
+  const big90=up90.filter(e=>e.k==='one'||e.k==='goal'||(e.k==='amex'&&Math.abs(e.a)>800));
+  const need90=up90.filter(e=>e.k==='one'&&e.pay!=='savings').reduce((a,e)=>a-e.a,0);
+  const after=S.days[89]||S.days[S.days.length-1];
+  return banners()+`
+  <div class="kpis" style="margin-bottom:16px">
+    <div class="kpi"><span>Lowest cash, next 90 days</span><b class="${low90.bank<0?'neg':low90.bank<plan.buffer?'warnc':''}">${GBP(low90.bank)}</b><small>on ${fdate(low90.t)}</small></div>
+    <div class="kpi"><span>${MON[+fm.k.slice(5)-1]} month-end cash</span><b class="${fm.endBank<0?'neg':''}">${GBP(fm.endBank)}</b><small>${GBP(fm.inc-fm.bills-fm.debt-fm.vars-fm.one-fm.sav-fm.over)} left after bills, spend and savings</small></div>
+    <div class="kpi"><span>Savings in 12 months</span><b>${GBP(s12.sav)}</b><small>after paying out goals</small></div>
+    <div class="kpi"><span>Amex plan</span><b style="font-size:1.25rem;padding:6px 0">${verdictPill(S)}</b><small>${esc(S.why)}</small></div>
+  </div>
+  <div class="grid">
+    <div class="panel c8"><div class="row" style="justify-content:space-between;margin-bottom:6px"><h2>Cash forecast</h2>
+      <div class="tabs2">${[[90,'90 days'],[365,'12 months'],[9999,'All']].map(([w,l])=>`<button data-act="win" data-w="${w}" aria-pressed="${win===w}">${l}</button>`).join('')}</div></div>
+      ${lineChart('c1',dd,{label:'Bank balance and cash after Amex',buffer:plan.buffer,series:[{k:'bank',c:'var(--bank)',name:'Bank balance'},...(cardOn?[{k:'tru',c:'var(--amex)',name:'After Amex owed',dash:1}]:[])],marks:[{t:low90.t,v:low90.bank,c:'var(--bank)'}]})}
+      <div class="legend"><span><i style="border-color:var(--bank)"></i>Bank balance</span>${cardOn?'<span><i style="border-color:var(--amex);border-top-style:dashed"></i>Bank minus what you owe Amex</span>':''}<span><i style="border-color:var(--warn);border-top-style:dotted"></i>Your safety buffer</span></div>
+    </div>
+    <div class="panel c4"><h2>Next 90 days: what to prepare</h2>
+      ${big90.length?`<div class="list">${big90.map(e=>`<div class="item"><span class="l">${esc(e.n)}<br><small class="muted">${fdate(e.t)} · ${e.k==='amex'?'card payment':e.k==='goal'?'savings goal paid out':'one-off'}</small></span><b class="num">${GBP(-e.a)}</b></div>`).join('')}</div>`:'<p class="muted small">No big one-offs, goal payouts or large card bills in the next 90 days.</p>'}
+      <div class="note" style="margin-top:10px">${need90>0?`Cash you need to have ready for one-offs: <b>${GBP(need90)}</b>. `:''}Cash at day 90: <b>${GBP(after.bank)}</b>. ${low90.bank<plan.buffer?'<b class="warnc">The low point is under your buffer.</b> Trim spend, move savings or delay a payment.':'You stay above your buffer.'}</div>
+      <button class="btn ghost sm" style="margin-top:10px" data-go="bills">Add a one-off expense</button>
+    </div>
+    <div class="panel c6"><h2>Savings goals</h2>${goalsMini(S)}</div>
+    <div class="panel c6"><h2>Coming up</h2><div class="list">${upcoming.map(e=>`<div class="item"><span class="l">${esc(e.n)}<br><small class="muted">${fdate(e.t)}</small></span><b class="num ${e.a<0?'':'pos'}">${GBP(e.a)}</b></div>`).join('')||'<span class="muted">Nothing scheduled.</span>'}</div></div>
+  </div>`;
+}
+function goalsMini(S){
+  if(!S.goals.length)return'<p class="muted small">No goals yet. Add one on the Savings tab.</p>';
+  return S.goals.map(g=>{const cur=g.pot+(g.gs?g.gs.spent:0);const pct=Math.min(100,Math.round(((g.gs?g.gs.spent:g.pot)/g.target)*100));
+    const need=(()=>{const mo=Math.max(1,monthsBetween(parseISO(plan.asOf),parseISO(g.date)));return Math.max(0,(g.target-g.saved)/mo)})();
+    const st=g.status==='ok'?'<span class="pill good">On track</span>':g.status==='late'?'<span class="pill bad">Short by '+GBP(g.gs?g.gs.short:g.target-g.pot)+'</span>':'<span class="pill warn">Not hit in forecast</span>';
+    return`<div style="margin-bottom:14px"><div class="row" style="justify-content:space-between"><b>${esc(g.name)}${g.example?'<span class="ex">EXAMPLE</span>':''}</b>${st}</div>
+    <div class="bar" style="margin:6px 0"><i class="${g.status==='ok'?'g':g.status==='late'?'r':'w'}" style="width:${pct}%"></i></div>
+    <div class="small ink2">${GBP(g.target)} by ${fdate(parseISO(g.date))} · need about ${GBP(need)}/month${g.hit?' · fully funded '+fdate(g.hit):''}</div></div>`}).join('');
+}
+
+/* --- scenarios --- */
+function slider(id,label,val,min,max,step,hint){return`<div class="sl"><label for="${id}">${label}</label><output id="o_${id}">${typeof val==='number'&&max>200?GBP(val):val}</output><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}" data-sl="${id}">${hint?`<span class="hint">${hint}</span>`:''}</div>`}
+function vScenarios(){
+  if(!sc)scenarioInit();
+  const a=plan.income.map(i=>slider('inc_'+i.id,esc(i.name)+' per month',sc.inc[i.id],0,Math.max(12000,i.amount*1.5),50)).join('');
+  const b=plan.vars.map(v=>slider('var_'+v.id,esc(v.name),sc.vars[v.id],0,Math.max(1500,v.budget*2.5),5)).join('');
+  return banners()+`<div class="grid">
+   <div class="panel c4"><h2>Play with the numbers</h2><p class="small muted" style="margin-top:0">Nothing here changes your plan until you press <b>Make this my plan</b>.</p>
+     <div class="lbl" style="margin:10px 0">Income</div>${a}
+     <div class="lbl" style="margin:14px 0 10px">Monthly spending budgets</div>${b}
+     <div class="lbl" style="margin:14px 0 10px">Savings, mortgage and card</div>
+     ${slider('sav','Monthly savings transfer',sc.sav,0,5000,50)}
+     ${slider('over','Extra mortgage overpayment',sc.over,0,2000,25,'Comes out of cash each month. Check your lender\'s annual overpayment limit.')}
+     ${slider('share','Share of card-friendly spend put on Amex',sc.share,0,100,5,'Applies to shopping, general, eating out and home maintenance.')}
+     ${slider('buffer','Safety buffer to keep in the bank',sc.buffer,0,3000,50)}
+     <div class="row" style="margin-top:8px"><button class="btn" data-act="commit">Make this my plan</button><button class="btn ghost" data-act="reset">Reset</button></div>
+   </div>
+   <div class="panel c8" id="scRes">${scResults()}</div></div>`;
+}
+function scResults(){
+  const P=sim(plan),Sx=sim(withScenario(plan,sc));
+  const fm=firstFullMonth(P),fs=firstFullMonth(Sx);
+  const at=(S,i)=>S.days[Math.min(i,S.days.length-1)];
+  const row=(l,a,b,fmt=GBP,goodUp=true)=>{const d=b-a;const c=Math.abs(d)<0.5?'muted':(d>0)===goodUp?'pos':'neg';return`<div>${l}</div><div class="n">${fmt(a)}</div><div class="n">${fmt(b)}</div><div class="n ${c}">${Math.abs(d)<0.5?'–':(d>0?'+':'−')+fmt(Math.abs(d))}</div>`};
+  const net=m=>m.inc-m.bills-m.debt-m.vars-m.one-m.sav-m.over;
+  const mc=mortgageCalc(plan,sc.over);
+  let mtxt='';
+  if(sc.over>0){mtxt=mc&&mc.base&&mc.over?`<div class="note">Overpaying ${GBP(sc.over)}/month clears the mortgage <b>${Math.floor((mc.base.n-mc.over.n)/12)} years ${(mc.base.n-mc.over.n)%12} months earlier</b> and saves about <b>${GBP(mc.base.int-mc.over.int)}</b> interest. It also takes ${GBP(sc.over*12)} a year out of cash and savings.</div>`:`<div class="note">Add your mortgage balance and interest rate on the Savings tab to see how much interest an overpayment saves.</div>`}
+  const goalsRows=Sx.goals.map(g=>{const p0=P.goals.find(x=>x.id===g.id);const f=x=>x.hit?fdate(x.hit):'beyond forecast';return`<div>${esc(g.name)}</div><div class="n">${f(p0)}</div><div class="n">${f(g)}</div><div class="n">${g.status==='ok'?'<span class="pill good">on time</span>':'<span class="pill bad">late</span>'}</div>`}).join('');
+  return`<h2>What it does to your cash</h2>
+   <div class="compare" style="margin-top:10px"><div class="h"></div><div class="h n">Current plan</div><div class="h n">This scenario</div><div class="h n">Change</div>
+   ${row('Month-end cash, '+MON[+fm.k.slice(5)-1],fm.endBank,fs.endBank)}
+   ${row('Left over each month',net(fm),net(fs))}
+   ${row('Savings after 6 months',at(P,182).sav,at(Sx,182).sav)}
+   ${row('Savings after 12 months',at(P,364).sav,at(Sx,364).sav)}
+   ${row('Lowest cash in forecast',P.lowBank.v,Sx.lowBank.v)}
+   ${row('Card spend per year',P.cardSpendTotal/P.nMonths*12,Sx.cardSpendTotal/Sx.nMonths*12,GBP,true)}
+   </div>
+   ${lineChart('c2',Sx.days.slice(0,365),{label:'Scenario cash forecast',buffer:sc.buffer,series:[{k:'bank',c:'var(--bank)',name:'Bank balance'},...(Sx.cardSpendTotal>0?[{k:'tru',c:'var(--amex)',name:'After Amex owed',dash:1}]:[]),{k:'sav',c:'var(--good)',name:'Savings'}]})}
+   <div class="legend"><span><i style="border-color:var(--bank)"></i>Bank</span>${Sx.cardSpendTotal>0?'<span><i style="border-color:var(--amex);border-top-style:dashed"></i>Bank minus Amex owed</span>':''}<span><i style="border-color:var(--good)"></i>Savings</span></div>
+   <div class="note" style="margin:12px 0">Amex: ${verdictPill(Sx)} ${esc(Sx.why)}</div>${mtxt}
+   ${Sx.goals.length?`<h3 style="margin:14px 0 6px">When each goal is fully funded</h3><div class="compare"><div class="h"></div><div class="h n">Current</div><div class="h n">Scenario</div><div class="h n"></div>${goalsRows}</div>`:''}`;
+}
+
+/* --- annual --- */
+function vAnnual(){
+  const S=sim(plan);const ms=S.months.slice(0,13).map(m=>({...m,out:m.bills+m.debt+m.vars+m.one+m.sav+m.over+(m.feeN||0)}));
+  const yr=ms.slice(0,12);
+  const tot=k=>yr.reduce((a,m)=>a+m[k],0);
+  const goalsY=S.goals.filter(g=>parseISO(g.date)<=S.start+365*DAY);
+  const goalNeed=goalsY.reduce((a,g)=>a+g.target-(g.saved||0),0);
+  const oneY=plan.oneoffs.filter(o=>parseISO(o.date)<=S.start+365*DAY&&o.pay!=='savings').reduce((a,o)=>a+o.amount,0);
+  const committed=tot('bills')+tot('debt')+tot('vars');
+  const worst=yr.reduce((a,m)=>m.endBank<a.endBank?m:a,yr[0]);
+  return banners()+`<div class="grid">
+   <div class="kpis c12">
+     <div class="kpi"><span>Income, next 12 months</span><b>${GBP(tot('inc'))}</b><small>${GBP(tot('inc')/12)} a month</small></div>
+     <div class="kpi"><span>Running costs</span><b>${GBP(committed)}</b><small>bills, debts and spending budgets</small></div>
+     <div class="kpi"><span>Planned savings</span><b>${GBP(tot('sav'))}</b><small>goals need ${GBP(goalNeed)}</small></div>
+     <div class="kpi"><span>One-off expenses</span><b>${GBP(oneY)}</b><small>not pre-funded by a goal</small></div>
+     <div class="kpi"><span>Tightest month-end</span><b class="${worst.endBank<0?'neg':''}">${GBP(worst.endBank)}</b><small>${fmonth(worst.k)}</small></div>
+   </div>
+   <div class="panel c12"><h2>Money in and out, month by month</h2>${barChart(yr)}</div>
+   <div class="panel c12"><h2>Year plan</h2><div class="tblwrap"><table><thead><tr><th>Month</th><th class="n">Income</th><th class="n">Bills</th><th class="n">Debts</th><th class="n">Spending</th><th class="n">One-offs</th><th class="n">Savings in</th><th class="n">Goals paid out</th><th class="n">Bank at month-end</th><th class="n">Savings at month-end</th></tr></thead><tbody>
+   ${yr.map(m=>`<tr><td>${fmonth(m.k)}</td><td class="n">${GBP(m.inc)}</td><td class="n">${GBP(m.bills+m.over)}</td><td class="n">${GBP(m.debt)}</td><td class="n">${GBP(m.vars)}</td><td class="n">${m.one?GBP(m.one):'–'}</td><td class="n">${GBP(m.sav)}</td><td class="n">${m.goalOut?GBP(m.goalOut):'–'}</td><td class="n ${m.endBank<0?'neg':m.endBank<plan.buffer?'warnc':''}">${GBP(m.endBank)}</td><td class="n">${GBP(m.endSav)}</td></tr>`).join('')}
+   <tr class="tot"><td>12 months</td><td class="n">${GBP(tot('inc'))}</td><td class="n">${GBP(tot('bills')+tot('over'))}</td><td class="n">${GBP(tot('debt'))}</td><td class="n">${GBP(tot('vars'))}</td><td class="n">${GBP(tot('one'))}</td><td class="n">${GBP(tot('sav'))}</td><td class="n">${GBP(tot('goalOut'))}</td><td class="n"></td><td class="n"></td></tr></tbody></table></div>
+   <p class="small muted">Amex statements are paid from the bank on their due date, so card spend shows up in "Bank at month-end" about 4 to 8 weeks after you spend it.</p></div>
+   <div class="panel c12"><h2>How much do we need to save?</h2>
+    <p style="margin-top:0">To fund every goal due in the next 12 months you need <b>${GBP(goalNeed)}</b> more, about <b>${GBP(goalNeed/12)}</b> a month. You plan to save <b>${GBP(plan.savings.monthly)}</b> a month (${GBP(plan.savings.monthly*12)} a year). ${plan.savings.monthly*12>=goalNeed?'<span class="pos"><b>That covers them</b></span> with '+GBP(plan.savings.monthly*12-goalNeed)+' left for general savings.':'<span class="neg"><b>That leaves a gap of '+GBP(goalNeed-plan.savings.monthly*12)+'.</b></span>'}</p>
+    <p class="small muted">Edit goals on the Savings tab and one-off costs on Bills and debts.</p></div>
+  </div>`;
+}
+
+/* --- bills --- */
+function vBills(){
+  const inc=plan.income.map((x,i)=>`<tr><td>${F(`income.${i}.name`,'str',x.name)}</td><td class="n">${F(`income.${i}.amount`,'num',x.amount)}</td><td class="n">${F(`income.${i}.day`,'num',x.day,'min="1" max="31" style="width:60px"')}</td><td>${delBtn('income',i)}</td></tr>`).join('');
+  const bills=plan.bills.map((x,i)=>`<tr><td>${F(`bills.${i}.name`,'str',x.name)}${x.guess?'<span class="ex" title="Day not on your sheet, please check">CHECK DAY</span>':''}</td><td class="n">${F(`bills.${i}.amount`,'num',x.amount)}</td><td class="n">${F(`bills.${i}.day`,'num',x.day,'min="1" max="31" style="width:60px"')}</td><td style="text-align:center">${F(`bills.${i}.card`,'bool',x.card)}</td><td class="n">${x.card?F(`bills.${i}.fee`,'num',x.fee,'style="width:60px" min="0" step="0.1"'):''}</td><td>${delBtn('bills',i)}</td></tr>`).join('');
+  const debts=plan.debts.map((x,i)=>`<tr><td>${F(`debts.${i}.name`,'str',x.name)}</td><td class="n">${F(`debts.${i}.balance`,'num',x.balance)}</td><td class="n">${F(`debts.${i}.apr`,'num',x.apr,'style="width:64px"')}</td><td class="n">${F(`debts.${i}.pay`,'num',x.pay)}</td><td class="n">${F(`debts.${i}.day`,'num',x.day,'min="1" max="31" style="width:60px"')}</td><td>${delBtn('debts',i)}</td></tr>`).join('');
+  const vars=plan.vars.map((x,i)=>`<tr><td>${F(`vars.${i}.name`,'str',x.name)}</td><td class="n">${F(`vars.${i}.budget`,'num',x.budget)}</td><td style="text-align:center">${F(`vars.${i}.cardOK`,'bool',x.cardOK)}</td><td>${delBtn('vars',i)}</td></tr>`).join('');
+  const one=plan.oneoffs.map((x,i)=>`<tr><td>${F(`oneoffs.${i}.name`,'str',x.name)}${x.example?'<span class="ex">EXAMPLE</span>':''}</td><td class="n">${F(`oneoffs.${i}.amount`,'num',x.amount)}</td><td>${F(`oneoffs.${i}.date`,'date',x.date)}</td><td><select data-p="oneoffs.${i}.pay" data-t="str"><option value="bank" ${x.pay==='bank'?'selected':''}>Bank</option><option value="amex" ${x.pay==='amex'?'selected':''}>Amex</option><option value="savings" ${x.pay==='savings'?'selected':''}>From savings</option></select></td><td>${delBtn('oneoffs',i)}</td></tr>`).join('');
+  const totB=plan.bills.reduce((a,b)=>a+b.amount,0), totV=plan.vars.reduce((a,b)=>a+b.budget,0), totI=plan.income.reduce((a,b)=>a+b.amount,0), totD=plan.debts.reduce((a,b)=>a+b.pay,0);
+  return`<div class="grid">
+   <div class="panel c12"><h2>Income</h2><div class="tblwrap"><table><thead><tr><th>Source</th><th class="n">£ per month</th><th class="n">Pay day</th><th></th></tr></thead><tbody>${inc}</tbody></table></div>
+    <div class="row" style="margin-top:8px"><button class="btn ghost sm" data-act="add" data-list="income">+ Add income</button><span class="small muted">Pay lands within 3 days of month end, so the forecast assumes the day shown. Use the lower end of Sander's range if you want a cautious plan.</span></div></div>
+   <div class="panel c12"><h2>Regular bills <span class="muted small">${GBP2(totB)} a month</span></h2><div class="tblwrap"><table><thead><tr><th>Bill</th><th class="n">£</th><th class="n">Day</th><th style="text-align:center">On Amex</th><th class="n">Card fee %</th><th></th></tr></thead><tbody>${bills}</tbody></table></div>
+    <div class="row" style="margin-top:8px"><button class="btn ghost sm" data-act="add" data-list="bills">+ Add bill</button><span class="small muted">Tick "On Amex" to pay a bill by card. Enter the fee your biller or lender charges, because mortgage and council tax payments by card often carry one.</span></div></div>
+   <div class="panel c12"><h2>Debts <span class="muted small">${GBP2(totD)} a month</span></h2><div class="tblwrap"><table><thead><tr><th>Debt</th><th class="n">Balance left £</th><th class="n">APR %</th><th class="n">Monthly payment £</th><th class="n">Day</th><th></th></tr></thead><tbody>${debts}</tbody></table></div>
+    <div class="row" style="margin-top:8px"><button class="btn ghost sm" data-act="add" data-list="debts">+ Add debt</button><span class="small muted">With a balance the forecast stops the payments when the debt is cleared and shows the end date.</span></div></div>
+   <div class="panel c12"><h2>Variable spending budgets <span class="muted small">${GBP2(totV)} a month</span></h2><div class="tblwrap"><table><thead><tr><th>Category</th><th class="n">£ per month</th><th style="text-align:center">Can go on card</th><th></th></tr></thead><tbody>${vars}</tbody></table></div>
+    <div class="row" style="margin-top:8px"><button class="btn ghost sm" data-act="add" data-list="vars">+ Add category</button></div></div>
+   <div class="panel c12"><h2>One-off expenses</h2><div class="tblwrap"><table><thead><tr><th>What</th><th class="n">£</th><th>Date</th><th>Paid from</th><th></th></tr></thead><tbody>${one||'<tr><td colspan="5" class="muted">None yet.</td></tr>'}</tbody></table></div>
+    <div class="row" style="margin-top:8px"><button class="btn ghost sm" data-act="add" data-list="oneoffs">+ Add one-off</button><span class="small muted">For costs you haven't saved towards, such as repairs, tax, insurance renewals. Planned events with a savings pot belong on the Savings tab.</span></div></div>
+   <div class="panel c12"><div class="row" style="justify-content:space-between"><b>Monthly overview</b><span class="num">In ${GBP2(totI)} · Bills ${GBP2(totB)} · Debts ${GBP2(totD)} · Spending ${GBP2(totV)} · Savings ${GBP2(plan.savings.monthly)} → <b class="${totI-totB-totD-totV-plan.savings.monthly<0?'neg':'pos'}">${GBP2(totI-totB-totD-totV-plan.savings.monthly)}</b> left</span></div></div>
+  </div>`;
+}
+
+/* --- savings --- */
+function vSavings(){
+  const S=sim(plan);
+  const rows=S.goals.map((g,i)=>{const mo=Math.max(1,monthsBetween(parseISO(plan.asOf),parseISO(g.date)));const need=Math.max(0,(g.target-g.saved)/mo);
+    return`<tr><td>${F(`goals.${i}.name`,'str',g.name)}${g.example?'<span class="ex">EXAMPLE</span>':''}</td><td class="n">${F(`goals.${i}.target`,'num',g.target)}</td><td class="n">${F(`goals.${i}.saved`,'num',g.saved)}</td><td>${F(`goals.${i}.date`,'date',g.date)}</td><td class="n">${F(`goals.${i}.monthly`,'num',g.monthly||'','placeholder="auto"')}</td><td class="n">${GBP(need)}</td><td>${g.status==='ok'?'<span class="pill good">on track</span>':g.status==='late'?'<span class="pill bad">short '+GBP(g.gs?g.gs.short:g.target-g.pot)+'</span>':'<span class="pill warn">not funded in time</span>'}</td><td style="text-align:center">${F(`goals.${i}.spend`,'bool',g.spend)}</td><td>${delBtn('goals',i)}</td></tr>`}).join('');
+  const mc=mortgageCalc(plan,plan.mortgage.overpay||0);
+  const pots=`<div class="kpis" style="margin-bottom:16px"><div class="kpi"><span>Saved in total today</span><b>${GBP(plan.savings.general+plan.goals.reduce((a,g)=>a+(g.saved||0),0))}</b></div><div class="kpi"><span>Monthly transfer</span><b>${GBP(plan.savings.monthly)}</b><small>paid on the ${plan.savings.day}${['st','nd','rd'][plan.savings.day-1]||'th'}</small></div><div class="kpi"><span>After 12 months</span><b>${GBP(S.days[Math.min(364,S.days.length-1)].sav)}</b></div></div>`;
+  return pots+`<div class="grid">
+   <div class="panel c12"><h2>Savings goals and big events</h2>
+    <div class="tblwrap"><table><thead><tr><th>Goal</th><th class="n">Target £</th><th class="n">Saved so far £</th><th>Needed by</th><th class="n">Fixed £/month</th><th class="n">Needed per month</th><th>Forecast</th><th style="text-align:center" title="Take the money out of savings on the date">Spend on date</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="9" class="muted">No goals yet.</td></tr>'}</tbody></table></div>
+    <div class="row" style="margin-top:8px"><button class="btn ghost sm" data-act="add" data-list="goals">+ Add goal</button></div>
+    <p class="small muted">The monthly transfer is shared out by deadline: the soonest goal gets what it needs to arrive on time, and what's left builds general savings. Enter a fixed £/month to override that for one goal.</p></div>
+   <div class="panel c6"><h2>Savings settings</h2><div class="list">
+     <div class="item"><span>Monthly transfer to savings</span>${F('savings.monthly','num',plan.savings.monthly,'style="width:110px"')}</div>
+     <div class="item"><span>Day of month it moves</span>${F('savings.day','num',plan.savings.day,'min="1" max="28" style="width:80px"')}</div>
+     <div class="item"><span>General savings now (no goal)</span>${F('savings.general','num',plan.savings.general,'style="width:110px"')}</div></div></div>
+   <div class="panel c6"><h2>Mortgage</h2><div class="list">
+     <div class="item"><span>Balance left</span>${F('mortgage.balance','num',plan.mortgage.balance,'style="width:120px"')}</div>
+     <div class="item"><span>Interest rate %</span>${F('mortgage.rate','num',plan.mortgage.rate,'style="width:90px"')}</div>
+     <div class="item"><span>Regular overpayment per month</span>${F('mortgage.overpay','num',plan.mortgage.overpay,'style="width:110px"')}</div></div>
+     ${mc&&mc.base?`<div class="note" style="margin-top:10px">Current payment of ${GBP2(plan.bills.find(b=>b.id==='b_mort').amount)} clears it in about ${(mc.base.n/12).toFixed(1)} years. ${plan.mortgage.overpay>0&&mc.over?'With the overpayment: '+(mc.over.n/12).toFixed(1)+' years and '+GBP(mc.base.int-mc.over.int)+' less interest.':'Try the overpayment slider on the Scenarios tab.'}</div>`:'<p class="small muted">Add the balance and rate to see how overpaying changes the payoff date.</p>'}
+   </div></div>`;
+}
+
+/* --- amex --- */
+function vAmex(){
+  const S=sim(plan),A=plan.amex;
+  const nextStm=S.stmts.slice(0,6);
+  const yrSpend=S.cardSpendTotal/S.nMonths*12;
+  const pts=yrSpend*A.rate, val=pts*A.pv/100;
+  const tips=plan.bills.filter(b=>b.card&&b.fee>0).reduce((a,b)=>a+b.amount*12*b.fee/100,0);
+  return`<div class="grid">
+   <div class="panel c4"><h2>Amex safety check</h2><p style="margin:0 0 8px">${verdictPill(S)}</p><p class="ink2" style="margin-top:0">${esc(S.why)}</p>
+    <div class="note"><b>The rule:</b> cash sitting in the bank that you owe Amex is not yours to spend. The dashed line on the Overview chart is your bank balance minus what you owe Amex. Keep that line above your buffer and the card cannot put you into debt.</div>
+    <div class="list" style="margin-top:10px">
+     <div class="item"><span>Put on Amex</span><b>${plan.amexShare}% of card-friendly spend</b></div>
+     <div class="item"><span>Card spend per year</span><b>${GBP(yrSpend)}</b></div>
+     <div class="item"><span>Average time to pay</span><b>${S.float?S.float+' days':'–'}</b></div>
+     <div class="item"><span>Avios earned per year</span><b>${Math.round(pts).toLocaleString('en-GB')}</b></div>
+     <div class="item"><span>Worth about</span><b>${GBP(val)}</b></div>
+     <div class="item"><span>Card fees per year</span><b>${GBP(S.feeTotal/S.nMonths*12)}</b></div>
+     <div class="item"><span>Net gain</span><b class="${val-S.feeTotal/S.nMonths*12<0?'neg':'pos'}">${GBP(val-S.feeTotal/S.nMonths*12)}</b></div></div>
+    <p class="small muted">If a biller charges more than about ${(A.rate*A.pv).toFixed(1)}% to take a card, the points are worth less than the fee. Mortgage lenders rarely accept a card directly, so check before planning on it.</p></div>
+   <div class="panel c8"><h2>Statements in your forecast</h2>
+    ${nextStm.length?`<div class="tblwrap"><table><thead><tr><th>Spend period</th><th>Statement closes</th><th>You pay (in full)</th><th class="n">Amount</th><th class="n">Bank balance that day</th></tr></thead><tbody>${nextStm.map(s=>{const b=S.days.find(d=>d.t===s.due);return`<tr><td>${fdate(s.close-((new Date(s.close).getUTCDate()===A.closeDay?dim(new Date(s.close).getUTCFullYear(),new Date(s.close).getUTCMonth()-1):30)-1)*DAY)} – ${fdate(s.close)}</td><td>${fdate(s.close)}</td><td>${fdate(s.due)}</td><td class="n">${GBP(s.amt)}</td><td class="n ${b&&b.bank<s.amt?'neg':''}">${b?GBP(b.bank):'–'}</td></tr>`}).join('')}</tbody></table></div>`:'<p class="muted">No card spend in the plan yet. Raise the Amex share on the Scenarios tab or tick "On Amex" on a bill.</p>'}
+    <p class="small muted">A purchase on the day after a statement closes waits about 30 days for the statement and 25 more to pay. That gap is the cashflow benefit.</p></div>
+   <div class="panel c12"><h2>Card settings</h2><div class="row" style="gap:22px">
+     <label>Statement closes on day ${F('amex.closeDay','num',A.closeDay,'min="1" max="28" style="width:64px"')}</label>
+     <label>Payment due ${F('amex.dueDays','num',A.dueDays,'min="0" max="60" style="width:64px"')} days after</label>
+     <label>Points per £1 ${F('amex.rate','num',A.rate,'step="0.1" style="width:64px"')}</label>
+     <label>Value of 1 Avios (pence) ${F('amex.pv','num',A.pv,'step="0.1" style="width:64px"')}</label>
+     <label>Balance owed now £ ${F('amex.owed','num',A.owed,'style="width:90px"')}</label>
+     <label>Safety buffer £ ${F('buffer','num',plan.buffer,'style="width:90px"')}</label></div>
+    <p class="small muted">Your example: spend 6 Aug to 5 Sep was due on 30 Sep, which is 25 days after the statement closed, so 25 is the default. Change it if your statement says otherwise.</p></div>
+  </div>`;
+}
+
+/* --- import --- */
+function parseCSV(text){
+  const rows=[];let row=[],cur='',q=false;
+  for(let i=0;i<text.length;i++){const c=text[i];
+    if(q){if(c==='"'){if(text[i+1]==='"'){cur+='"';i++}else q=false}else cur+=c}
+    else if(c==='"')q=true; else if(c===','){row.push(cur);cur=''}
+    else if(c==='\n'||c==='\r'){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cur);cur='';if(row.some(x=>x.trim()))rows.push(row);row=[]}
+    else cur+=c}
+  if(cur||row.length){row.push(cur);if(row.some(x=>x.trim()))rows.push(row)}
+  return rows;
+}
+function toISO(s){s=s.trim().replace(/^'/,'');let m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);if(m){let y=+m[3];if(y<100)y+=2000;return y+'-'+String(m[2]).padStart(2,'0')+'-'+String(m[1]).padStart(2,'0')}
+  m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[0];m=s.match(/^(\d{1,2}) (\w{3})\w* (\d{4})$/);if(m){const mo=MON.findIndex(x=>x.toLowerCase()===m[2].toLowerCase());if(mo>=0)return m[3]+'-'+String(mo+1).padStart(2,'0')+'-'+String(m[1]).padStart(2,'0')}return null}
+function num(s){const v=parseFloat(String(s).replace(/[£,\s]/g,''));return isNaN(v)?null:v}
+function categorise(desc){const D=desc.toUpperCase();const r=plan.rules.find(r=>D.includes(r.k.toUpperCase()));return r?r.c:''}
+async function importFile(file,src){
+  const text=await file.text();const rows=parseCSV(text);if(rows.length<2)return'That file has no rows.';
+  const H=rows[0].map(h=>h.trim().toLowerCase());const col=n=>H.findIndex(h=>h===n||h.includes(n));
+  const iD=col('date'),iDesc=H.findIndex(h=>h==='description'||h.includes('descr')),iV=H.findIndex(h=>h==='value'||h==='amount'),iB=H.findIndex(h=>h==='balance');
+  if(iD<0||iDesc<0||iV<0)return'Could not find Date, Description and Value/Amount columns. Is this a NatWest or Amex CSV?';
+  const byM={};const seen={};let added=0,skipped=0,lastBal=null,lastDate='';
+  const parsed=[];
+  rows.slice(1).forEach(r=>{const d=toISO(r[iD]||'');let a=num(r[iV]);if(!d||a==null)return;if(src==='amex')a=-a;const b=iB>=0?num(r[iB]):null;parsed.push({d,t:(r[iDesc]||'').trim().replace(/\s+/g,' '),a,b})});
+  if(!parsed.length)return'No valid rows found.';
+  parsed.forEach(x=>{const key=x.d+'|'+x.t+'|'+x.a+'|'+x.b;seen[key]=(seen[key]||0)+1;x.id=key+'#'+seen[key];const k=x.d.slice(0,7);(byM[k]=byM[k]||[]).push(x)});
+  for(const k of Object.keys(byM)){const ex=(txMonths[k]||[]).filter(t=>t.s===src);const have=new Set(ex.map(t=>t.id));const others=(txMonths[k]||[]).filter(t=>t.s!==src);
+    const add=byM[k].filter(x=>!have.has(x.id)).map(x=>({id:x.id,d:x.d,t:x.t,a:x.a,b:x.b,c:categorise(x.t),s:src}));skipped+=byM[k].length-add.length;added+=add.length;
+    txMonths[k]=[...others,...ex,...add];await saveTx(k)}
+  if(src==='nw'){const withB=parsed.filter(x=>x.b!=null).sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0);if(withB.length){const L=withB[withB.length-1];const ordered=parsed.filter(x=>x.d===L.d&&x.b!=null);
+      // NatWest lists newest first; the first row for the latest date is the closing balance
+      const first=parsed.find(x=>x.d===L.d&&x.b!=null);mutate(p=>{p.bank=first.b;p.asOf=L.d});return`Added ${added} new transactions (${skipped} already imported). Balance set to ${GBP2(first.b)} as of ${fdate(parseISO(L.d))}.`}}
+  render();return`Added ${added} new transactions (${skipped} already imported).`;
+}
+async function saveTx(k){if(!dbh)return;try{await dbh.doc('tx/'+k).set({json:JSON.stringify(txMonths[k]),at:Date.now()})}catch(e){setSync('Transactions not synced ('+(e&&e.code||'error')+')','bad')}}
+function vImport(){
+  const k=ym(parseISO(plan.asOf));const tx=(txMonths[k]||[]).filter(t=>t.s);const spend=tx.filter(t=>t.a<0);
+  const by={};plan.vars.forEach(v=>by[v.id]=0);let unc=[];spend.forEach(t=>{if(t.c&&by[t.c]!=null)by[t.c]+=-t.a;else if(!t.c)unc.push(t)});
+  const dom=new Date(parseISO(plan.asOf)).getUTCDate(),n=dim(+k.slice(0,4),+k.slice(5)-1);
+  const rows=plan.vars.map(v=>{const a=by[v.id],pace=v.budget*dom/n,pct=v.budget?a/v.budget*100:0;return`<tr><td>${esc(v.name)}</td><td class="n">${GBP(a)}</td><td class="n">${GBP(v.budget)}</td><td class="n ${a>v.budget?'neg':''}">${GBP(v.budget-a)}</td><td style="min-width:110px"><div class="bar"><i class="${a>v.budget?'r':a>pace*1.1?'w':'g'}" style="width:${Math.min(100,pct)}%"></i></div></td></tr>`}).join('');
+  const catOpts=`<option value="">Choose…</option>`+plan.vars.map(v=>`<option value="${v.id}">${esc(v.name)}</option>`).join('')+'<option value="_skip">Not a budget item (bill, transfer)</option>';
+  const unTbl=unc.slice(0,25).map((t,i)=>`<tr><td>${fdate(parseISO(t.d))}</td><td>${esc(t.t)}</td><td class="n">${GBP2(-t.a)}</td><td><select data-cat="${esc(t.id)}" data-m="${k}">${catOpts}</select></td></tr>`).join('');
+  return banners()+`<div class="grid">
+   <div class="panel c12"><h2>Upload statements</h2>
+    <div class="fileBox"><p style="margin-top:0">Download the CSV from NatWest online banking (Statements, then Export) or from Amex, then choose it here. Importing again is safe: repeats are skipped.</p>
+    <div class="row" style="justify-content:center"><select id="impSrc"><option value="nw">NatWest current account</option><option value="amex">Amex card</option></select><input type="file" id="impFile" accept=".csv,text/csv"></div><p id="impMsg" class="small" style="margin-bottom:0"></p></div>
+    <p class="small muted">The account number column is ignored and never stored. NatWest's latest balance becomes your opening bank balance.</p></div>
+   <div class="panel c12"><h2>${MON[+k.slice(5)-1]} so far against budget</h2>
+    ${tx.length?`<div class="tblwrap"><table><thead><tr><th>Category</th><th class="n">Spent</th><th class="n">Budget</th><th class="n">Left</th><th>Progress</th></tr></thead><tbody>${rows}</tbody></table></div>
+     <p class="small muted">${spend.length-unc.length} of ${spend.length} payments matched a category. Bills and transfers that match no rule are listed below, and you can mark them as not a budget item.</p>`:'<p class="muted">Nothing imported for this month yet.</p>'}</div>
+   ${unc.length?`<div class="panel c12"><h2>Needs a category (${unc.length})</h2><div class="tblwrap"><table><thead><tr><th>Date</th><th>Description</th><th class="n">£</th><th>Category</th></tr></thead><tbody>${unTbl}</tbody></table></div><p class="small muted">Choosing a category remembers it for similar payments in future.</p></div>`:''}
+   </div>`;
+}
+
+/* ============ render + events ============ */
+const TABS=[['overview','Overview',vOverview],['scenarios','Scenarios',vScenarios],['annual','Year ahead',vAnnual],['bills','Bills and debts',vBills],['savings','Savings',vSavings],['amex','Amex',vAmex],['import','Statements',vImport]];
+function render(){
+  $('#nav').innerHTML=TABS.map(([k,l])=>`<button role="tab" data-tab="${k}" aria-selected="${tab===k}">${l}</button>`).join('');
+  const t=TABS.find(x=>x[0]===tab);$('#main').innerHTML=t[2]();
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.tab){tab=b.dataset.tab;render();window.scrollTo(0,0);return}
+  if(b.dataset.go){tab=b.dataset.go;render();return}
+  const a=b.dataset.act;if(!a)return;
+  if(a==='win'){view.win=+b.dataset.w;render()}
+  if(a==='setbal'){const v=parseFloat($('#quickBal').value);if(!isNaN(v))mutate(p=>{p.bank=v;p.asOf=todayISO()})}
+  if(a==='reset'){scenarioInit();render()}
+  if(a==='commit'){mutate(p=>{p.income.forEach(i=>i.amount=sc.inc[i.id]);p.vars.forEach(v=>v.budget=sc.vars[v.id]);p.savings.monthly=sc.sav;p.mortgage.overpay=sc.over;p.amexShare=sc.share;p.buffer=sc.buffer});tab='overview';render()}
+  if(a==='del'){mutate(p=>p[b.dataset.list].splice(+b.dataset.i,1))}
+  if(a==='add'){const l=b.dataset.list;mutate(p=>{const id=l[0]+'_'+uid();
+    if(l==='income')p.income.push({id,name:'New income',amount:0,day:28});
+    if(l==='bills')p.bills.push({id,name:'New bill',amount:0,day:1,card:false,fee:0});
+    if(l==='debts')p.debts.push({id,name:'New debt',balance:null,apr:0,pay:0,day:1});
+    if(l==='vars')p.vars.push({id,name:'New category',budget:0,cardOK:true});
+    if(l==='oneoffs')p.oneoffs.push({id,name:'New expense',amount:0,date:addDays(todayISO(),30),pay:'bank'});
+    if(l==='goals')p.goals.push({id,name:'New goal',target:1000,saved:0,date:addDays(todayISO(),180),monthly:0,spend:true})})}
+});
+document.addEventListener('change',async e=>{
+  const el=e.target;
+  if(el.dataset.p){let v;const t=el.dataset.t;if(t==='bool')v=el.checked;else if(t==='num')v=el.value===''?null:parseFloat(el.value);else v=el.value;
+    if(t==='num'&&v==null&&/(amount|budget|target|pay|saved|day|apr|fee|monthly|general|overpay|rate|owed|closeDay|dueDays|pv|buffer)$/.test(el.dataset.p)&&!/balance|rate$/.test(el.dataset.p))v=0;
+    mutate(p=>setPath(el.dataset.p,v));return}
+  if(el.dataset.cat){const m=el.dataset.m,id=el.dataset.cat,c=el.value;if(!c)return;const t=(txMonths[m]||[]).find(x=>x.id===id);if(!t)return;
+    const kw=t.t.toUpperCase().split(' ').filter(w=>w.length>2&&!/^\d+$/.test(w)).slice(0,2).join(' ');
+    (txMonths[m]).forEach(x=>{if(!x.c&&x.t.toUpperCase().includes(kw)&&kw)x.c=c});t.c=c;
+    if(c!=='_skip'&&kw&&!plan.rules.find(r=>r.k===kw))plan.rules.push({k:kw,c});else if(c==='_skip'&&kw&&!plan.rules.find(r=>r.k===kw))plan.rules.push({k:kw,c});
+    persist();await saveTx(m);render();return}
+  if(el.id==='impFile'&&el.files[0]){$('#impMsg').textContent='Reading…';try{const msg=await importFile(el.files[0],$('#impSrc').value);const m=$('#impMsg');if(m)m.textContent=msg}catch(err){const m=$('#impMsg');if(m)m.textContent='Could not read that file: '+err.message}}
+});
+document.addEventListener('input',e=>{
+  const el=e.target;const id=el.dataset.sl;if(!id)return;const v=+el.value;
+  if(id.startsWith('inc_'))sc.inc[id.slice(4)]=v;else if(id.startsWith('var_'))sc.vars[id.slice(4)]=v;else if(id==='share')sc.share=v;else sc[id]=v;
+  const o=$('#o_'+id);if(o)o.textContent=id==='share'?v+'%':GBP(v);
+  cancelAnimationFrame(view.raf);view.raf=requestAnimationFrame(()=>{const r=$('#scRes');if(r)r.innerHTML=scResults()});
+});
+$('#themeBtn').addEventListener('click',()=>{const r=document.documentElement;const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;r.dataset.theme=dark?'light':'dark'});
+
+/* ============ boot ============ */
+render();
+(async function(){
+  const localLoaded=loadLocal();if(localLoaded){render();setSync('Loaded from this device','')}
+  let db=null,user=null;
+  try{db=await claude.use('db');user=await claude.use('user')}catch(e){}
+  if(!db){setSync('Saved on this device only','bad');return}
+  dbh=db;try{me=user&&await user.id();$('#who').textContent=''}catch(e){}
+  try{const can=user&&await user.can('data.write');canWrite=can!==false}catch(e){}
+  db.doc('hh/plan').onSnapshot(snap=>{
+    if(snap.exists){const d=snap.data();if(d.at&&d.at===lastAt){setSync('Saved · shared with Annie','ok');return}
+      try{const o=JSON.parse(d.json);if(o&&o.v===1){plan=o;sc=null;saveLocal();if(!document.activeElement||!/INPUT|SELECT/.test(document.activeElement.tagName)||document.activeElement.type==='range')render();setSync('Synced with Annie','ok')}}catch(e){}}
+    else{setSync('Ready. Your first change will be saved and shared','ok');if(localLoaded)persist()}
+  },err=>setSync('Not synced ('+(err&&err.code||'error')+')','bad'));
+  db.collection('tx').onSnapshot(snap=>{snap.docs.forEach(d=>{try{txMonths[d.id]=JSON.parse(d.data().json)}catch(e){}});if(tab==='import')render()},()=>{});
+})();
+</script>
