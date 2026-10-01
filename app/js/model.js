@@ -1,6 +1,6 @@
 /* ===== data model: plan versions (change from a month onwards), state, categories ===== */
 function defaultPlan(){return{
-  income:[{id:'i_annie',name:'Annie wages',amount:8333,day:28},{id:'i_sander',name:'Sander wages',amount:1500,day:29,varies:true}],
+  income:[{id:'i_annie',name:'Annie wages',amount:8333,day:28},{id:'i_sander',name:'Sander wages',amount:1500,day:29,varies:true},{id:'i_niamh',name:'Niamh: phone contribution',amount:15,day:1}],
   bills:[
     {id:'b_ctax',name:'Council tax',amount:260,day:2,kind:'need',freq:'monthly',match:'council'},
     {id:'b_gas',name:'Gas & electric',amount:282,day:21,kind:'need',freq:'monthly',variable:true,match:'gas'},
@@ -46,7 +46,7 @@ function defaultState(){return{
   cashOpening:0,cashOpenDate:todayISO(),cash:[],
   debtBal:{},debtStart:{},debtLog:{},goalSaved:{},taxSaved:{},general:0,
   assets:[],nwSnaps:[],notes:{},rules:null,rulesV:2,amexOwed:0,catMap:{},lumps:[],
-  startedAt:todayISO()}}
+  startedAt:todayISO(),incSeed:1,incAct:{}}}
 const DEFAULT_RULES=[
  ['TESCO EXPRESS','v_shop','topup'],['SAINSBURYS LOCAL','v_shop','topup'],['SIMPLY FOOD','v_shop','topup'],['CO-OP','v_shop','topup'],
  ['TESCO','v_shop','main'],['SAINSBURY','v_shop','main'],['ASDA','v_shop','main'],['LIDL','v_shop','main'],['ALDI','v_shop','main'],['WAITROSE','v_shop','main'],['MORRISONS','v_shop','main'],['OCADO','v_shop','main'],['COSTCO','v_shop','main'],
@@ -130,7 +130,11 @@ function migratePlan(p){
   const k=p.vars.find(v=>v.id==='v_kids');if(k&&k.name!=='Kids'){k.name='Kids';changed=true}
   const sh=p.vars.find(v=>v.id==='v_shop');if(sh&&!sh.subs){sh.subs=[{id:'main',name:'Main shop'},{id:'topup',name:'Top-up shops'},{id:'entertain',name:'Entertaining'}];changed=true}
   return changed}
+/* income actually received, by month and stream (STATE.incAct[month][id]); falls back to the planned amount */
+const incFor=(k,i)=>{const a=STATE.incAct&&STATE.incAct[k]&&STATE.incAct[k][i.id];return a==null?i.amount:a};
+const incActualTotal=(k,P)=>sum((P||planFor(k)).income,i=>incFor(k,i));
 function migrateAll(){
+  if(!STATE.incSeed){STATE.incSeed=1;VERSIONS.forEach(v=>{if(!v.plan.income.some(i=>i.id==='i_niamh'||/niamh/i.test(i.name)))v.plan.income.push({id:'i_niamh',name:'Niamh: phone contribution',amount:15,day:1})})}
   VERSIONS.forEach(v=>migratePlan(v.plan));
   if(STATE.rulesV!==2){const defKeys=new Set(DEFAULT_RULES.map(r=>r[0]));const learned=(STATE.rules||[]).filter(r=>!defKeys.has(r.k)&&r.c!=='v_eat'&&r.c!=='v_petrol');STATE.rules=[...ruleObjs(),...learned];STATE.rulesV=2}
   if(DRAFT)migratePlan(DRAFT)}

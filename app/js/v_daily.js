@@ -38,6 +38,7 @@ function vDaily(){
      <label>Paid with<select id="e_pay"><option value="bank">Bank card</option><option value="amex">Amex</option><option value="cash">Household cash</option></select></label>
      <label>Note<input type="text" id="e_note" placeholder="optional"></label><button class="btn" data-act="addtx">Add</button></div>
     <p class="small muted" style="margin-bottom:0">Spending is joint, so there is no "who". If you also upload the NatWest file, the matching entry is merged so nothing is counted twice.</p></div>
+   ${incomePanel(m,P,src)}
    ${unsortedPanel(m,false)}
    ${dups.map(t=>`<div class="panel c12" style="border-color:var(--warn);grid-column:span 12"><h3>Is this the same purchase?</h3><div class="row" style="justify-content:space-between"><span><b>On the bank file:</b> ${esc(t.t)}, ${fdate(parseISO(t.d))}, ${GBP2(t.a)}<br><b>Typed:</b> ${t.maybe.map(id=>{const x=rec.rows.find(r=>r.id===id);return x?esc(x.t||'(no note)')+', '+fdate(parseISO(x.d)):''}).join(' or ')}</span><span class="row"><button class="btn" data-act="merge" data-id="${esc(t.id)}">Same, merge them</button><button class="btn ghost" data-act="keepboth" data-id="${esc(t.id)}">Different, keep both</button></span></div></div>`).join('')}
    <div class="panel c7"><div class="row" style="justify-content:space-between"><h2>${fmonthLong(m)} against budget</h2><div class="row"><button class="btn ghost sm" data-act="mprev" aria-label="Previous month">‹</button><button class="btn ghost sm" data-act="mnext" aria-label="Next month">›</button></div></div>
@@ -53,6 +54,14 @@ function vDaily(){
     ${allVars().filter(v=>(by[v.id]||0)!==0||rec.rows.some(t=>t.c===v.id)||(v.id==='v_ent'&&entShop>0)).map(v=>catAccordion(v.id==='v_ent'&&entShop>0?{...v,note:`Also ${GBP2(entShop)} of entertaining food shops, counted under Shopping › Entertaining so the grocery budget is honest. Not added again here.`}:v,rec.rows.filter(t=>t.c===v.id),by[v.id]||0,bud[v.id],m,src)).join('')||'<p class="muted">Nothing here yet.</p>'}
     ${(()=>{const u=rec.rows.filter(t=>!t.c&&t.a<0);return u.length?catAccordion({id:'_unsorted',name:'Unsorted'},u,unc,0,m,src):''})()}</div>
   </div>`}
+function incomePanel(m,P,src){
+  const h=normHist(m),bankIn=sum((TX[m]||[]).filter(t=>t.c==='_inc'&&t.a>0),t=>t.a);
+  if(src==='sheet'&&h){const rows=Object.entries(h.wages).map(([n,w])=>[n,w.f,w.a]);if(h.otherIn||h.otherInF)rows.push(['other money in',h.otherInF,h.otherIn]);
+    return`<div class="panel c12"><h2>Money in, ${fmonthLong(m)} <span class="muted small">from your sheet</span></h2><div class="tblwrap"><table><thead><tr><th>Source</th><th class="n">Expected</th><th class="n">Actual</th><th class="n">Difference</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r[0])}</td><td class="n">${GBP(r[1])}</td><td class="n">${GBP(r[2])}</td><td class="n ${r[2]<r[1]?'neg':''}">${GBP(r[2]-r[1])}</td></tr>`).join('')}</tbody></table></div></div>`}
+  const pl=sum(P.income,i=>i.amount),ac=incActualTotal(m,P);
+  return`<div class="panel c12"><h2>Money in, ${fmonthLong(m)} <span class="muted small">expected against what actually arrived</span></h2><div class="tblwrap"><table><thead><tr><th>Source</th><th class="n">Expected</th><th class="n">Actual received</th><th class="n">Difference</th></tr></thead><tbody>${P.income.map(i=>{const a=STATE.incAct&&STATE.incAct[m]?STATE.incAct[m][i.id]:null,d=incFor(m,i)-i.amount;return`<tr><td>${esc(i.name)}${i.varies?' <span class="pill info">varies</span>':''}</td><td class="n">${GBP2(i.amount)}</td><td class="n">${F('state',`incAct.${m}.${i.id}`,'num',a,'style="width:110px" placeholder="'+i.amount+'"',true)}</td><td class="n ${d<0?'neg':''}">${a==null?'–':GBP2(d)}</td></tr>`}).join('')}
+   <tr class="tot"><td>Total</td><td class="n">${GBP2(pl)}</td><td class="n">${GBP2(ac)}</td><td class="n ${ac<pl?'neg':''}">${GBP2(ac-pl)}</td></tr></tbody></table></div>
+   <p class="small muted" style="margin-bottom:0">Leave a box empty to use the expected amount. Typing what actually arrived updates the forecast and Left over from that month on, and Plan vs actual.${bankIn?` Your bank file shows ${GBP2(bankIn)} paid in this month, to check against.`:''} To change what you expect every month, edit Money in on the Budgets tab.</p></div>`}
 function catAccordion(v,rows,total,budget,m,src){
   const open=view.open['cat_'+v.id],spend=rows.filter(t=>t.a<0||v.id!=='_unsorted');
   const groups={};rows.forEach(t=>{const k=merchKey(t.t);(groups[k]=groups[k]||[]).push(t)});

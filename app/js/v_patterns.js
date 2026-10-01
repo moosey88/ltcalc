@@ -40,7 +40,7 @@ function monthTable(){
   ak.forEach(k=>{const h=normHist(k);rows.push({k,state:'Actual',outP:h.fixedF+h.varF,outA:h.fixedA+h.varA,leftP:h.leftF,leftA:h.leftA,note:''})});
   const pm=planMonth(cur),P=curPlan(),xcat=new Set((P.transfers||[]).map(x=>x.catId)),vb=sum(P.vars.filter(v=>!xcat.has(v.id)),v=>v.budget),spent=monthSpent(cur);
   const fOut=pm.out-vb+Math.max(spent,vb);const unp=sum(monthTx(cur).filter(t=>STATE.notes[t.id]&&STATE.notes[t.id].kind==='oneoff'),t=>-t.a);
-  rows.push({k:cur,state:'Actual so far + plan',cur:true,outP:pm.out,outA:fOut,leftP:pm.left,leftA:pm.inc-fOut,note:unp?`unplanned ${GBP(unp)}`:''});
+  rows.push({k:cur,state:'Actual so far + plan',cur:true,outP:pm.out,outA:fOut,leftP:pm.left,leftA:incActualTotal(cur)-fOut,note:unp?`unplanned ${GBP(unp)}`:''});
   for(let i=1;i<=6;i++){const k=addMonthsK(cur,i),p=planMonth(k);rows.push({k,state:'Plan',outP:p.out,outA:p.out,leftP:p.left,leftA:p.left,note:p.yearly?'yearly bills '+GBP(p.yearly):''})}
   if(!rows.length)return'<p class="muted">Nothing to show yet.</p>';
   return`${actualKeys().length>12?`<div class="row" style="margin-bottom:8px"><button class="btn ghost sm" data-act="toggle" data-v="allmonths">${view.open.allmonths?'Show only the last 12 months':'Show all '+actualKeys().length+' months of history'}</button></div>`:''}<div class="tblwrap"><table><thead><tr><th>Month</th><th>State</th><th class="n">Out: plan</th><th class="n">Out: actual / forecast</th><th class="n">Left over: plan</th><th class="n">Left over: actual / forecast</th><th class="n">Difference</th></tr></thead><tbody>

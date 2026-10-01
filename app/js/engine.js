@@ -25,7 +25,7 @@ function simulate(o={}){
     const dt=new Date(t),y=dt.getUTCFullYear(),m=dt.getUTCMonth(),d=dt.getUTCDate(),n=dim(y,m),k=ym(t),ds=iso(t),P=planOf(k),A=P.amex;
     const M=months[k]||(months[k]={k,inc:0,bills:0,yearly:0,debt:0,lump:0,vars:0,xfer:0,one:0,sav:0,fee:0,goalOut:0,ySet:0});
     const on=day=>d===Math.min(day,n);
-    P.income.forEach(i=>{if(on(i.day)){bank+=i.amount;M.inc+=i.amount;events.push({t,k:'in',n:i.name,a:i.amount})}});
+    P.income.forEach(i=>{if(on(i.day)){const a=incFor(k,i);bank+=a;M.inc+=a;events.push({t,k:'in',n:i.name,a})}});
     P.bills.forEach(b=>{
       const fr=b.freq||'monthly';let due=false;
       if(fr==='monthly')due=on(b.day);
