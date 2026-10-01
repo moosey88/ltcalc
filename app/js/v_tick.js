@@ -26,6 +26,13 @@ function toggleTick(kind,id,m){
   if(ex)arr.splice(arr.indexOf(ex),1);
   else arr.push({id:'tk_'+m+'_'+id,d:tickDate(m,it),t:(it.kind==='inc'?'Received: ':'Paid: ')+it.name,a:it.sign*it.amt,c:it.c,sc:it.kind==='inc'?it.id:undefined,s:'tick',p:'bank',item:id,planned:it.amt});
   saveTx(m);invalidate();persistAll();render()}
+/* tick every item that should have happened by today and is not on the bank file yet */
+function tickAllDue(m){
+  const dom=m===thisMonthK()?+todayISO().slice(8):99,arr=TX[m]=TX[m]||[];let n=0;
+  expectedItems(m).forEach(it=>{if(it.day>dom||tickRow(m,it.id)||bankRowFor(it,m))return;
+    arr.push({id:'tk_'+m+'_'+it.id,d:tickDate(m,it),t:(it.kind==='inc'?'Received: ':'Paid: ')+it.name,a:it.sign*it.amt,c:it.c,sc:it.kind==='inc'?it.id:undefined,s:'tick',p:'bank',item:it.id,planned:it.amt});n++});
+  if(n){audit('Ticked everything due',`${n} items for ${fmonthLong(m)}`);saveTx(m);invalidate();persistAll()}
+  toast(n?`Ticked ${n} items. Untick any that have not happened.`:'Nothing else is due yet');render()}
 function setTickAmt(m,id,v){const r=tickRow(m,id);if(!r||!(v>=0))return;audit('Changed ticked amount',`${r.t.replace(/^(Paid|Received): /,'')}: ${GBP2(Math.abs(r.a))} to ${GBP2(v)}`);r.a=(r.a<0?-1:1)*v;saveTx(m);invalidate();persistAll()}
 /* after a bank file is uploaded: swap each tick for the real line it matches */
 function reconcileTicks(){
@@ -62,7 +69,7 @@ function tickPanel(m){
       const st=b?`<span class="chip in">✓ On the bank file${b.ticked?' (matched your tick)':''}</span>`:t?`<span class="chip in">✓ Ticked</span>`:it.day<=dom?`<span class="chip wait">${lab} yet</span>`:`<span class="chip mv">Expected</span>`;
       const amt=b?GBP2(Math.abs(b.a)):t?`<input type="number" step="0.01" class="num" style="width:96px" value="${Math.abs(t.a)}" data-tickamt="${it.id}" data-m="${m}" aria-label="Amount for ${esc(it.name)}">`:'about '+GBP2(it.amt);
       return`<tr><td style="width:34px">${tickBox(kind,it.id,m)}</td><td>${esc(it.name)}${it.variable?' <span class="pill warn">varies</span>':''}${it.yearly?' <span class="pill info">yearly</span>':''}</td><td class="small muted">${it.kind==='inc'?'due':'due'} the ${ord(it.day)}</td><td>${st}</td><td class="n">${amt}</td></tr>`}).join('')};
-  return`<div class="panel c12"><h2>Tick off ${fmonthLong(m)} <span class="muted small">money in, bills, debts and transfers</span></h2>
+  return`<div class="panel c12"><div class="row" style="justify-content:space-between"><h2>Tick off ${fmonthLong(m)} <span class="muted small">money in, bills, debts and transfers</span></h2><button class="btn ghost sm" data-act="tickall" data-m="${m}">Tick everything due so far</button></div>
    <p class="small ink2" style="margin-top:0">Tick an item when it has happened, so you do not need to type it as a transaction. A tick counts straight away in the forecast. When you upload your NatWest file, each tick is swapped for the real bank line and anything that does not match is flagged below.</p>
    <div class="tblwrap"><table><tbody>${grp('inc','Money in','Not received')}${grp('bill','Bills','Not paid')}${grp('debt','Debts','Not paid')}${grp('xfer','Transfers to personal accounts','Not sent')}${grp('sav','Savings','Not moved')}</tbody></table></div></div>`}
 function anomalyPanel(){

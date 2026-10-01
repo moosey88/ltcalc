@@ -13,7 +13,8 @@ function liveCheck(){
   const pb=lc.prevBank!=null?lc.prevBank:lc.est,pa=lc.prevAsOf||addDays(lc.d,-1),est=pb+checkRows(pa,lc.d);
   const diff=lc.d===STATE.asOf?Math.round((STATE.bank-est)*100)/100:lc.diff,m=lc.d.slice(0,7),dd=+lc.d.slice(8);
   const unticked=expectedItems(m).filter(it=>it.day<=dd&&!tickRow(m,it.id)&&!bankRowFor(it,m)),untickedSum=sum(unticked,it=>it.sign*it.amt);
-  return{...lc,est,diff,unticked,untickedSum}}
+  const rs=Object.values(TX).flat().filter(t=>(t.s==='man'||t.s==='tick'||t.s==='nw')&&t.p==='bank'&&t.d>pa&&t.d<=lc.d),inn=sum(rs.filter(t=>t.a>0),t=>t.a),out=-sum(rs.filter(t=>t.a<0),t=>t.a);
+  return{...lc,est,diff,unticked,untickedSum,inn,out,pb}}
 function applyBalance(value,dateStr,src){
   const had=STATE.bank!=null,prevBank=STATE.bank,prevAsOf=STATE.asOf;const est=had?prevBank+checkRows(prevAsOf,dateStr):null;
   audit('Bank balance set',`${GBP2(value)} as of ${dateStr} (${src||'typed'})${had?', check difference '+GBP2(Math.round((value-est)*100)/100):''}`);
@@ -62,7 +63,7 @@ function vToday(){
    <div class="kpi"><span>In the bank</span><b>${STATE.bank==null?'–':GBP(STATE.bank+sinceBalance())}</b><small>${STATE.bank==null?'add a balance':Math.abs(sinceBalance())>=0.005?`${GBP2(STATE.bank)} at ${fdate(parseISO(STATE.asOf))}, ${sinceBalance()>0?'plus':'less'} ${GBP2(Math.abs(sinceBalance()))} ticked or typed since`:'as of '+fdate(parseISO(STATE.asOf))}</small></div>
    <div class="kpi"><span>Household cash</span><b>${GBP(cashBalance())}</b><small>shared cash pot</small></div>
    <div class="kpi"><span>Left over before payday</span><b class="${head<0?'neg':'pos'}">${GBP(head)}</b><small>${np?'wages '+fdate(np.t)+'. After every planned bill, your remaining budgets, what you owe Amex and your '+GBP(buf)+' buffer':'add wages in Budgets'}</small></div>
-   <div class="kpi" ${lc&&Math.abs(lc.diff)>=1?'style="border-color:var(--warn)"':''}><span>Bank check</span><b class="${lc&&Math.abs(lc.diff)>=1?'warnc':''}">${lc?(Math.abs(lc.diff)<1?'Matches':GBP(lc.diff)):'–'}</b><small>${lc?(Math.abs(lc.diff)<1?'entries add up to the bank':`not explained, checked ${fdate(parseISO(lc.d))}${lc.unticked.length?`. ${lc.unticked.length} item${lc.unticked.length>1?'s':''} due by then (${GBP(Math.abs(lc.untickedSum))}) not ticked`:''}`):'updates when you add a balance'}</small></div>
+   <div class="kpi" ${lc&&Math.abs(lc.diff)>=1?'style="border-color:var(--warn)"':''}><span>Bank check</span><b class="${lc&&Math.abs(lc.diff)>=1?'warnc':''}">${lc?(Math.abs(lc.diff)<1?'Matches':GBP(lc.diff)):'–'}</b><small>${lc?(Math.abs(lc.diff)<1?'entries add up to the bank':`Bank shows ${GBP2(lc.est+lc.diff)}, expected ${GBP2(lc.est)}: ${GBP(lc.pb)} before, ${GBP(lc.inn)} in and ${GBP(lc.out)} out ticked or entered.${lc.unticked.length?` ${lc.unticked.length} item${lc.unticked.length>1?'s':''} due by then (${GBP(Math.abs(lc.untickedSum))}) not ticked.`:''}`):'updates when you add a balance'}</small></div>
    <div class="kpi"><span>Amex</span><b style="padding:6px 0;font-size:1.2rem">${verdictPill(S)}</b><small>${esc(S.why)}</small></div></div>
   <div class="grid">
    <div class="panel c12"><h2>How are we tracking in ${MONL[monthOf(T.k)-1]}?</h2><div class="grid" style="margin-top:6px">
