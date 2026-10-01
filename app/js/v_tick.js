@@ -9,11 +9,13 @@ function expectedItems(m){
     if(due)out.push({kind:'bill',id:b.id,name:b.name,amt:b.amount,day:Math.min(b.day,n),sign:-1,c:'_skip',key:bkey(b),variable:b.variable,yearly:fr!=='monthly'})});
   P.debts.filter(d=>(d.pay||0)>0).forEach(d=>out.push({kind:'debt',id:d.id,name:d.name,amt:d.pay+(d.extra||0),day:Math.min(d.day,n),sign:-1,c:'_skip',key:(d.match||d.name.split(' ')[0]).toUpperCase()}));
   (P.transfers||[]).forEach(x=>out.push({kind:'xfer',id:x.id,name:x.name,amt:x.amount,day:Math.min(x.day||2,n),sign:-1,c:x.catId}));
+  if(P.savings&&P.savings.monthly>0)out.push({kind:'sav',id:'sav',name:'Transfer to savings (Premium Bonds and pots)',amt:P.savings.monthly,day:Math.min(P.savings.day||1,n),sign:-1,c:'_skip'});
   return out.sort((a,b)=>a.day-b.day)}
 /* the real bank/Amex line behind an item, if one has been uploaded */
 function bankRowFor(it,m){
   const rows=(TX[m]||[]).filter(t=>t.s!=='tick'&&t.s!=='man');
   if(it.kind==='inc')return rows.find(t=>t.c==='_inc'&&t.sc===it.id&&t.a>0)||null;
+  if(it.kind==='sav')return rows.find(t=>t.a<0&&/NS&I|PREMIUM BOND|TO A\/C (67716245|67652417)/.test((t.t||'').toUpperCase()))||null;
   if(it.kind==='xfer')return rows.find(t=>t.c===it.c&&t.a<0&&Math.abs(-t.a-it.amt)<=it.amt*.3+1)||null;
   return it.key?rows.find(t=>t.a<0&&(t.t||'').toUpperCase().includes(it.key)&&Math.abs(-t.a-it.amt)<=it.amt*.3+1)||null:null}
 function tickDate(m,it){const t=todayISO();return t.slice(0,7)===m?t:m+'-'+String(it.day).padStart(2,'0')}
@@ -48,7 +50,7 @@ function anomalies(){
       else if(b&&!it.variable&&it.kind!=='inc'&&Math.abs(Math.abs(b.a)-it.amt)>Math.max(2,it.amt*.05))out.push({sev:'info',m,t:`${it.name}: the bank shows ${GBP2(Math.abs(b.a))}, your plan has ${GBP2(it.amt)}.`,act:'If this is the new normal, update the plan on Budgets.'});
       if(cur&&!b&&!tk&&it.day+2<=dom&&it.kind!=='xfer')out.push({sev:it.kind==='inc'?'bad':'warn',m,t:it.kind==='inc'?`${it.name} has not arrived. It was expected on the ${ord(it.day)} (${GBP2(it.amt)}).`:`${it.name} (${GBP2(it.amt)}, due the ${ord(it.day)}) has not left the bank yet.`,act:it.kind==='inc'?'Check with the payer, or tick it if it is in a different account.':'Tick it if you paid another way, or check the date.'})});
     const seen={};(TX[m]||[]).filter(t=>t.s==='nw'&&t.a<0&&-t.a>=20).forEach(t=>{const k=t.d+'|'+t.a+'|'+(t.t||'').replace(/\s+\d{2}[A-Z]{3}\d{2}/,'').slice(0,40);if(seen[k]&&seen[k]!==t.id)out.push({sev:'warn',m,t:`Possible double payment: ${GBP2(-t.a)} to "${(t.t||'').replace(/^(Card Transaction|Direct Debit|OnLine Transaction)\s*/,'').slice(0,40)}" on ${fdate(parseISO(t.d))} appears twice.`,act:'If it is a duplicate charge, ask the shop or bank.'});seen[k]=t.id})});
-  const lc=STATE.lastCheck;if(lc&&Math.abs(lc.diff)>=1)out.push({sev:Math.abs(lc.diff)>=50?'bad':'warn',m:now,t:`The bank balance on ${fdate(parseISO(lc.d))} was ${lc.diff>0?GBP2(lc.diff)+' higher':GBP2(-lc.diff)+' lower'} than your ticks and entries predicted (${GBP2(lc.est)} expected).`,act:'Look for a payment that is not entered, or a tick with the wrong amount.'});
+  const lc=liveCheck();if(lc&&Math.abs(lc.diff)>=1)out.push({sev:Math.abs(lc.diff)>=50?'bad':'warn',m:now,t:`The bank balance on ${fdate(parseISO(lc.d))} was ${lc.diff>0?GBP2(lc.diff)+' higher':GBP2(-lc.diff)+' lower'} than your ticks and entries predicted (${GBP2(lc.est)} expected).`,act:lc.unticked.length?`${lc.unticked.length} item${lc.unticked.length>1?'s':''} due by then are not ticked (${lc.unticked.slice(0,6).map(i=>i.name+' '+GBP2(i.amt)).join(', ')}${lc.unticked.length>6?', and more':''}). Tick the ones that have left the bank, or upload the bank file.`:'Look for a payment that is not entered, or a tick with the wrong amount.'});
   const rank={bad:0,warn:1,info:2};return out.sort((a,b)=>rank[a.sev]-rank[b.sev])}
 function tickBox(kind,id,m){m=m||thisMonthK();const it=expectedItems(m).find(x=>x.kind===kind&&x.id===id);if(!it)return'';
   const b=bankRowFor(it,m),t=tickRow(m,id);
@@ -62,7 +64,7 @@ function tickPanel(m){
       return`<tr><td style="width:34px">${tickBox(kind,it.id,m)}</td><td>${esc(it.name)}${it.variable?' <span class="pill warn">varies</span>':''}${it.yearly?' <span class="pill info">yearly</span>':''}</td><td class="small muted">${it.kind==='inc'?'due':'due'} the ${ord(it.day)}</td><td>${st}</td><td class="n">${amt}</td></tr>`}).join('')};
   return`<div class="panel c12"><h2>Tick off ${fmonthLong(m)} <span class="muted small">money in, bills, debts and transfers</span></h2>
    <p class="small ink2" style="margin-top:0">Tick an item when it has happened, so you do not need to type it as a transaction. A tick counts straight away in the forecast. When you upload your NatWest file, each tick is swapped for the real bank line and anything that does not match is flagged below.</p>
-   <div class="tblwrap"><table><tbody>${grp('inc','Money in','Not received')}${grp('bill','Bills','Not paid')}${grp('debt','Debts','Not paid')}${grp('xfer','Transfers to personal accounts','Not sent')}</tbody></table></div></div>`}
+   <div class="tblwrap"><table><tbody>${grp('inc','Money in','Not received')}${grp('bill','Bills','Not paid')}${grp('debt','Debts','Not paid')}${grp('xfer','Transfers to personal accounts','Not sent')}${grp('sav','Savings','Not moved')}</tbody></table></div></div>`}
 function anomalyPanel(){
   const a=anomalies(),pill={bad:'bad',warn:'warn',info:'info'},lab={bad:'Check now',warn:'Check',info:'FYI'};
   return`<div class="panel c12" ${a.some(x=>x.sev!=='info')?'style="border-color:var(--warn)"':''}><h2>Weekly check <span class="muted small">${a.length?a.length+' thing'+(a.length>1?'s':'')+' to look at':'everything matches'}</span></h2>

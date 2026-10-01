@@ -55,7 +55,7 @@ function simulate(o={}){
     (P.oneoffs||[]).forEach(oo=>{if(oo.date!==ds)return;M.one+=oo.amount;events.push({t,k:'one',n:oo.name,a:-oo.amount,pay:oo.pay});
       if(oo.pay==='amex'){cycle+=oo.amount;cardSpend+=oo.amount}else if(oo.pay==='savings'){const tk=Math.min(pots.general,oo.amount);pots.general-=tk;bank-=oo.amount-tk}else bank-=oo.amount});
     const G=buildGoals(P,{...st,goalSaved:{},taxSaved:{}});
-    if(sset.has(t)){let avail=P.savings.monthly;bank-=avail;M.sav+=avail;events.push({t,k:'save',n:'Transfer to savings',a:-avail});const idx=sdays.indexOf(t);
+    if(sset.has(t)){let avail=P.savings.monthly;const stk=tickRow(k,'sav');if(!stk){bank-=avail;events.push({t,k:'save',n:'Transfer to savings',a:-avail})}M.sav+=avail;const idx=sdays.indexOf(t);
       G.forEach(g=>{if(pots[g.id]==null)pots[g.id]=0});
       G.filter(g=>!done[g.id]).sort((a,b)=>a.pri-b.pri||(a.date<b.date?-1:1)).forEach(g=>{const gt=parseISO(g.date);let last=-1;sdays.forEach((s,i)=>{if(s<=gt)last=i});const left=Math.max(1,last-idx+1);
         const need=Math.max(0,g.target-pots[g.id]);let give=g.monthly>0?Math.min(g.monthly,need):need/left;give=Math.min(give,need,avail);pots[g.id]+=give;avail-=give});

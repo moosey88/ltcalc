@@ -167,10 +167,11 @@ function importText(text,src){
       if(!(STATE.cash||[]).some(e=>e.type===typ&&Math.abs(e.a-amt)<0.005&&dayGap(e.d,x.d)<=3))(STATE.cash=STATE.cash||[]).push({id:'c_'+uid(),d:x.d,type:typ,a:amt,who:'',note:'From the bank file',auto:true})}});
   Object.keys(parsed.reduce((o,x)=>(o[x.d.slice(0,7)]=1,o),{})).forEach(k=>saveTx(k));
   let msg=`Added ${added} new lines (${merged} matched to entries you typed, ${skipped} already there${asked?`, ${asked} need your say-so`:''}).`;
+  const rc=reconcileTicks();
   if(src==='nw'){const wb=parsed.filter(x=>x.b!=null);
     if(wb.length){const asc=wb[0].d<wb[wb.length-1].d,ld=wb.map(x=>x.d).sort().pop(),same=wb.filter(x=>x.d===ld),lastRow=asc?same[same.length-1]:same[0];
       if(STATE.bank==null||!STATE.asOf||ld>=STATE.asOf){applyBalance(lastRow.b,ld,'file');msg+=` Balance set to ${GBP2(lastRow.b)} as of ${fdate(parseISO(ld))}.`}}}
   audit('Uploaded '+(src==='amex'?'Amex':'NatWest')+' file',`${added} new lines, ${skipped} already there, ${merged} matched to typed entries`);
-  const rc=reconcileTicks();if(rc.matched||rc.diff)msg+=` ${rc.matched} of your ticked items matched a bank line${rc.diff?`, ${rc.diff} with a different amount`:''}.`;
+  if(rc.matched||rc.diff)msg+=` ${rc.matched} of your ticked items matched a bank line${rc.diff?`, ${rc.diff} with a different amount`:''}.`;
   const an=anomalies().filter(x=>x.sev!=='info').length;if(an)msg+=` ${an} thing${an>1?'s':''} to check in the Weekly check below.`;
   invalidate();persistAll();return msg}

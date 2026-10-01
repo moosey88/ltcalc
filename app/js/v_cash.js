@@ -4,7 +4,7 @@ function cashEvents(){
   Object.values(TX).flat().forEach(t=>{if(t.p==='cash'&&t.a<0&&t.d>=(STATE.cashOpenDate||'0'))ev.push({d:t.d,type:'spent',a:t.a,note:t.t,cat:t.c,id:t.id})});
   return ev.sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0)}
 function vCash(){
-  const bal=cashBalance(),bank=STATE.bank,lc=STATE.lastCheck;
+  const bal=cashBalance(),bank=STATE.bank,lc=liveCheck();
   const typed=Object.values(TX).flat().filter(t=>t.s==='man'&&t.p==='bank'&&t.d>(STATE.asOf||'0')&&t.a<0);
   const est=bank==null?null:bank+sum(typed,t=>t.a);
   let run=STATE.cashOpening||0;const evs=cashEvents().map(e=>{run+=e.a;return{...e,run}});

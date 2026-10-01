@@ -5,10 +5,19 @@ const monthSpent=k=>-sum(monthSpendTx(k),t=>t.a);
 function cashBalance(){let b=STATE.cashOpening||0;(STATE.cash||[]).forEach(e=>{if(e.type==='in'||e.type==='out')b+=e.a;else if(e.type==='deposit')b-=e.a});
   Object.values(TX).flat().forEach(t=>{if(t.p==='cash'&&t.a<0&&t.d>=(STATE.cashOpenDate||'0'))b+=t.a});return b}
 /* a new real balance arrives (typed, or the last line of a NatWest file): compare it with what the entries say it should be */
+/* every bank movement we know of between two balances: ticks, typed entries and uploaded bank lines */
+const checkRows=(from,to)=>sum(Object.values(TX).flat().filter(t=>(t.s==='man'||t.s==='tick'||t.s==='nw')&&t.p==='bank'&&t.d>from&&t.d<=to),t=>t.a);
+/* the bank check, worked out again from what is recorded now, so a tick added later counts */
+function liveCheck(){
+  const lc=STATE.lastCheck;if(!lc)return null;
+  const pb=lc.prevBank!=null?lc.prevBank:lc.est,pa=lc.prevAsOf||addDays(lc.d,-1),est=pb+checkRows(pa,lc.d);
+  const diff=lc.d===STATE.asOf?Math.round((STATE.bank-est)*100)/100:lc.diff,m=lc.d.slice(0,7),dd=+lc.d.slice(8);
+  const unticked=expectedItems(m).filter(it=>it.day<=dd&&!tickRow(m,it.id)&&!bankRowFor(it,m)),untickedSum=sum(unticked,it=>it.sign*it.amt);
+  return{...lc,est,diff,unticked,untickedSum}}
 function applyBalance(value,dateStr,src){
-  const had=STATE.bank!=null;const est=had?STATE.bank+sum(Object.values(TX).flat().filter(t=>(t.s==='man'||t.s==='tick')&&t.p==='bank'&&t.d>STATE.asOf&&t.d<=dateStr),t=>t.a):null;
+  const had=STATE.bank!=null,prevBank=STATE.bank,prevAsOf=STATE.asOf;const est=had?prevBank+checkRows(prevAsOf,dateStr):null;
   audit('Bank balance set',`${GBP2(value)} as of ${dateStr} (${src||'typed'})${had?', check difference '+GBP2(Math.round((value-est)*100)/100):''}`);
-  STATE.lastCheck=had?{d:dateStr,diff:Math.round((value-est)*100)/100,est,src}:null;STATE.bank=value;STATE.asOf=dateStr;invalidate()}
+  STATE.lastCheck=had?{d:dateStr,diff:Math.round((value-est)*100)/100,est,src,prevBank,prevAsOf}:null;STATE.bank=value;STATE.asOf=dateStr;invalidate()}
 function banners(){let h='';
   if(STATE.bank==null)h+=`<div class="banner warn"><span><b>Add today's NatWest balance.</b> Until you do, the forecast starts from £0 and its lines show change, not real cash.</span><span class="row"><input type="number" id="quickBal" placeholder="Balance £" style="width:130px"><button class="btn sm" data-act="setbal">Save</button><button class="btn ghost sm" data-go="daily">or upload a file</button></span></div>`;
   const miss=curPlan().debts.filter(d=>STATE.debtBal[d.id]==null&&(d.pay>0));
@@ -44,7 +53,7 @@ function vToday(){
   const head=lowSeg.tru-buf,s12=S.days[Math.min(364,S.days.length-1)],cardOn=S.cardSpend>0;
   const dd=S.days.slice(0,view.win===90?90:view.win===365?365:S.days.length);
   const bc=bankChart('c1',dd,S.events.filter(e=>e.t<=dd[dd.length-1].t),buf);
-  const lc=STATE.lastCheck;
+  const lc=liveCheck();
   const comingAll=S.events.filter(e=>e.t<=S.start+90*DAY&&((e.k==='bill'&&(e.variable||-e.a>=200))||((e.k==='debt'||e.k==='xfer')&&-e.a>=200)||e.k==='yearly'||e.k==='one'||e.k==='goal'||e.k==='lump'||(e.k==='amex'&&-e.a>=200)));
   const pace=T.budget*T.dom/T.n,under=pace-T.spent;
   const debtRows=debtEffects(Math.min(view.debtAmt??1000,Math.max(0,head)||1000));
@@ -53,7 +62,7 @@ function vToday(){
    <div class="kpi"><span>In the bank</span><b>${STATE.bank==null?'–':GBP(STATE.bank+sinceBalance())}</b><small>${STATE.bank==null?'add a balance':Math.abs(sinceBalance())>=0.005?`${GBP2(STATE.bank)} at ${fdate(parseISO(STATE.asOf))}, ${sinceBalance()>0?'plus':'less'} ${GBP2(Math.abs(sinceBalance()))} ticked or typed since`:'as of '+fdate(parseISO(STATE.asOf))}</small></div>
    <div class="kpi"><span>Household cash</span><b>${GBP(cashBalance())}</b><small>shared cash pot</small></div>
    <div class="kpi"><span>Left over before payday</span><b class="${head<0?'neg':'pos'}">${GBP(head)}</b><small>${np?'wages '+fdate(np.t)+'. After every planned bill, your remaining budgets, what you owe Amex and your '+GBP(buf)+' buffer':'add wages in Budgets'}</small></div>
-   <div class="kpi" ${lc&&Math.abs(lc.diff)>=1?'style="border-color:var(--warn)"':''}><span>Bank check</span><b class="${lc&&Math.abs(lc.diff)>=1?'warnc':''}">${lc?(Math.abs(lc.diff)<1?'Matches':GBP(lc.diff)):'–'}</b><small>${lc?(Math.abs(lc.diff)<1?'entries add up to the bank':'not explained, checked '+fdate(parseISO(lc.d))):'updates when you add a balance'}</small></div>
+   <div class="kpi" ${lc&&Math.abs(lc.diff)>=1?'style="border-color:var(--warn)"':''}><span>Bank check</span><b class="${lc&&Math.abs(lc.diff)>=1?'warnc':''}">${lc?(Math.abs(lc.diff)<1?'Matches':GBP(lc.diff)):'–'}</b><small>${lc?(Math.abs(lc.diff)<1?'entries add up to the bank':`not explained, checked ${fdate(parseISO(lc.d))}${lc.unticked.length?`. ${lc.unticked.length} item${lc.unticked.length>1?'s':''} due by then (${GBP(Math.abs(lc.untickedSum))}) not ticked`:''}`):'updates when you add a balance'}</small></div>
    <div class="kpi"><span>Amex</span><b style="padding:6px 0;font-size:1.2rem">${verdictPill(S)}</b><small>${esc(S.why)}</small></div></div>
   <div class="grid">
    <div class="panel c12"><h2>How are we tracking in ${MONL[monthOf(T.k)-1]}?</h2><div class="grid" style="margin-top:6px">
