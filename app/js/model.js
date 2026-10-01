@@ -31,6 +31,8 @@ function defaultPlan(){return{
     {id:'v_kids',name:'Kids',budget:0,kind:'need',cardOK:true},
     {id:'v_pets',name:'Pets and grooming',budget:0,kind:'need',cardOK:true},
     {id:'v_hol',name:'Holiday and trips',budget:0,kind:'want',cardOK:true},
+    {id:'v_well',name:'Wellbeing and personal care',budget:0,kind:'need',cardOK:true},
+    {id:'v_car',name:'Car and travel',budget:0,kind:'need',cardOK:true},
     {id:'v_xmas',name:'Christmas and gifts',budget:0,kind:'want',cardOK:true},
     {id:'v_other',name:'Other',budget:0,kind:'want',cardOK:true}],
   transfers:[
@@ -132,6 +134,7 @@ function migratePlan(p){
     changed=true}
   if(!has('v_ent')&&(has('v_take')||has('v_rest'))){p.vars.push({id:'v_ent',name:'Entertainment',budget:0,kind:'want',cardOK:true});changed=true}
   if(has('v_petrol')){p.vars=p.vars.filter(v=>v.id!=='v_petrol');changed=true}
+  [['v_well','Wellbeing and personal care','need'],['v_car','Car and travel','need']].forEach(([id,name,kind])=>{if(!has(id)){const i=p.vars.findIndex(v=>v.id==='v_xmas');p.vars.splice(i<0?p.vars.length:i,0,{id,name,budget:0,kind,cardOK:true});changed=true}});
   const k=p.vars.find(v=>v.id==='v_kids');if(k&&k.name!=='Kids'){k.name='Kids';changed=true}
   const sh=p.vars.find(v=>v.id==='v_shop');if(sh&&!sh.subs){sh.subs=[{id:'main',name:'Main shop'},{id:'topup',name:'Top-up shops'},{id:'entertain',name:'Entertaining'}];changed=true}
   if(!p.bankFix){p.bankFix=1;changed=true;const D=defaultPlan(),OLD={b_ctax:'council',b_gas:'gas',b_water:'water',b_bb:'broadband',b_phone:'phone',b_vet:'vet',b_gym:'gym',b_phyl:'phyliss',b_prime:'prime'};
