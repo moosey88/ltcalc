@@ -49,6 +49,7 @@ document.addEventListener('click',e=>{
   else if(a==='delcash'){STATE.cash=STATE.cash.filter(e=>e.id!==d.id);persistAll();render()}
   else if(a==='setopen'){STATE.cashOpening=parseFloat($('#c_open').value)||0;STATE.cashOpenDate=todayISO();STATE.cash=[];persistAll();toast('Opening cash set to today');render()}
   else if(a==='add'){addToDraft(d.list);render()}
+  else if(a==='addsug'){const s=YEARLY_SUGGEST[+d.i];draft().bills.push({id:'yearly_'+uid(),name:s.n,amount:s.a,day:s.d,month:s.m,kind:s.k,freq:'yearly',spread:!!s.spread,match:''});render()}
   else if(a==='addsub'){const v=draft().vars[+d.i];(v.subs=v.subs||[]).push({id:'s_'+uid(),name:'New sub-category'});render()}
   else if(a==='delsub'){draft().vars[+d.i].subs.splice(+d.j,1);render()}
   else if(a==='addasset'){STATE.assets.push({id:'a_'+uid(),group:'other',owner:'',name:'New asset',value:null});persistAll();render()}
