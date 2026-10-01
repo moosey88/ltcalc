@@ -47,7 +47,7 @@ function simulate(o={}){
       M.lump+=amt;events.push({t,k:'lump',n:'Lump sum: '+nm,a:-amt})});
     // variable spending: this month's remaining budget after what you have already spent, spread over the days left
     const share=Math.min(1,Math.max(0,(P.amexShare||0)/100)),curM=(k===ym(start));
-    const daysLeft=curM?Math.max(1,n-new Date(start-DAY).getUTCDate()):n;
+    const daysLeft=curM?Math.max(1,n-new Date(start).getUTCDate()+1):n;
     const xcat=new Set((P.transfers||[]).map(x=>x.catId));
     P.vars.forEach(v=>{if(xcat.has(v.id))return;const rem=curM?Math.max(0,v.budget-spentIn(k,v.id)):v.budget;const a=rem/daysLeft;if(a<=0)return;const cp=v.cardOK?a*share:0;cycle+=cp;cardSpend+=cp;bank-=a-cp;M.vars+=a});
     (xfer[t]||[]).forEach(x=>{bank-=x.amount;M.xfer+=x.amount;events.push({t,k:'xfer',n:x.name,a:-x.amount})});
