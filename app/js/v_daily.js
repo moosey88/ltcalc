@@ -121,17 +121,17 @@ const num=s=>{const v=parseFloat(String(s).replace(/[£,\s]/g,''));return isNaN(
 const dayGap=(a,b)=>Math.abs(parseISO(a)-parseISO(b))/DAY;
 function importText(text,src){
   const rows=parseCSV(text);if(rows.length<2)return'That file has no rows.';
-  const H=rows[0].map(h=>h.trim().toLowerCase()),iD=H.findIndex(h=>h.includes('date')),iDesc=H.findIndex(h=>h==='description'||h.includes('descr')),iV=H.findIndex(h=>h==='value'||h==='amount'),iB=H.findIndex(h=>h==='balance');
+  const H=rows[0].map(h=>h.trim().toLowerCase()),iD=H.findIndex(h=>h.includes('date')),iDesc=H.findIndex(h=>h==='description'||h.includes('descr')),iV=H.findIndex(h=>h==='value'||h==='amount'),iB=H.findIndex(h=>h==='balance'),iW=H.findIndex(h=>h==='cardmember');
   if(iD<0||iDesc<0||iV<0)return'Could not find Date, Description and Value or Amount columns. Is this a NatWest or Amex CSV?';
-  const parsed=[];rows.slice(1).forEach(r=>{const d=toISO(r[iD]||'');let a=num(r[iV]);if(!d||a==null)return;if(src==='amex')a=-a;parsed.push({d,t:(r[iDesc]||'').trim().replace(/\s+/g,' '),a,b:iB>=0?num(r[iB]):null})});
+  const parsed=[];rows.slice(1).forEach(r=>{const d=toISO(r[iD]||'');let a=num(r[iV]);if(!d||a==null)return;if(src==='amex')a=-a;parsed.push({d,t:(r[iDesc]||'').trim().replace(/\s+/g,' '),a,b:iB>=0?num(r[iB]):null,who:iW>=0?(/SANDER/i.test(r[iW]||'')||(r[iW]||'').trim()==='S'?'S':'A'):undefined})});
   if(!parsed.length)return'No valid rows found.';
   const seen={};parsed.forEach(x=>{const key=x.d+'|'+x.t+'|'+x.a+'|'+x.b;seen[key]=(seen[key]||0)+1;x.id=src+'_'+key+'#'+seen[key]});
   let added=0,skipped=0,merged=0,asked=0;const pay=src==='amex'?'amex':'bank';
   const have=new Set(Object.values(TX).flat().filter(t=>t.s===src).map(t=>t.id));
   parsed.forEach(x=>{if(have.has(x.id)){skipped++;return}
-    const k=x.d.slice(0,7),arr=TX[k]=TX[k]||[];const cf=classifyFull(x.t,x.a);let c=cf.c;
+    const k=x.d.slice(0,7),arr=TX[k]=TX[k]||[];const cf=x.who==='S'&&x.a<0&&!/PAYMENT RECEIVED/i.test(x.t)?{c:'_skip'}:classifyFull(x.t,x.a);let c=cf.c;
     const cands=x.a<0?arr.filter(t=>t.s==='man'&&t.p===pay&&!t.m&&Math.abs(t.a-x.a)<0.005&&dayGap(t.d,x.d)<=3):[];
-    let row={id:x.id,d:x.d,t:x.t,a:x.a,b:x.b,c,sc:cf.sc,s:src,p:pay};
+    let row={id:x.id,d:x.d,t:x.t,a:x.a,b:x.b,c,sc:cf.sc,who:x.who,s:src,p:pay};
     if(cands.length===1){const mt=cands[0];row.c=mt.c||c;row.sc=mt.c?mt.sc:row.sc;row.note=mt.t;arr.splice(arr.indexOf(mt),1);merged++}
     else if(cands.length>1){row.maybe=cands.map(t=>t.id);asked++}
     arr.push(row);added++;
