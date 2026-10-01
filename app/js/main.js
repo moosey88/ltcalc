@@ -12,7 +12,7 @@ function updateDraftBar(){const h=$('#draftHost');if(!h)return;const now=draftBa
 const TABS=[['today','Today',vToday,'Every day'],['daily','Day to day',vDaily,'Every day'],['cash','Cash and bank',vCash,'Every day'],
  ['where','Where it goes',vWhere,'Understand'],['patterns','Patterns',vPatterns,'Understand'],['pva','Plan vs actual',vPva,'Understand'],['whatif','What if',vWhatIf,'Understand'],['networth','Net worth',vNetworth,'Understand'],
  ['budgets','Budgets',vBudgets,'Commitments'],['debts','Debts',vDebts,'Commitments'],['goals','Goals and holidays',vGoals,'Commitments'],['tax','Tax',vTax,'Commitments'],['amex','Amex',vAmex,'Commitments'],
- ['guide','Guide',vGuide,'Help and settings'],['settings','Settings',vSettings,'Help and settings']];
+ ['improve','Improvements',vImprove,'Help and settings'],['guide','Guide',vGuide,'Help and settings'],['settings','Settings',vSettings,'Help and settings']];
 function render(){
   const groups=[...new Set(TABS.map(t=>t[3]))];
   $('#nav').innerHTML='<div class="navg">'+groups.map(g=>`<div class="ng"><small>${g}</small><div>${TABS.filter(t=>t[3]===g).map(([k,l])=>`<button role="tab" data-tab="${k}" aria-selected="${tab===k}">${l}</button>`).join('')}</div></div>`).join('')+'</div>';
@@ -49,6 +49,10 @@ document.addEventListener('click',e=>{
   else if(a==='delcash'){STATE.cash=STATE.cash.filter(e=>e.id!==d.id);persistAll();render()}
   else if(a==='setopen'){STATE.cashOpening=parseFloat($('#c_open').value)||0;STATE.cashOpenDate=todayISO();STATE.cash=[];persistAll();toast('Opening cash set to today');render()}
   else if(a==='add'){addToDraft(d.list);render()}
+  else if(a==='impadd'){impAdd()}
+  else if(a==='impdone'){const x=(STATE.improvements||[]).find(y=>y.id===d.id);if(x){x.status=x.status==='done'?'open':'done';persistAll();render()}}
+  else if(a==='impdel'){STATE.improvements=(STATE.improvements||[]).filter(y=>y.id!==d.id);persistAll();render()}
+  else if(a==='impcopy'){const t=(STATE.improvements||[]).filter(x=>x.status!=='done').map(x=>`- [${x.type}${x.where?', '+x.where:''}] ${x.text} (${x.by||'someone'}, ${x.d})`).join('\n')||'Nothing open';const o=$('#impOut');o.style.display='block';o.value=t;o.select();try{navigator.clipboard.writeText(t);toast('Copied')}catch(e){toast('Select and copy the text below')}}
   else if(a==='addsug'){const s=YEARLY_SUGGEST[+d.i];draft().bills.push({id:'yearly_'+uid(),name:s.n,amount:s.a,day:s.d,month:s.m,kind:s.k,freq:'yearly',spread:!!s.spread,match:''});render()}
   else if(a==='addsub'){const v=draft().vars[+d.i];(v.subs=v.subs||[]).push({id:'s_'+uid(),name:'New sub-category'});render()}
   else if(a==='delsub'){draft().vars[+d.i].subs.splice(+d.j,1);render()}
@@ -74,12 +78,14 @@ document.addEventListener('change',async e=>{
   if(d.cat!==undefined){sortTx(d.cat,d.m,el.value);return}
   if(el.id==='fCompare'){view.compare=el.value;render();return}
   if(el.id==='fCat'){view.cat=el.value;render();return}
+  if(d.act==='tick'){toggleTick(d.kind,d.id,d.m);return}
   if(d.act==='flagexcl'){const s=new Set(STATE.flagExcl||[]);el.checked?s.add(d.v):s.delete(d.v);STATE.flagExcl=[...s];persistAll();return}
   if(el.id==='impFile'&&el.files[0]){const msg=$('#impMsg');msg.textContent='Reading…';try{const text=await el.files[0].text();const r=importText(text,$('#impSrc').value);toast('Imported');render();const m2=$('#impMsg');if(m2)m2.textContent=r}catch(err){msg.textContent='Could not read that file: '+err.message}}
 });
 document.addEventListener('input',e=>{
   const el=e.target,d=el.dataset;
   if(d.out){const o=document.getElementById(d.out);if(o)o.textContent=pct(+el.value);return}
+  if(d.tickamt){setTickAmt(d.m,d.tickamt,parseFloat(el.value));return}
   const id=d.sl||d.sn;if(!id)return;
   if(id==='cut'){view.cut=+el.value;$('#o_cut').textContent=pct(view.cut);const w=sum(planLines().L.filter(x=>x.k==='want'),x=>x.v);$('#cutRes').innerHTML=cutResult(w);return}
   if(id==='debtAmt'){view.debtAmt=+el.value;$('#o_debtAmt').textContent=GBP(view.debtAmt);const t=$('#debtEff');if(t)t.innerHTML=debtEffectTable(debtEffects(view.debtAmt));return}

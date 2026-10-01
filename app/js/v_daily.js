@@ -88,6 +88,8 @@ function vDaily(){
      <label>Paid with<select id="e_pay"><option value="bank">Bank card</option><option value="amex">Amex</option><option value="cash">Household cash</option></select></label>
      <label>Note<input type="text" id="e_note" placeholder="optional"></label><button class="btn" data-act="addtx">Add</button></div>
     <p class="small muted" style="margin-bottom:0">Spending is joint, so there is no "who". If you also upload the NatWest file, the matching entry is merged so nothing is counted twice.</p></div>
+   ${tickPanel(m)}
+   ${anomalyPanel()}
    ${incomePanel(m,P,src)}
    ${unsortedPanel(m,false)}
    ${dups.map(t=>`<div class="panel c12" style="border-color:var(--warn);grid-column:span 12"><h3>Is this the same purchase?</h3><div class="row" style="justify-content:space-between"><span><b>On the bank file:</b> ${esc(t.t)}, ${fdate(parseISO(t.d))}, ${GBP2(t.a)}<br><b>Typed:</b> ${t.maybe.map(id=>{const x=rec.rows.find(r=>r.id===id);return x?esc(x.t||'(no note)')+', '+fdate(parseISO(x.d)):''}).join(' or ')}</span><span class="row"><button class="btn" data-act="merge" data-id="${esc(t.id)}">Same, merge them</button><button class="btn ghost" data-act="keepboth" data-id="${esc(t.id)}">Different, keep both</button></span></div></div>`).join('')}
@@ -167,4 +169,6 @@ function importText(text,src){
   if(src==='nw'){const wb=parsed.filter(x=>x.b!=null);
     if(wb.length){const asc=wb[0].d<wb[wb.length-1].d,ld=wb.map(x=>x.d).sort().pop(),same=wb.filter(x=>x.d===ld),lastRow=asc?same[same.length-1]:same[0];
       if(STATE.bank==null||!STATE.asOf||ld>=STATE.asOf){applyBalance(lastRow.b,ld,'file');msg+=` Balance set to ${GBP2(lastRow.b)} as of ${fdate(parseISO(ld))}.`}}}
+  const rc=reconcileTicks();if(rc.matched||rc.diff)msg+=` ${rc.matched} of your ticked items matched a bank line${rc.diff?`, ${rc.diff} with a different amount`:''}.`;
+  const an=anomalies().filter(x=>x.sev!=='info').length;if(an)msg+=` ${an} thing${an>1?'s':''} to check in the Weekly check below.`;
   invalidate();persistAll();return msg}

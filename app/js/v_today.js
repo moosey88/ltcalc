@@ -6,7 +6,7 @@ function cashBalance(){let b=STATE.cashOpening||0;(STATE.cash||[]).forEach(e=>{i
   Object.values(TX).flat().forEach(t=>{if(t.p==='cash'&&t.a<0&&t.d>=(STATE.cashOpenDate||'0'))b+=t.a});return b}
 /* a new real balance arrives (typed, or the last line of a NatWest file): compare it with what the entries say it should be */
 function applyBalance(value,dateStr,src){
-  const had=STATE.bank!=null;const est=had?STATE.bank+sum(Object.values(TX).flat().filter(t=>t.s==='man'&&t.p==='bank'&&t.d>STATE.asOf&&t.d<=dateStr),t=>t.a):null;
+  const had=STATE.bank!=null;const est=had?STATE.bank+sum(Object.values(TX).flat().filter(t=>(t.s==='man'||t.s==='tick')&&t.p==='bank'&&t.d>STATE.asOf&&t.d<=dateStr),t=>t.a):null;
   STATE.lastCheck=had?{d:dateStr,diff:Math.round((value-est)*100)/100,est,src}:null;STATE.bank=value;STATE.asOf=dateStr;invalidate()}
 function banners(){let h='';
   if(STATE.bank==null)h+=`<div class="banner warn"><span><b>Add today's NatWest balance.</b> Until you do, the forecast starts from £0 and its lines show change, not real cash.</span><span class="row"><input type="number" id="quickBal" placeholder="Balance £" style="width:130px"><button class="btn sm" data-act="setbal">Save</button><button class="btn ghost sm" data-go="daily">or upload a file</button></span></div>`;

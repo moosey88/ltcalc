@@ -10,7 +10,7 @@ function simulate(o={}){
   const st=o.state||STATE,asOf=o.asOf||st.asOf,planOf=o.planOf||planFor,horizon=o.horizon||24;
   const s0=parseISO(asOf)+DAY,sd=new Date(s0),end=U(sd.getUTCFullYear(),sd.getUTCMonth()+horizon,sd.getUTCDate()),start=s0;
   const P0=planOf(ym(start)),A0=P0.amex;
-  let bank=st.bank||0,cycle=o.amexOwed!=null?o.amexOwed:amexOwedNow(),cardSpend=0,feeTotal=0;const stmts=[];
+  let bank=(st.bank||0)+sum(Object.values(TX).flat().filter(t=>t.s==='tick'&&t.d>asOf),t=>t.a),cycle=o.amexOwed!=null?o.amexOwed:amexOwedNow(),cardSpend=0,feeTotal=0;const stmts=[];
   const P1=planOf(ym(start));const G0=buildGoals(P1,st);
   const pots={general:st.general||0,yearly:0};G0.forEach(g=>pots[g.id]=g.saved||0);
   const done={},hit={},gsp={},dbal={};(P1.debts||[]).forEach(d=>dbal[d.id]=st.debtBal[d.id]);
@@ -25,7 +25,7 @@ function simulate(o={}){
     const dt=new Date(t),y=dt.getUTCFullYear(),m=dt.getUTCMonth(),d=dt.getUTCDate(),n=dim(y,m),k=ym(t),ds=iso(t),P=planOf(k),A=P.amex;
     const M=months[k]||(months[k]={k,inc:0,bills:0,yearly:0,debt:0,lump:0,vars:0,xfer:0,one:0,sav:0,fee:0,goalOut:0,ySet:0});
     const on=day=>d===Math.min(day,n);
-    P.income.forEach(i=>{if(on(i.day)){const a=incFor(k,i);bank+=a;M.inc+=a;events.push({t,k:'in',n:i.name,a})}});
+    P.income.forEach(i=>{if(on(i.day)){const tk=tickRow(k,i.id),a=tk?tk.a:incFor(k,i);if(!tk)bank+=a;M.inc+=a;if(!tk)events.push({t,k:'in',n:i.name,a})}});
     P.bills.forEach(b=>{
       const fr=b.freq||'monthly';let due=false;
       if(fr==='monthly')due=on(b.day);
@@ -34,13 +34,13 @@ function simulate(o={}){
       if(!due)return;
       const amt=b.amount;
       if(fr!=='monthly'&&b.spread){const take=Math.min(pots.yearly,amt);pots.yearly-=take;bank-=amt-take;M.yearly+=amt;events.push({t,k:'yearly',n:b.name,a:-amt,variable:!!b.variable})}
-      else{if(b.card){cycle+=amt;cardSpend+=amt;const f=amt*(b.fee||0)/100;bank-=f;feeTotal+=f;M.fee+=f}else bank-=amt;
-        if(fr==='monthly'){M.bills+=amt;events.push({t,k:'bill',n:b.name,a:-amt,variable:!!b.variable})}else{M.yearly+=amt;events.push({t,k:'yearly',n:b.name,a:-amt})}}});
+      else{if(b.card){cycle+=amt;cardSpend+=amt;const f=amt*(b.fee||0)/100;bank-=f;feeTotal+=f;M.fee+=f}else if(!tickRow(k,b.id))bank-=amt;
+        if(fr==='monthly'){M.bills+=amt;if(!tickRow(k,b.id))events.push({t,k:'bill',n:b.name,a:-amt,variable:!!b.variable})}else{M.yearly+=amt;events.push({t,k:'yearly',n:b.name,a:-amt})}}});
     // spread-over-the-year set aside, on the savings day
     if(sset.has(t)){const sp=sum(P.bills.filter(b=>(b.freq||'monthly')!=='monthly'&&b.spread),b=>b.amount/(b.freq==='quarterly'?3:12));if(sp>0){bank-=sp;pots.yearly+=sp;M.ySet+=sp}}
     P.debts.forEach(x=>{if(!(x.id in dbal))dbal[x.id]=st.debtBal[x.id];const tot=(x.pay||0)+(x.extra||0)+(o.extraDebt&&o.extraDebt.id===x.id?o.extraDebt.amt:0);if(!on(x.day)||tot<=0)return;let pay=tot;const b=dbal[x.id];
       if(b!=null){if(b<=0.005)return;const it=b*(x.apr||0)/1200,owe=b+it;pay=Math.min(tot,owe);dbal[x.id]=owe-pay;if(dbal[x.id]<=0.005)dbal[x.id]=0}
-      bank-=pay;M.debt+=pay;events.push({t,k:'debt',n:x.name,a:-pay})});
+      if(!tickRow(k,x.id)){bank-=pay;events.push({t,k:'debt',n:x.name,a:-pay})}M.debt+=pay});
     lumps.forEach(l=>{if(l.date!==ds)return;const nm=(P.debts.find(x=>x.id===l.debt)||{}).name||'debt';let amt=l.amount;const b=dbal[l.debt];if(b!=null)amt=Math.min(amt,b);if(amt<=0)return;
       if(b!=null)dbal[l.debt]=Math.max(0,b-amt);
       if(l.from==='savings'){const tk=Math.min(pots.general,amt);pots.general-=tk;bank-=amt-tk}else bank-=amt;
@@ -51,7 +51,7 @@ function simulate(o={}){
     const daysLeft=curM?Math.max(1,n-new Date(start).getUTCDate()+1):n;
     const xcat=new Set((P.transfers||[]).map(x=>x.catId));
     P.vars.forEach(v=>{if(xcat.has(v.id))return;const rem=curM?Math.max(0,v.budget-spentIn(k,v.id)):v.budget;const a=rem/daysLeft;if(a<=0)return;const cp=v.cardOK?a*share:0;cycle+=cp;cardSpend+=cp;bank-=a-cp;M.vars+=a});
-    (xfer[t]||[]).forEach(x=>{bank-=x.amount;M.xfer+=x.amount;events.push({t,k:'xfer',n:x.name,a:-x.amount})});
+    (xfer[t]||[]).forEach(x=>{if(!tickRow(k,x.id)){bank-=x.amount;events.push({t,k:'xfer',n:x.name,a:-x.amount})}M.xfer+=x.amount});
     (P.oneoffs||[]).forEach(oo=>{if(oo.date!==ds)return;M.one+=oo.amount;events.push({t,k:'one',n:oo.name,a:-oo.amount,pay:oo.pay});
       if(oo.pay==='amex'){cycle+=oo.amount;cardSpend+=oo.amount}else if(oo.pay==='savings'){const tk=Math.min(pots.general,oo.amount);pots.general-=tk;bank-=oo.amount-tk}else bank-=oo.amount});
     const G=buildGoals(P,{...st,goalSaved:{},taxSaved:{}});

@@ -5,7 +5,9 @@ const lsGet=k=>{try{return JSON.parse(localStorage.getItem(LSK+k))}catch(e){retu
 const lsSet=(k,v)=>{try{localStorage.setItem(LSK+k,JSON.stringify(v))}catch(e){}};
 function setSync(t,c){const a=$('#syncTxt'),b=$('#syncDot');if(a)a.textContent=t;if(b)b.className='dot '+(c||'')}
 function loadLocal(){
-  const v=lsGet('versions'),s=lsGet('state');let any=false;
+  let v=lsGet('versions'),s=lsGet('state');let any=false;
+  /* a copy of the app that carries your data starts from it the first time it is opened in a browser */
+  if(!v&&!s&&window.SEED){try{lsSet('versions',window.SEED.versions);lsSet('state',window.SEED.state);Object.keys(window.SEED.tx).forEach(k=>lsSet('tx_'+k,window.SEED.tx[k]));v=window.SEED.versions;s=window.SEED.state}catch(e){}}
   if(v&&v.length){VERSIONS=v;any=true}
   if(s){STATE=Object.assign(defaultState(),s);any=true}
   if(!STATE.rules)STATE.rules=ruleObjs();migrateAll();
