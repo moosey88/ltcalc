@@ -1,22 +1,24 @@
 /* ===== data model: plan versions (change from a month onwards), state, categories ===== */
 function defaultPlan(){return{
-  income:[{id:'i_annie',name:'Annie wages',amount:8333,day:28},{id:'i_sander',name:'Sander wages',amount:1500,day:29,varies:true},{id:'i_niamh',name:'Niamh: phone contribution',amount:15,day:1}],
+  income:[{id:'i_annie',name:'Annie salary (APEX)',amount:8333,day:1},{id:'i_dirloan',name:'Annie directors loan from APEX (covers MBNA)',amount:479.16,day:1},{id:'i_sander',name:'Sander (from his own account)',amount:1500,day:29,varies:true},{id:'i_niamh',name:'Niamh: phone contribution',amount:15,day:1}],
   bills:[
-    {id:'b_ctax',name:'Council tax',amount:260,day:2,kind:'need',freq:'monthly',match:'council'},
-    {id:'b_gas',name:'Gas & electric',amount:282,day:21,kind:'need',freq:'monthly',variable:true,match:'gas'},
-    {id:'b_water',name:'Water',amount:53,day:2,kind:'need',freq:'monthly',guess:1,match:'water'},
-    {id:'b_bb',name:'Broadband and TV',amount:9.1,day:2,kind:'need',freq:'monthly',guess:1,match:'broadband'},
-    {id:'b_phone',name:'Annie / girls phone',amount:77.94,day:2,kind:'need',freq:'monthly',match:'phone'},
-    {id:'b_vet',name:'Vet cover',amount:20,day:2,kind:'need',freq:'monthly',guess:1,match:'vet'},
-    {id:'b_gym',name:'Sander and Erin gym',amount:67,day:2,kind:'want',freq:'monthly',guess:1,match:'gym'},
-    {id:'b_netflix',name:'Netflix',amount:18.99,day:10,kind:'want',freq:'monthly',match:'netflix'},
-    {id:'b_phyl',name:'Phyliss',amount:8.68,day:10,kind:'want',freq:'monthly',guess:1,match:'phyliss'},
-    {id:'b_prime',name:'Amazon Prime',amount:8.99,day:10,kind:'want',freq:'monthly',guess:1,match:'prime'},
-    {id:'b_spot',name:'Spotify',amount:21.99,day:24,kind:'want',freq:'monthly',match:'spotify'}],
+    {id:'b_ctax',name:'Council tax',amount:260,day:1,kind:'need',freq:'monthly',match:'waverley'},
+    {id:'b_gas',name:'Gas & electric (Octopus)',amount:282,day:1,kind:'need',freq:'monthly',variable:true,match:'octopus'},
+    {id:'b_water',name:'Water (South East Water)',amount:53,day:1,kind:'need',freq:'monthly',match:'south east'},
+    {id:'b_bb',name:'Broadband and TV (Virgin Media)',amount:43.5,day:4,kind:'need',freq:'monthly',match:'virgin media'},
+    {id:'b_phone',name:'Phones (Sky Mobile)',amount:131.89,day:25,kind:'need',freq:'monthly',match:'sky mobile'},
+    {id:'b_vet',name:'Vet cover (Linvet)',amount:20,day:14,kind:'need',freq:'monthly',match:'linvet'},
+    {id:'b_gym',name:'Gym (Everyone Active)',amount:69.99,day:1,kind:'want',freq:'monthly',match:'everyone active'},
+    {id:'b_netflix',name:'Netflix',amount:18.99,day:22,kind:'want',freq:'monthly',match:'netflix'},
+    {id:'b_phyl',name:'Phyliss (Tuckwell Chase)',amount:8.68,day:1,kind:'want',freq:'monthly',match:'tuckwell'},
+    {id:'b_prime',name:'Amazon Prime',amount:8.99,day:9,kind:'want',freq:'monthly',match:'amazon prime'},
+    {id:'b_spot',name:'Spotify',amount:21.99,day:5,kind:'want',freq:'monthly',match:'spotify'},
+    {id:'b_homeserve',name:'Homeserve',amount:19.74,day:14,kind:'need',freq:'monthly',match:'homeserve'},
+    {id:'b_cartax',name:'Car tax (Mini)',amount:23.18,day:1,kind:'need',freq:'monthly',match:'dvla'}],
   debts:[
-    {id:'d_mort',name:'Mortgage',type:'mortgage',pay:1818.69,day:2,apr:null,extra:0},
-    {id:'d_tax',name:'Tax bill repayment',type:'tax',pay:1000,day:9,apr:0,extra:0},
-    {id:'d_mbna',name:'MBNA loan (Annie car)',type:'loan',pay:0,day:1,apr:null,extra:0},
+    {id:'d_mort',name:'Mortgage (Halifax)',type:'mortgage',pay:1818.69,day:1,apr:null,extra:0,match:'halifax'},
+    {id:'d_tax',name:'HMRC tax on shares (not vested yet)',type:'tax',pay:1000,day:1,apr:0,extra:0,match:'hmrc',note:'About £40,000 still owed, to be confirmed'},
+    {id:'d_mbna',name:'MBNA loan (Annie car)',type:'loan',pay:479.16,day:1,apr:null,extra:0,match:'mbna',note:'Annie is paid a directors loan of the same amount by APEX each month'},
     {id:'d_ikea',name:'Ikea repayment',type:'loan',pay:0,day:1,apr:0,extra:0}],
   vars:[
     {id:'v_shop',name:'Shopping',budget:650,kind:'need',cardOK:true,subs:[{id:'main',name:'Main shop'},{id:'topup',name:'Top-up shops'},{id:'entertain',name:'Entertaining'}]},
@@ -45,13 +47,15 @@ function defaultState(){return{
   bank:null,asOf:todayISO(),buffer:500,flagLimit:100,flagExcl:['v_shop','v_acash','v_scash'],
   cashOpening:0,cashOpenDate:todayISO(),cash:[],
   debtBal:{},debtStart:{},debtLog:{},goalSaved:{},taxSaved:{},general:0,
-  assets:[],nwSnaps:[],notes:{},rules:null,rulesV:2,amexOwed:0,catMap:{},lumps:[],
+  assets:[],nwSnaps:[],notes:{},rules:null,rulesV:4,amexOwed:0,catMap:{},lumps:[],
   startedAt:todayISO(),incSeed:1,incAct:{}}}
 const DEFAULT_RULES=[
  ['TESCO EXPRESS','v_shop','topup'],['SAINSBURYS LOCAL','v_shop','topup'],['SIMPLY FOOD','v_shop','topup'],['CO-OP','v_shop','topup'],
  ['TESCO','v_shop','main'],['SAINSBURY','v_shop','main'],['ASDA','v_shop','main'],['LIDL','v_shop','main'],['ALDI','v_shop','main'],['WAITROSE','v_shop','main'],['MORRISONS','v_shop','main'],['OCADO','v_shop','main'],['COSTCO','v_shop','main'],
+ ['FESTIVAL','v_hol'],['BRITISH AIRWAYS','v_hol'],['RYANAIR','v_hol'],['EASYJET','v_hol'],['LE SHUTTLE','v_hol'],['EUROTUNNEL','v_hol'],['DUTY FREE','v_hol'],['HOLIDAY','v_hol'],
+ ['VETS NOW','v_pets'],['WUFF','v_pets'],['SQUIRES','v_home'],['HALFORDS','v_home'],['BOOTS','v_gen'],['GO OUTDOORS','v_gen'],['KURT GEIGER','v_gen'],
  ['ROUND UP','v_round'],['ROUNDUP','v_round'],
- ['AMAZON','v_gen'],['ARGOS','v_gen'],['EBAY','v_gen'],['NEXT','v_gen'],['PRIMARK','v_gen'],['CURRYS','v_gen'],['ETSY','v_gen'],
+ ['AMAZON','v_gen'],['AMZN','v_gen'],['TEMU','v_gen'],['HOME BARGAINS','v_gen'],['DUNELM','v_gen'],['PRIMARK','v_gen'],['ARGOS','v_gen'],['EBAY','v_gen'],['NEXT','v_gen'],['PRIMARK','v_gen'],['CURRYS','v_gen'],['ETSY','v_gen'],
  ['DELIVEROO','v_take'],['JUST EAT','v_take'],['UBER EATS','v_take'],['DOMINO','v_take'],['MCDONALD','v_take'],['KFC','v_take'],['GREGGS','v_take'],
  ['COSTA','v_rest'],['STARBUCKS','v_rest'],['PRET','v_rest'],['NANDO','v_rest'],['PIZZA EXPRESS','v_rest'],['HARVESTER','v_rest'],
  ['CINEMA','v_ent'],['ODEON','v_ent'],['CINEWORLD','v_ent'],['TICKETMASTER','v_ent'],
@@ -68,7 +72,7 @@ let STATE=defaultState();
 let TX={};            // month -> [{id,d,t,a,c,s:'man'|'nw'|'amex',p:'bank'|'amex'|'cash',b,m}]
 let HIST={};          // month -> imported sheet month
 let DRAFT=null;       // unsaved plan edits (a copy of the plan in force next month)
-STATE.rules=ruleObjs();STATE.rulesV=2;
+STATE.rules=ruleObjs();STATE.rulesV=4;
 const planFor=k=>{let v=VERSIONS[0];for(const x of VERSIONS)if(x.from<=k)v=x;return v.plan};
 const versionFor=k=>{let v=VERSIONS[0];for(const x of VERSIONS)if(x.from<=k)v=x;return v};
 const curPlan=()=>planFor(thisMonthK());
@@ -129,12 +133,21 @@ function migratePlan(p){
   if(has('v_petrol')){p.vars=p.vars.filter(v=>v.id!=='v_petrol');changed=true}
   const k=p.vars.find(v=>v.id==='v_kids');if(k&&k.name!=='Kids'){k.name='Kids';changed=true}
   const sh=p.vars.find(v=>v.id==='v_shop');if(sh&&!sh.subs){sh.subs=[{id:'main',name:'Main shop'},{id:'topup',name:'Top-up shops'},{id:'entertain',name:'Entertaining'}];changed=true}
+  if(!p.bankFix){p.bankFix=1;changed=true;const D=defaultPlan(),OLD={b_ctax:'council',b_gas:'gas',b_water:'water',b_bb:'broadband',b_phone:'phone',b_vet:'vet',b_gym:'gym',b_phyl:'phyliss',b_prime:'prime'};
+    p.bills.forEach(b=>{const n=D.bills.find(x=>x.id===b.id);if(n&&OLD[b.id]&&b.match===OLD[b.id]){Object.assign(b,{name:n.name,amount:n.amount,day:n.day,match:n.match});delete b.guess}});
+    D.bills.forEach(n=>{if(!p.bills.some(b=>b.id===n.id))p.bills.push(n)});
+    const DO={d_mort:'Mortgage',d_tax:'Tax bill repayment',d_mbna:'MBNA loan (Annie car)'};
+    p.debts.forEach(d=>{const n=D.debts.find(x=>x.id===d.id);if(n&&DO[d.id]===d.name){const keep=d.pay;Object.assign(d,n);if(d.id==='d_mort')d.pay=keep||n.pay}});
+    const a=p.income.find(i=>i.id==='i_annie');if(a&&a.name==='Annie wages'){a.name='Annie salary (APEX)';a.day=1}
+    const s=p.income.find(i=>i.id==='i_sander');if(s&&s.name==='Sander wages')s.name='Sander (from his own account)';
+    if(!p.income.some(i=>i.id==='i_dirloan'))p.income.splice(1,0,D.income[1])}
   return changed}
 /* income actually received, by month and stream (STATE.incAct[month][id]); falls back to the planned amount */
-const incFor=(k,i)=>{const a=STATE.incAct&&STATE.incAct[k]&&STATE.incAct[k][i.id];return a==null?i.amount:a};
+const incFromTx=(k,id)=>{if(k>=thisMonthK()||!(TX[k]&&TX[k].length))return null;const r=TX[k].filter(t=>t.c==='_inc'&&t.sc===id&&t.a>0);return r.length?sum(r,t=>t.a):0};
+const incFor=(k,i)=>{const a=STATE.incAct&&STATE.incAct[k]&&STATE.incAct[k][i.id];if(a!=null)return a;const b=incFromTx(k,i.id);return b==null?i.amount:b};
 const incActualTotal=(k,P)=>sum((P||planFor(k)).income,i=>incFor(k,i));
 function migrateAll(){
   if(!STATE.incSeed){STATE.incSeed=1;VERSIONS.forEach(v=>{if(!v.plan.income.some(i=>i.id==='i_niamh'||/niamh/i.test(i.name)))v.plan.income.push({id:'i_niamh',name:'Niamh: phone contribution',amount:15,day:1})})}
   VERSIONS.forEach(v=>migratePlan(v.plan));
-  if(STATE.rulesV!==2){const defKeys=new Set(DEFAULT_RULES.map(r=>r[0]));const learned=(STATE.rules||[]).filter(r=>!defKeys.has(r.k)&&r.c!=='v_eat'&&r.c!=='v_petrol');STATE.rules=[...ruleObjs(),...learned];STATE.rulesV=2}
+  if(STATE.rulesV!==4){const defKeys=new Set(DEFAULT_RULES.map(r=>r[0]));const learned=(STATE.rules||[]).filter(r=>!defKeys.has(r.k)&&r.c!=='v_eat'&&r.c!=='v_petrol');STATE.rules=[...ruleObjs(),...learned];STATE.rulesV=4}
   if(DRAFT)migratePlan(DRAFT)}

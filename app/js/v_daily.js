@@ -3,17 +3,42 @@ const merchKey=t=>{const w=(t||'').toLowerCase().replace(/[^a-z& ]+/g,' ').split
 const ruleOf=D=>(STATE.rules||[]).find(r=>D.includes(r.k.toUpperCase()));
 const catRule=D=>{const r=ruleOf(D);return r?r.c:''};
 const bkey=b=>(b.match||b.name.split(' ')[0]||'').toUpperCase();
-function classify(desc,amount){
+/* bank-specific knowledge: who pays in, which transfers are movements between your own accounts, which payments are debts */
+function bankClass(D,amount){
+  if(/PAYMENT RECEIVED|THANK YOU/.test(D))return{c:'_amexpay'};
+  if(amount>0){
+    if(/APEX BUSINESS COMP/.test(D)&&Math.abs(amount-479.16)<0.01)return{c:'_inc',sc:'i_dirloan'};
+    if(/APEX BUSINESS COMP/.test(D))return{c:'_inc',sc:'i_annie'};
+    if(/FROM A\/C 67511279/.test(D))return{c:'_inc',sc:'i_sander'};
+    if(/NIAMH.*PHONE/.test(D))return{c:'_inc',sc:'i_niamh'};
+    if(/FROM A\/C (67716245|67652417)|NSPB|NS&I/.test(D))return{c:'_skip'};
+    if(/OROURKE|NIAMH|ERIN/.test(D))return{c:'_inc',sc:'i_other'};
+    return null}
+  if(/AMERICAN EXP|AMEX PAY/.test(D))return{c:'_amexpay'};
+  if(/TO A\/C 67511279/.test(D))return{c:'v_scash'};
+  if(/TO A\/C (67716245|67652417|24818771)/.test(D))return{c:'_skip'};
+  if(/ANNIE FIRST|ANNIE STARLING|ANNALISA/.test(D))return{c:Math.abs(amount)>=3000?'_skip':'v_acash'};
+  if(/NS&I|PREMIUM BOND|ROUND UP TO 6245/.test(D))return/ROUND UP/.test(D)?{c:'v_round'}:{c:'_skip'};
+  if(/HALIFAX|MBNA|HMRC|LLOYDS STANDARD|LLOYDS BANK|VIRGIN MONEY|IKANO|NOVUNA|BARCLAYCARD|B CARD/.test(D))return{c:'_skip'};
+  if(/ZURICH|ANIMAL FRIENDS|ADMIRAL|EE LIMITED|DAVID LLOYD|EDF ENERGY|TV LICENCE/.test(D))return{c:'_skip'};
+  if(/KLARNA.*(TICKET|TICK ET)/.test(D))return{c:'v_ent'};
+  if(/AIRBNB/.test(D))return{c:'v_hol'};
+  if(/PARENTPAY|ERIN OROURKE|NIAMH CASH/.test(D))return{c:'v_kids'};
+  if(/\b(SHELL|BP|ESSO|TEXACO|JET)\b/.test(D)&&/CD|CARD/.test(D))return{c:'_skip'};
+  return null}
+function classifyFull(desc,amount){
   const D=(desc||'').toUpperCase(),P=curPlan();
-  if(amount>0)return /REFUND|RETURN/.test(D)?catRule(D)||'_inc':'_inc';
-  if(/CASH WITHDRAWAL|\bATM\b|CASHPOINT|CASH MACHINE/.test(D))return'_cashout';
-  if(/CASH DEPOSIT|CASH IN BRANCH/.test(D))return'_cashin';
-  if(/AMERICAN EXPRESS|\bAMEX\b/.test(D))return'_amexpay';
-  const r=catRule(D);if(r)return r;
-  if(P.bills.some(b=>bkey(b)&&D.includes(bkey(b))))return'_skip';
-  if(P.debts.some(d=>D.includes((d.match||d.name.split(' ')[0]).toUpperCase())))return'_skip';
-  if(/SAVINGS|PREMIUM BOND/.test(D))return'_skip';
-  return''}
+  const b=bankClass(D,amount);if(b)return b;
+  if(amount>0)return{c:/REFUND|RETURN/.test(D)?catRule(D)||'_inc':'_inc'};
+  if(/CASH WITHDRAWAL|\bATM\b|CASHPOINT|CASH MACHINE/.test(D))return{c:'_cashout'};
+  if(/CASH DEPOSIT|CASH IN BRANCH/.test(D))return{c:'_cashin'};
+  if(/AMERICAN EXPRESS|\bAMEX\b/.test(D))return{c:'_amexpay'};
+  const r=ruleOf(D);if(r)return{c:r.c,sc:r.s};
+  if(P.bills.some(b=>bkey(b)&&D.includes(bkey(b))))return{c:'_skip'};
+  if(P.debts.some(d=>D.includes((d.match||d.name.split(' ')[0]).toUpperCase())))return{c:'_skip'};
+  if(/SAVINGS|PREMIUM BOND/.test(D))return{c:'_skip'};
+  return{c:''}}
+function classify(desc,amount){return classifyFull(desc,amount).c}
 function monthRecords(k){
   if(TX[k]&&TX[k].length)return{src:'app',rows:TX[k]};
   const h=normHist(k);if(h&&h.hasActual)return{src:'sheet',rows:h.lines.map((l,i)=>({id:'h'+k+i,d:k+'-01',t:l.n||'(no note)',a:-l.a,c:l.c,s:'sheet',p:'bank'}))};
@@ -104,9 +129,9 @@ function importText(text,src){
   let added=0,skipped=0,merged=0,asked=0;const pay=src==='amex'?'amex':'bank';
   const have=new Set(Object.values(TX).flat().filter(t=>t.s===src).map(t=>t.id));
   parsed.forEach(x=>{if(have.has(x.id)){skipped++;return}
-    const k=x.d.slice(0,7),arr=TX[k]=TX[k]||[];let c=classify(x.t,x.a);
+    const k=x.d.slice(0,7),arr=TX[k]=TX[k]||[];const cf=classifyFull(x.t,x.a);let c=cf.c;
     const cands=x.a<0?arr.filter(t=>t.s==='man'&&t.p===pay&&!t.m&&Math.abs(t.a-x.a)<0.005&&dayGap(t.d,x.d)<=3):[];
-    const ro=x.a<0?ruleOf(x.t.toUpperCase()):null;let row={id:x.id,d:x.d,t:x.t,a:x.a,b:x.b,c,sc:ro&&ro.c===c?ro.s:undefined,s:src,p:pay};
+    let row={id:x.id,d:x.d,t:x.t,a:x.a,b:x.b,c,sc:cf.sc,s:src,p:pay};
     if(cands.length===1){const mt=cands[0];row.c=mt.c||c;row.sc=mt.c?mt.sc:row.sc;row.note=mt.t;arr.splice(arr.indexOf(mt),1);merged++}
     else if(cands.length>1){row.maybe=cands.map(t=>t.id);asked++}
     arr.push(row);added++;
@@ -116,5 +141,5 @@ function importText(text,src){
   let msg=`Added ${added} new lines (${merged} matched to entries you typed, ${skipped} already there${asked?`, ${asked} need your say-so`:''}).`;
   if(src==='nw'){const wb=parsed.filter(x=>x.b!=null);
     if(wb.length){const asc=wb[0].d<wb[wb.length-1].d,ld=wb.map(x=>x.d).sort().pop(),same=wb.filter(x=>x.d===ld),lastRow=asc?same[same.length-1]:same[0];
-      if(!STATE.asOf||ld>=STATE.asOf){applyBalance(lastRow.b,ld,'file');msg+=` Balance set to ${GBP2(lastRow.b)} as of ${fdate(parseISO(ld))}.`}}}
+      if(STATE.bank==null||!STATE.asOf||ld>=STATE.asOf){applyBalance(lastRow.b,ld,'file');msg+=` Balance set to ${GBP2(lastRow.b)} as of ${fdate(parseISO(ld))}.`}}}
   invalidate();persistAll();return msg}

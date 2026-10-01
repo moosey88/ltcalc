@@ -8,6 +8,7 @@ function vDebts(){
   const cards=live.map(({d,i,bal,a})=>{const start=STATE.debtStart[d.id],log=STATE.debtLog[d.id]||[],prog=start&&bal!=null?Math.min(100,Math.max(0,(1-bal/start)*100)):0;
     const end=a&&a.n!=null?addMonthsT(parseISO(STATE.asOf),a.n):null;
     return`<div class="panel c6"><div class="row" style="justify-content:space-between"><h3>${esc(d.name)}</h3><span class="pill info">${d.type==='mortgage'?'Mortgage':d.type==='tax'?'Tax':'Loan'}</span></div>
+     ${d.note?`<p class="small ink2" style="margin:4px 0 0">${esc(d.note)}</p>`:''}
      ${bal!=null?`<div class="big" style="margin:6px 0">${GBP(bal)}</div><div class="bar"><i class="g" style="width:${prog}%"></i></div><div class="small muted" style="margin:4px 0 8px">${start?pct(prog)+' paid off of '+GBP(start):'Set a starting balance to track progress'}</div>`:`<p class="muted small">Add the balance left to see the end date and progress.</p>`}
      <div class="list"><div class="item"><span>Monthly payment</span><b>${GBP2((d.pay||0)+(d.extra||0))} on the ${ord(d.day)}</b></div><div class="item"><span>Interest rate</span><b>${d.apr==null?'add rate':d.apr+'%'}</b></div>
       <div class="item"><span>Debt free</span><b>${end?fmonthT(end)+' ('+ys(a.n)+')':a&&a.n==null?'payment too low':'add balance'}</b></div><div class="item"><span>Interest still to pay</span><b>${a&&a.int!=null?GBP(a.int):'–'}</b></div></div>
