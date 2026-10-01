@@ -8,7 +8,7 @@ function loadLocal(){
   const v=lsGet('versions'),s=lsGet('state');let any=false;
   if(v&&v.length){VERSIONS=v;any=true}
   if(s){STATE=Object.assign(defaultState(),s);any=true}
-  if(!STATE.rules)STATE.rules=DEFAULT_RULES.map(([k,c])=>({k,c}));
+  if(!STATE.rules)STATE.rules=ruleObjs();migrateAll();
   try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(LSK+'tx_')){TX[k.slice(LSK.length+3)]=JSON.parse(localStorage.getItem(k))}}}catch(e){}
   if(window.HISTORY&&window.HISTORY.months)ingestHist(window.HISTORY.months);
   return any}
@@ -42,8 +42,8 @@ async function connectDb(){
     if(!snap.exists)return;const d=snap.data();
     if(d.at&&d.at===lastAt[path]){setSync('Saved · shared','ok');return}
     try{fn(JSON.parse(d.json));setSync('Synced','ok');if(!busy())render()}catch(e){}},e=>setSync('Not synced ('+(e&&e.code||'error')+')','bad'));
-  apply('hh/plan',v=>{if(Array.isArray(v)&&v.length){VERSIONS=v;lsSet('versions',v)}});
-  apply('hh/state',s=>{STATE=Object.assign(defaultState(),s);lsSet('state',STATE)});
+  apply('hh/plan',v=>{if(Array.isArray(v)&&v.length){VERSIONS=v;migrateAll();lsSet('versions',v)}});
+  apply('hh/state',s=>{STATE=Object.assign(defaultState(),s);if(!STATE.rules)STATE.rules=ruleObjs();migrateAll();lsSet('state',STATE)});
   db.collection('tx').onSnapshot(snap=>{snap.docs.forEach(d=>{try{TX[d.id]=JSON.parse(d.data().json)}catch(e){}});if(!busy())render()},()=>{});
   db.collection('hist').onSnapshot(snap=>{let n=0;snap.docs.forEach(d=>{try{const o=JSON.parse(d.data().json);const ms=o.months||(o.k?{[o.k]:o}:null);if(ms){ingestHist(ms);n++}}catch(e){}});if(n){resetHist();if(!busy())render()}},()=>{});
   setSync('Connected','ok');return true}

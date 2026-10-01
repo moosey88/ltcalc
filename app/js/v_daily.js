@@ -1,6 +1,7 @@
 /* ===== Day to day ===== */
 const merchKey=t=>{const w=(t||'').toLowerCase().replace(/[^a-z& ]+/g,' ').split(/\s+/).filter(x=>x.length>2&&!/^(the|ltd|plc|uk|card|payment|purchase|visa)$/.test(x));return w.slice(0,2).join(' ')||'other'};
-const catRule=D=>{const r=(STATE.rules||[]).find(r=>D.includes(r.k.toUpperCase()));return r?r.c:''};
+const ruleOf=D=>(STATE.rules||[]).find(r=>D.includes(r.k.toUpperCase()));
+const catRule=D=>{const r=ruleOf(D);return r?r.c:''};
 const bkey=b=>(b.match||b.name.split(' ')[0]||'').toUpperCase();
 function classify(desc,amount){
   const D=(desc||'').toUpperCase(),P=curPlan();
@@ -27,12 +28,13 @@ function vDaily(){
   const P=planFor(m),xcat=new Set((P.transfers||[]).map(x=>x.catId)),isNow=m===thisMonthK(),y=+m.slice(0,4),mo=monthOf(m)-1,n=dim(y,mo),dom=isNow?+todayISO().slice(8):n;
   const rowsV=allVars().filter(v=>src==='sheet'||!xcat.has(v.id)).filter(v=>bud[v.id]>0||by[v.id]>0);
   const totB=sum(rowsV,v=>bud[v.id]),totS=sum(rowsV,v=>by[v.id]||0)+unc;
+  const entShop=sum(rec.rows.filter(t=>t.c==='v_shop'&&t.sc==='entertain'),t=>-t.a);
   const dups=rec.rows.filter(t=>t.maybe&&t.maybe.length);
   return banners()+intro('Fill this in as you spend, or upload a NatWest or Amex file. Every entry is kept by month, so nothing is lost when budgets change. Earlier months come from your sheet.')+`
   <div class="grid">
    <div class="panel c12"><h2>Add spending</h2>
     <div class="entry"><label>Date<input type="date" id="e_date" value="${todayISO()}"></label><label>Amount £<input type="number" step="0.01" min="0" id="e_amt" placeholder="0.00"></label>
-     <label>Category<select id="e_cat"><option value="">Choose…</option>${P.vars.filter(v=>!xcat.has(v.id)).map(v=>`<option value="${v.id}">${esc(v.name)}</option>`).join('')}<option value="_unplanned">Unplanned bill</option></select></label>
+     <label>Category<select id="e_cat"><option value="">Choose…</option>${catOptions('','',activeVars().filter(v=>!xcat.has(v.id)))}<option value="_unplanned">Unplanned bill</option></select></label>
      <label>Paid with<select id="e_pay"><option value="bank">Bank card</option><option value="amex">Amex</option><option value="cash">Household cash</option></select></label>
      <label>Note<input type="text" id="e_note" placeholder="optional"></label><button class="btn" data-act="addtx">Add</button></div>
     <p class="small muted" style="margin-bottom:0">Spending is joint, so there is no "who". If you also upload the NatWest file, the matching entry is merged so nothing is counted twice.</p></div>
@@ -48,28 +50,29 @@ function vDaily(){
     <div class="row" style="justify-content:center"><select id="impSrc"><option value="nw">NatWest current account</option><option value="amex">Amex card</option></select><input type="file" id="impFile" accept=".csv,text/csv" style="max-width:100%"></div><p id="impMsg" class="small" style="margin-bottom:0"></p></div>
     <p class="small muted">Account numbers are ignored. NatWest's latest balance becomes today's balance, and the bank check compares it with what you had entered.</p></div>
    <div class="panel c12"><h2>Every category and what is in it</h2><p class="small ink2" style="margin-top:0">Click a category to open it. Payments are grouped by shop, with how each was paid.</p>
-    ${allVars().filter(v=>(by[v.id]||0)!==0||rec.rows.some(t=>t.c===v.id)).map(v=>catAccordion(v,rec.rows.filter(t=>t.c===v.id),by[v.id]||0,bud[v.id],m,src)).join('')||'<p class="muted">Nothing here yet.</p>'}
+    ${allVars().filter(v=>(by[v.id]||0)!==0||rec.rows.some(t=>t.c===v.id)||(v.id==='v_ent'&&entShop>0)).map(v=>catAccordion(v.id==='v_ent'&&entShop>0?{...v,note:`Also ${GBP2(entShop)} of entertaining food shops, counted under Shopping › Entertaining so the grocery budget is honest. Not added again here.`}:v,rec.rows.filter(t=>t.c===v.id),by[v.id]||0,bud[v.id],m,src)).join('')||'<p class="muted">Nothing here yet.</p>'}
     ${(()=>{const u=rec.rows.filter(t=>!t.c&&t.a<0);return u.length?catAccordion({id:'_unsorted',name:'Unsorted'},u,unc,0,m,src):''})()}</div>
   </div>`}
 function catAccordion(v,rows,total,budget,m,src){
   const open=view.open['cat_'+v.id],spend=rows.filter(t=>t.a<0||v.id!=='_unsorted');
   const groups={};rows.forEach(t=>{const k=merchKey(t.t);(groups[k]=groups[k]||[]).push(t)});
-  const inner=open?`<div class="sub"><table><thead><tr><th>Date</th><th>What</th><th>Paid with</th><th class="n">£</th>${src==='app'?'<th></th>':''}</tr></thead><tbody>
-   ${Object.entries(groups).sort((a,b)=>sum(b[1],t=>-t.a)-sum(a[1],t=>-t.a)).map(([k,g])=>`<tr class="mer"><td colspan="3">${esc(k)} <span class="muted small" style="font-weight:400">· ${g.length} payment${g.length>1?'s':''}</span></td><td class="n">${GBP2(-sum(g,t=>t.a))}</td>${src==='app'?'<td></td>':''}</tr>`+g.sort((a,b)=>a.d<b.d?1:-1).map(t=>`<tr><td style="padding-left:18px">${src==='sheet'?'':fdate(parseISO(t.d))}</td><td>${esc(t.t||'')}</td><td>${t.s==='man'?(t.p==='amex'?'Amex (typed)':t.p==='cash'?'Cash':'Bank card (typed)'):t.s==='amex'?'Amex file':t.s==='nw'?'NatWest file':'Sheet'}</td><td class="n">${GBP2(-t.a)}</td>${src==='app'?`<td><span class="row">${catSelect(t.id,m,t.c)}<button class="btn danger sm" data-act="deltx" data-m="${m}" data-id="${esc(t.id)}" aria-label="Delete">✕</button></span></td>`:''}</tr>`).join('')).join('')}</tbody></table></div>`:'';
+  const sums=(v.subs||[]).map(s=>[s.name,sum(rows.filter(t=>t.sc===s.id),t=>-t.a)]).filter(x=>x[1]);const un=(v.subs||[]).length?sum(rows.filter(t=>!t.sc),t=>-t.a):0;
+  const inner=open?`${sums.length?`<p class="small ink2" style="margin:6px 12px">${sums.map(x=>`${esc(x[0])} <b>${GBP2(x[1])}</b>`).join(' · ')}${un>0?` · Not split <b>${GBP2(un)}</b>`:''}</p>`:''}${v.note?`<p class="small ink2" style="margin:6px 12px">${v.note}</p>`:''}<div class="sub"><table><thead><tr><th>Date</th><th>What</th><th>Paid with</th><th class="n">£</th>${src==='app'?'<th></th>':''}</tr></thead><tbody>
+   ${Object.entries(groups).sort((a,b)=>sum(b[1],t=>-t.a)-sum(a[1],t=>-t.a)).map(([k,g])=>`<tr class="mer"><td colspan="3">${esc(k)} <span class="muted small" style="font-weight:400">· ${g.length} payment${g.length>1?'s':''}</span></td><td class="n">${GBP2(-sum(g,t=>t.a))}</td>${src==='app'?'<td></td>':''}</tr>`+g.sort((a,b)=>a.d<b.d?1:-1).map(t=>`<tr><td style="padding-left:18px">${src==='sheet'?'':fdate(parseISO(t.d))}</td><td>${esc(t.t||'')}${t.sc?` <span class="pill info">${esc(subName(t.c,t.sc))}</span>`:''}</td><td>${t.s==='man'?(t.p==='amex'?'Amex (typed)':t.p==='cash'?'Cash':'Bank card (typed)'):t.s==='amex'?'Amex file':t.s==='nw'?'NatWest file':'Sheet'}</td><td class="n">${GBP2(-t.a)}</td>${src==='app'?`<td><span class="row">${catSelect(t.id,m,t.c,t.sc)}<button class="btn danger sm" data-act="deltx" data-m="${m}" data-id="${esc(t.id)}" aria-label="Delete">✕</button></span></td>`:''}</tr>`).join('')).join('')}</tbody></table></div>`:'';
   return`<div class="cat"><div class="hd" data-act="toggle" data-v="cat_${v.id}"><span>${open?'▾':'▸'}</span><b>${esc(v.name)}</b><span class="muted small n">${rows.length} payment${rows.length===1?'':'s'}</span><b class="n">${GBP(total)}</b><span class="n muted">${budget?'of '+GBP(budget):'no budget'}</span>${budget?`<div class="bar"><i class="${total>budget?'r':'g'}" style="width:${Math.min(100,total/budget*100)}%"></i></div>`:'<span></span>'}</div>${inner}</div>`}
 /* ---- adding, sorting, merging ---- */
 function addTx(){
-  const d=$('#e_date').value,amt=parseFloat($('#e_amt').value),c=$('#e_cat').value,p=$('#e_pay').value,note=$('#e_note').value.trim();
+  const d=$('#e_date').value,amt=parseFloat($('#e_amt').value),cv=$('#e_cat').value,c=cv.split(':')[0],sc=cv.split(':')[1],p=$('#e_pay').value,note=$('#e_note').value.trim();
   if(!d||!(amt>0)||!c){toast('Add a date, an amount and a category');return}
   const k=d.slice(0,7);const id='m_'+uid();
-  (TX[k]=TX[k]||[]).push({id,d,t:note,a:-amt,c:c==='_unplanned'?'':c,s:'man',p,unplanned:c==='_unplanned'||undefined});
+  (TX[k]=TX[k]||[]).push({id,d,t:note,a:-amt,c:c==='_unplanned'?'':c,sc:sc||undefined,s:'man',p,unplanned:c==='_unplanned'||undefined});
   if(c==='_unplanned'){STATE.notes[id]={kind:'oneoff',text:note||'Unplanned bill'}}
   view.m=k;saveTx(k);invalidate();persistAll();toast('Added');render()}
-function sortTx(id,k,c){
-  const t=(TX[k]||[]).find(x=>x.id===id);if(!t)return;t.c=c;
+function sortTx(id,k,cv){
+  const t=(TX[k]||[]).find(x=>x.id===id);if(!t)return;const c=cv.split(':')[0],sc=cv.split(':')[1];t.c=c;t.sc=sc||undefined;
   const kw=merchKey(t.t).toUpperCase();
-  if(c&&kw&&kw!=='OTHER'&&t.s!=='man'){if(!STATE.rules.find(r=>r.k===kw))STATE.rules.push({k:kw,c});
-    TX[k].forEach(x=>{if(!x.c&&x.s!=='man'&&x.a<0&&(x.t||'').toUpperCase().includes(kw))x.c=c})}
+  if(c&&kw&&kw!=='OTHER'&&t.s!=='man'){if(!STATE.rules.find(r=>r.k===kw))STATE.rules.push({k:kw,c,s:sc});
+    TX[k].forEach(x=>{if(!x.c&&x.s!=='man'&&x.a<0&&(x.t||'').toUpperCase().includes(kw)){x.c=c;x.sc=sc||undefined}})}
   saveTx(k);invalidate();persistAll();render()}
 /* ---- importing a file ---- */
 function parseCSV(text){const rows=[];let row=[],cur='',q=false;
@@ -94,8 +97,8 @@ function importText(text,src){
   parsed.forEach(x=>{if(have.has(x.id)){skipped++;return}
     const k=x.d.slice(0,7),arr=TX[k]=TX[k]||[];let c=classify(x.t,x.a);
     const cands=x.a<0?arr.filter(t=>t.s==='man'&&t.p===pay&&!t.m&&Math.abs(t.a-x.a)<0.005&&dayGap(t.d,x.d)<=3):[];
-    let row={id:x.id,d:x.d,t:x.t,a:x.a,b:x.b,c,s:src,p:pay};
-    if(cands.length===1){const mt=cands[0];row.c=mt.c||c;row.note=mt.t;arr.splice(arr.indexOf(mt),1);merged++}
+    const ro=x.a<0?ruleOf(x.t.toUpperCase()):null;let row={id:x.id,d:x.d,t:x.t,a:x.a,b:x.b,c,sc:ro&&ro.c===c?ro.s:undefined,s:src,p:pay};
+    if(cands.length===1){const mt=cands[0];row.c=mt.c||c;row.sc=mt.c?mt.sc:row.sc;row.note=mt.t;arr.splice(arr.indexOf(mt),1);merged++}
     else if(cands.length>1){row.maybe=cands.map(t=>t.id);asked++}
     arr.push(row);added++;
     if(c==='_cashout'||c==='_cashin'){const typ=c==='_cashout'?'out':'deposit',amt=Math.abs(x.a);

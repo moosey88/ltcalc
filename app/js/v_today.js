@@ -25,8 +25,8 @@ function unsortedPanel(k,compact){
   return`<div class="panel c12" style="border-color:var(--warn)"><div class="row" style="justify-content:space-between"><h3>Needs sorting: ${u.length} payment${u.length>1?'s':''}, ${GBP(-sum(u,t=>t.a))}</h3><span class="small muted">counted in spending as "Unsorted" until you pick a category</span></div>
    <div class="tblwrap"><table><tbody>${u.slice(0,compact?6:30).map(t=>`<tr><td>${fdate(parseISO(t.d))}</td><td>${esc(t.t)}</td><td class="n">${GBP2(-t.a)}</td><td>${catSelect(t.id,k,'')}</td></tr>`).join('')}</tbody></table></div>
    ${u.length>6&&compact?`<p class="small muted" style="margin:6px 0 0">${u.length-6} more on Day to day.</p>`:''}</div>`}
-function catSelect(id,k,sel){const P=curPlan();
-  return`<select data-cat="${esc(id)}" data-m="${k}"><option value="">Choose…</option>${allVars().map(v=>`<option value="${v.id}" ${sel===v.id?'selected':''}>${esc(v.name)}</option>`).join('')}<option value="_skip" ${sel==='_skip'?'selected':''}>Not a spending item</option></select>`}
+function catSelect(id,k,sel,ss){
+  return`<select data-cat="${esc(id)}" data-m="${k}"><option value="">Choose…</option>${catOptions(sel,ss)}<option value="_skip" ${sel==='_skip'?'selected':''}>Not a spending item</option></select>`}
 function trackingData(){
   const k=thisMonthK(),P=curPlan(),y=+k.slice(0,4),mo=monthOf(k)-1,n=dim(y,mo),dom=+todayISO().slice(8);
   const xcat=new Set((P.transfers||[]).map(x=>x.catId));
