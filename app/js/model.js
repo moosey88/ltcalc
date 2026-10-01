@@ -47,13 +47,14 @@ function defaultState(){return{
   bank:null,asOf:todayISO(),buffer:500,flagLimit:100,flagExcl:['v_shop','v_acash','v_scash'],
   cashOpening:0,cashOpenDate:todayISO(),cash:[],
   debtBal:{},debtStart:{},debtLog:{},goalSaved:{},taxSaved:{},general:0,
-  assets:[],nwSnaps:[],notes:{},rules:null,rulesV:4,amexOwed:0,catMap:{},lumps:[],
+  assets:[],nwSnaps:[],notes:{},rules:null,rulesV:5,amexOwed:0,catMap:{},lumps:[],
   startedAt:todayISO(),incSeed:1,incAct:{}}}
 const DEFAULT_RULES=[
  ['TESCO EXPRESS','v_shop','topup'],['SAINSBURYS LOCAL','v_shop','topup'],['SIMPLY FOOD','v_shop','topup'],['CO-OP','v_shop','topup'],
  ['TESCO','v_shop','main'],['SAINSBURY','v_shop','main'],['ASDA','v_shop','main'],['LIDL','v_shop','main'],['ALDI','v_shop','main'],['WAITROSE','v_shop','main'],['MORRISONS','v_shop','main'],['OCADO','v_shop','main'],['COSTCO','v_shop','main'],
  ['FESTIVAL','v_hol'],['BRITISH AIRWAYS','v_hol'],['RYANAIR','v_hol'],['EASYJET','v_hol'],['LE SHUTTLE','v_hol'],['EUROTUNNEL','v_hol'],['DUTY FREE','v_hol'],['HOLIDAY','v_hol'],
  ['VETS NOW','v_pets'],['WUFF','v_pets'],['SQUIRES','v_home'],['HALFORDS','v_home'],['BOOTS','v_gen'],['GO OUTDOORS','v_gen'],['KURT GEIGER','v_gen'],
+ ['PAYPAL','v_gen'],
  ['ROUND UP','v_round'],['ROUNDUP','v_round'],
  ['AMAZON','v_gen'],['AMZN','v_gen'],['TEMU','v_gen'],['HOME BARGAINS','v_gen'],['DUNELM','v_gen'],['PRIMARK','v_gen'],['ARGOS','v_gen'],['EBAY','v_gen'],['NEXT','v_gen'],['PRIMARK','v_gen'],['CURRYS','v_gen'],['ETSY','v_gen'],
  ['DELIVEROO','v_take'],['JUST EAT','v_take'],['UBER EATS','v_take'],['DOMINO','v_take'],['MCDONALD','v_take'],['KFC','v_take'],['GREGGS','v_take'],
@@ -72,7 +73,7 @@ let STATE=defaultState();
 let TX={};            // month -> [{id,d,t,a,c,s:'man'|'nw'|'amex',p:'bank'|'amex'|'cash',b,m}]
 let HIST={};          // month -> imported sheet month
 let DRAFT=null;       // unsaved plan edits (a copy of the plan in force next month)
-STATE.rules=ruleObjs();STATE.rulesV=4;
+STATE.rules=ruleObjs();STATE.rulesV=5;
 const planFor=k=>{let v=VERSIONS[0];for(const x of VERSIONS)if(x.from<=k)v=x;return v.plan};
 const versionFor=k=>{let v=VERSIONS[0];for(const x of VERSIONS)if(x.from<=k)v=x;return v};
 const curPlan=()=>planFor(thisMonthK());
@@ -149,5 +150,5 @@ const incActualTotal=(k,P)=>sum((P||planFor(k)).income,i=>incFor(k,i));
 function migrateAll(){
   if(!STATE.incSeed){STATE.incSeed=1;VERSIONS.forEach(v=>{if(!v.plan.income.some(i=>i.id==='i_niamh'||/niamh/i.test(i.name)))v.plan.income.push({id:'i_niamh',name:'Niamh: phone contribution',amount:15,day:1})})}
   VERSIONS.forEach(v=>migratePlan(v.plan));
-  if(STATE.rulesV!==4){const defKeys=new Set(DEFAULT_RULES.map(r=>r[0]));const learned=(STATE.rules||[]).filter(r=>!defKeys.has(r.k)&&r.c!=='v_eat'&&r.c!=='v_petrol');STATE.rules=[...ruleObjs(),...learned];STATE.rulesV=4}
+  if(STATE.rulesV!==5){const defKeys=new Set(DEFAULT_RULES.map(r=>r[0]));const learned=(STATE.rules||[]).filter(r=>!defKeys.has(r.k)&&r.c!=='v_eat'&&r.c!=='v_petrol');STATE.rules=[...ruleObjs(),...learned];STATE.rulesV=5}
   if(DRAFT)migratePlan(DRAFT)}
