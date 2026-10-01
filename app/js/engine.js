@@ -44,7 +44,8 @@ function simulate(o={}){
     lumps.forEach(l=>{if(l.date!==ds)return;const nm=(P.debts.find(x=>x.id===l.debt)||{}).name||'debt';let amt=l.amount;const b=dbal[l.debt];if(b!=null)amt=Math.min(amt,b);if(amt<=0)return;
       if(b!=null)dbal[l.debt]=Math.max(0,b-amt);
       if(l.from==='savings'){const tk=Math.min(pots.general,amt);pots.general-=tk;bank-=amt-tk}else bank-=amt;
-      M.lump+=amt;events.push({t,k:'lump',n:'Lump sum: '+nm,a:-amt})});
+      const dd=P.debts.find(x=>x.id===l.debt)||{},fee=amt*((dd.erc||0)/100);if(fee>0){bank-=fee;M.lump+=fee}
+      M.lump+=amt;events.push({t,k:'lump',n:'Lump sum: '+nm,a:-amt-fee})});
     // variable spending: this month's remaining budget after what you have already spent, spread over the days left
     const share=Math.min(1,Math.max(0,(P.amexShare||0)/100)),curM=(k===ym(start));
     const daysLeft=curM?Math.max(1,n-new Date(start).getUTCDate()+1):n;

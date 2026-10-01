@@ -27,7 +27,7 @@ function afterState(path,v){
 function parseVal(el){const t=el.dataset.t;if(t==='bool')return el.checked;if(t==='flag')return el.value==='1';
   if(t==='num'){if(el.value==='')return el.dataset.nul?null:0;return parseFloat(el.value)}return el.value}
 document.addEventListener('click',e=>{
-  const b=e.target.closest('[data-act],[data-tab],[data-go]');if(!b)return;
+  const b=e.target.closest('[data-act],[data-tab],[data-go],[data-reset]');if(!b)return;
   if(b.dataset.tab){go(b.dataset.tab);return}
   if(b.dataset.go){go(b.dataset.go);return}
   const a=b.dataset.act,d=b.dataset;
@@ -62,6 +62,7 @@ document.addEventListener('click',e=>{
   else if(a==='closemodal'){view.modal=null;render()}
   else if(a==='commit')commitScenario();
   else if(a==='screset'){scInit();render()}
+  else if(b.dataset.reset){const id=b.dataset.reset,base=+b.dataset.base,sc=view.scen;if(sc){if(id.startsWith('inc_'))sc.inc[id.slice(4)]=base;else if(id.startsWith('var_'))sc.vars[id.slice(4)]=base;else if(id.startsWith('xf_'))sc.xfer[id.slice(3)]=base;else if(id.startsWith('tax_'))sc.tax[id.slice(4)]=base;else sc[id]=base;render()}}
   else if(a==='snapshot'){ensureSnapshot(true);persistAll();toast('Snapshot saved');render()}
   else if(a==='backup'){$('#bk').value=JSON.stringify({VERSIONS,STATE,TX},null,1)}
   else if(a==='restore'){try{const o=JSON.parse($('#bk').value);if(o.VERSIONS&&o.STATE){VERSIONS=o.VERSIONS;STATE=Object.assign(defaultState(),o.STATE);TX=o.TX||{};Object.keys(TX).forEach(saveTx);invalidate();persistAll();toast('Restored');render()}}catch(err){toast('That is not a valid backup')}}
@@ -79,13 +80,15 @@ document.addEventListener('change',async e=>{
 document.addEventListener('input',e=>{
   const el=e.target,d=el.dataset;
   if(d.out){const o=document.getElementById(d.out);if(o)o.textContent=pct(+el.value);return}
-  const id=d.sl;if(!id)return;
+  const id=d.sl||d.sn;if(!id)return;
   if(id==='cut'){view.cut=+el.value;$('#o_cut').textContent=pct(view.cut);const w=sum(planLines().L.filter(x=>x.k==='want'),x=>x.v);$('#cutRes').innerHTML=cutResult(w);return}
   if(id==='debtAmt'){view.debtAmt=+el.value;$('#o_debtAmt').textContent=GBP(view.debtAmt);const t=$('#debtEff');if(t)t.innerHTML=debtEffectTable(debtEffects(view.debtAmt));return}
-  if(!view.scen)return;const sc=view.scen,v=el.value;
+  if(!view.scen)return;const sc=view.scen;let v=el.value;
+  if(d.sn){if(v==='')return;v=String(Math.max(0,+v));const r=document.getElementById(id);if(r){if(+v>+r.max)r.max=v;r.value=v}}
+  else{const nb=document.getElementById('n_'+id);if(nb&&document.activeElement!==nb)nb.value=v}
   if(id==='debtSel'||id==='lumpDate'||id==='lumpFrom'||id==='from')sc[id]=v;
   else{const n=+v;if(id.startsWith('inc_'))sc.inc[id.slice(4)]=n;else if(id.startsWith('var_'))sc.vars[id.slice(4)]=n;else if(id.startsWith('xf_'))sc.xfer[id.slice(3)]=n;else if(id.startsWith('tax_'))sc.tax[id.slice(4)]=n;else sc[id]=n;
-    const o=$('#o_'+id);if(o)o.textContent=id==='share'||id.startsWith('tax_')?pct(n):GBP(n)}
+    const o=$('#o_'+id);if(o)o.textContent=id==='share'||id.startsWith('tax_')?pct(n):GBP(n);const rb=document.getElementById('r_'+id);if(rb)rb.hidden=Math.abs(n-(+rb.dataset.base))<1e-9}
   cancelAnimationFrame(view.raf);view.raf=requestAnimationFrame(()=>{const r=$('#scRes');if(r)r.innerHTML=scResults()})});
 $('#themeBtn').addEventListener('click',()=>{const r=document.documentElement;const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;r.dataset.theme=dark?'light':'dark'});
 (function boot(){

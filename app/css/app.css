@@ -136,3 +136,8 @@ svg text{fill:var(--muted);font-family:var(--f-body);font-size:11px}
 .modal>div{background:var(--surface);border-radius:14px;padding:20px;max-width:520px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.3);max-height:90vh;overflow:auto}
 th{white-space:normal} td.n{white-space:nowrap}
 .tblwrap td:first-child{white-space:normal}
+.sl .sv{display:inline-flex;align-items:center;gap:4px}
+.sl input.num{width:96px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;padding:4px 8px}
+.sl .hint .lnk{background:none;border:0;padding:0;color:var(--bank);font:inherit;font-weight:600;cursor:pointer;text-decoration:underline}
+.sl .hint .lnk[hidden]{display:none}
+details>summary{cursor:pointer}

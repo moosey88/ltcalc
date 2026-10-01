@@ -18,7 +18,12 @@ const SEL=(root,path,val,opts,t='str')=>`<select data-r="${root}" data-p="${path
 const KSEL=(root,path,val)=>SEL(root,path,val,[['need','Need'],['want','Want']]);
 const delBtn=(root,l,i)=>`<button class="btn danger sm" data-act="del" data-root="${root}" data-list="${l}" data-i="${i}" aria-label="Remove">✕</button>`;
 const intro=t=>`<p class="intro">${t}</p>`;
-function slider(id,label,val,min,max,step,hint,fmt){return`<div class="sl"><label for="${id}">${label}</label><output id="o_${id}">${(fmt||GBP)(val)}</output><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}" data-sl="${id}">${hint?`<span class="hint">${hint}</span>`:''}</div>`}
+function slider(id,label,val,min,max,step,hint,fmt,base){
+  const f=fmt||GBP,pctF=fmt===pct;
+  if(base===undefined)return`<div class="sl"><label for="${id}">${label}</label><output id="o_${id}">${f(val)}</output><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}" data-sl="${id}">${hint?`<span class="hint">${hint}</span>`:''}</div>`;
+  const changed=Math.abs(val-base)>1e-9;
+  return`<div class="sl"><label for="${id}">${label}</label><span class="sv"><input type="number" class="num" id="n_${id}" data-sn="${id}" value="${val}" step="${step}" min="0" aria-label="${label} typed value">${pctF?'<span class="muted">%</span>':''}</span><input type="range" id="${id}" min="${min}" max="${Math.max(max,val)}" step="${step}" value="${val}" data-sl="${id}">
+   <span class="hint"><span>Now: <b>${f(base)}</b></span> <button type="button" class="lnk" id="r_${id}" data-reset="${id}" data-base="${base}" ${changed?'':'hidden'}>↺ Back to now</button>${hint?` · ${hint}`:''}</span></div>`}
 function getRoot(r){return r==='plan'?draft():r==='state'?STATE:null}
 function setPath(o,path,val){const ks=path.split('.');for(let i=0;i<ks.length-1;i++){if(o[ks[i]]==null)o[ks[i]]={};o=o[ks[i]]}o[ks[ks.length-1]]=val}
 function draftBar(){return`<div id="draftHost">${draftBarInner()}</div>`}
