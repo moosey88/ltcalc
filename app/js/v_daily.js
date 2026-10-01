@@ -128,9 +128,10 @@ function addTx(){
   const k=d.slice(0,7);const id='m_'+uid();
   (TX[k]=TX[k]||[]).push({id,d,t:note,a:-amt,c:c==='_unplanned'?'':c,sc:sc||undefined,s:'man',p,unplanned:c==='_unplanned'||undefined});
   if(c==='_unplanned'){STATE.notes[id]={kind:'oneoff',text:note||'Unplanned bill'}}
+  audit('Added transaction',`${GBP2(amt)} ${note||''} on ${d}, ${c==='_unplanned'?'unplanned bill':(catName({vars:allVars()},c)||c)}, paid by ${p}`);
   view.m=k;saveTx(k);invalidate();persistAll();toast('Added');render()}
 function sortTx(id,k,cv){
-  const t=(TX[k]||[]).find(x=>x.id===id);if(!t)return;const c=cv.split(':')[0],sc=cv.split(':')[1];t.c=c;t.sc=sc||undefined;
+  const t=(TX[k]||[]).find(x=>x.id===id);if(!t)return;const c=cv.split(':')[0],sc=cv.split(':')[1];audit('Re-categorised',`${GBP2(Math.abs(t.a))} "${(t.t||'').slice(0,40)}" (${t.d}): ${t.c?(catName({vars:allVars()},t.c)||t.c):'unsorted'} to ${c?(catName({vars:allVars()},c)||c):'unsorted'}`);t.c=c;t.sc=sc||undefined;
   const kw=merchKey(t.t).toUpperCase();
   if(c&&kw&&kw!=='OTHER'&&t.s!=='man'){if(!STATE.rules.find(r=>r.k===kw))STATE.rules.push({k:kw,c,s:sc});
     TX[k].forEach(x=>{if(!x.c&&x.s!=='man'&&x.a<0&&(x.t||'').toUpperCase().includes(kw)){x.c=c;x.sc=sc||undefined}})}
@@ -169,6 +170,7 @@ function importText(text,src){
   if(src==='nw'){const wb=parsed.filter(x=>x.b!=null);
     if(wb.length){const asc=wb[0].d<wb[wb.length-1].d,ld=wb.map(x=>x.d).sort().pop(),same=wb.filter(x=>x.d===ld),lastRow=asc?same[same.length-1]:same[0];
       if(STATE.bank==null||!STATE.asOf||ld>=STATE.asOf){applyBalance(lastRow.b,ld,'file');msg+=` Balance set to ${GBP2(lastRow.b)} as of ${fdate(parseISO(ld))}.`}}}
+  audit('Uploaded '+(src==='amex'?'Amex':'NatWest')+' file',`${added} new lines, ${skipped} already there, ${merged} matched to typed entries`);
   const rc=reconcileTicks();if(rc.matched||rc.diff)msg+=` ${rc.matched} of your ticked items matched a bank line${rc.diff?`, ${rc.diff} with a different amount`:''}.`;
   const an=anomalies().filter(x=>x.sev!=='info').length;if(an)msg+=` ${an} thing${an>1?'s':''} to check in the Weekly check below.`;
   invalidate();persistAll();return msg}

@@ -9,7 +9,7 @@ function nwFigures(){
   if(!STATE.assets||!STATE.assets.length)STATE.assets=SEED_ASSETS();
   const A=STATE.assets,g=gr=>sum(A.filter(a=>a.group===gr),a=>a.value||0);
   const savPots=(STATE.general||0)+sum(Object.values(STATE.goalSaved||{}))+sum(Object.values(STATE.taxSaved||{}));
-  const auto={bank:STATE.bank||0,cash:cashBalance(),pots:savPots};
+  const auto={bank:(STATE.bank||0)+sinceBalance(),cash:cashBalance(),pots:savPots};
   const home=g('property'),pens=g('pension'),sav=g('savings')+auto.bank+auto.cash+auto.pots,veh=g('vehicle')+g('other');
   const P=curPlan(),debts=P.debts.map(d=>({d,bal:STATE.debtBal[d.id]||0})),amex=amexOwedNow();
   const mort=sum(debts.filter(x=>x.d.type==='mortgage'),x=>x.bal),other=sum(debts.filter(x=>x.d.type!=='mortgage'),x=>x.bal)+amex;

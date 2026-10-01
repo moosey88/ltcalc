@@ -22,8 +22,8 @@ function render(){
 function go(t){tab=t;view.modal=null;render();window.scrollTo(0,0)}
 function afterState(path,v){
   const m=path.match(/^debtBal\.(.+)$/);
-  if(m){const id=m[1];if(v!=null){(STATE.debtLog[id]=STATE.debtLog[id]||[]).push({d:todayISO(),b:v});if(STATE.debtStart[id]==null)STATE.debtStart[id]=v}}
-  const a=path.match(/^assets\.(\d+)\.value$/);if(a)STATE.assets[+a[1]].updated=todayISO()}
+  if(m){const id=m[1];const dn=(curPlan().debts.find(x=>x.id===id)||{}).name||id;audit('Debt balance changed',`${dn}: ${v==null?'cleared':GBP2(v)}`);if(v!=null){(STATE.debtLog[id]=STATE.debtLog[id]||[]).push({d:todayISO(),b:v});if(STATE.debtStart[id]==null)STATE.debtStart[id]=v}}
+  const a=path.match(/^assets\.(\d+)\.value$/);if(a){STATE.assets[+a[1]].updated=todayISO();audit('Asset value changed',`${STATE.assets[+a[1]].name}: ${v==null?'cleared':GBP2(v)}`)}}
 function parseVal(el){const t=el.dataset.t;if(t==='bool')return el.checked;if(t==='flag')return el.value==='1';
   if(t==='num'){if(el.value==='')return el.dataset.nul?null:0;return parseFloat(el.value)}return el.value}
 document.addEventListener('click',e=>{
@@ -40,7 +40,7 @@ document.addEventListener('click',e=>{
   else if(a==='setbal'){const v=parseFloat($('#quickBal').value);if(!isNaN(v)){applyBalance(v,todayISO(),'typed');persistAll();render()}}
   else if(a==='chkbal'){const v=parseFloat($('#chkBal').value);if(!isNaN(v)){applyBalance(v,todayISO(),'typed');persistAll();toast('Balance saved');render()}}
   else if(a==='addtx')addTx();
-  else if(a==='deltx'){TX[d.m]=(TX[d.m]||[]).filter(t=>t.id!==d.id);saveTx(d.m);invalidate();persistAll();render()}
+  else if(a==='deltx'){const dt=(TX[d.m]||[]).find(t=>t.id===d.id);if(dt)audit('Deleted transaction',`${GBP2(Math.abs(dt.a))} "${(dt.t||'').slice(0,40)}" (${dt.d})`);TX[d.m]=(TX[d.m]||[]).filter(t=>t.id!==d.id);saveTx(d.m);invalidate();persistAll();render()}
   else if(a==='merge'||a==='keepboth'){const k=view.m,row=(TX[k]||[]).find(t=>t.id===d.id);if(row){if(a==='merge'&&row.maybe){const man=(TX[k]||[]).filter(t=>row.maybe.includes(t.id));
       const best=man.sort((x,y)=>dayGap(x.d,row.d)-dayGap(y.d,row.d))[0];if(best){row.c=best.c||row.c;TX[k]=TX[k].filter(t=>t.id!==best.id)}}delete row.maybe;saveTx(k);invalidate();persistAll();render()}}
   else if(a==='note')noteTx(d.id,d.kind);
@@ -49,6 +49,7 @@ document.addEventListener('click',e=>{
   else if(a==='delcash'){STATE.cash=STATE.cash.filter(e=>e.id!==d.id);persistAll();render()}
   else if(a==='setopen'){STATE.cashOpening=parseFloat($('#c_open').value)||0;STATE.cashOpenDate=todayISO();STATE.cash=[];persistAll();toast('Opening cash set to today');render()}
   else if(a==='add'){addToDraft(d.list);render()}
+  else if(a==='auditcopy'){const t=AUDIT.slice().reverse().map(e=>`${e.t}\t${e.by}\t${e.act}\t${e.detail}`).join('\n')||'Nothing recorded';const o=$('#auditOut');o.style.display='block';o.value=t;o.select();try{navigator.clipboard.writeText(t);toast('Copied')}catch(err){toast('Select and copy the text below')}}
   else if(a==='impadd'){impAdd()}
   else if(a==='impdone'){const x=(STATE.improvements||[]).find(y=>y.id===d.id);if(x){x.status=x.status==='done'?'open':'done';persistAll();render()}}
   else if(a==='impdel'){STATE.improvements=(STATE.improvements||[]).filter(y=>y.id!==d.id);persistAll();render()}

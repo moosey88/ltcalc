@@ -81,7 +81,10 @@ const versionFor=k=>{let v=VERSIONS[0];for(const x of VERSIONS)if(x.from<=k)v=x;
 const curPlan=()=>planFor(thisMonthK());
 const nextMonthK=()=>addMonthsK(thisMonthK(),1);
 const isStartPlan=()=>VERSIONS.length===1&&VERSIONS[0].by==='start';
+/* money ticked off or typed in since the last bank balance was taken */
+const sinceBalance=(asOf)=>sum(Object.values(TX).flat().filter(t=>(t.s==='tick'||t.s==='man')&&t.p==='bank'&&t.d>(asOf||STATE.asOf||'0')),t=>t.a);
 function commitPlan(plan,from,note,by,correct){
+  try{audit(correct?'Corrected plan':'Saved plan',`from ${from}${note?': '+note:''}`)}catch(e){}
   if(correct){const v=versionFor(from);v.plan=clone(plan);if(note)v.note=note;return}
   const ex=VERSIONS.find(x=>x.from===from);
   if(ex){ex.plan=clone(plan);ex.note=note||ex.note;ex.at=Date.now();ex.by=by||ex.by}

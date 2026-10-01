@@ -20,10 +20,11 @@ function tickDate(m,it){const t=todayISO();return t.slice(0,7)===m?t:m+'-'+Strin
 function toggleTick(kind,id,m){
   const it=expectedItems(m).find(x=>x.kind===kind&&x.id===id);if(!it)return;
   const arr=TX[m]=TX[m]||[],ex=tickRow(m,id);
+  audit(ex?'Unticked':'Ticked',`${it.name}, ${GBP2(it.amt)} (${fmonthLong(m)})`);
   if(ex)arr.splice(arr.indexOf(ex),1);
   else arr.push({id:'tk_'+m+'_'+id,d:tickDate(m,it),t:(it.kind==='inc'?'Received: ':'Paid: ')+it.name,a:it.sign*it.amt,c:it.c,sc:it.kind==='inc'?it.id:undefined,s:'tick',p:'bank',item:id,planned:it.amt});
   saveTx(m);invalidate();persistAll();render()}
-function setTickAmt(m,id,v){const r=tickRow(m,id);if(!r||!(v>=0))return;r.a=(r.a<0?-1:1)*v;saveTx(m);invalidate();persistAll()}
+function setTickAmt(m,id,v){const r=tickRow(m,id);if(!r||!(v>=0))return;audit('Changed ticked amount',`${r.t.replace(/^(Paid|Received): /,'')}: ${GBP2(Math.abs(r.a))} to ${GBP2(v)}`);r.a=(r.a<0?-1:1)*v;saveTx(m);invalidate();persistAll()}
 /* after a bank file is uploaded: swap each tick for the real line it matches */
 function reconcileTicks(){
   let matched=0,diff=0;

@@ -7,6 +7,7 @@ function cashBalance(){let b=STATE.cashOpening||0;(STATE.cash||[]).forEach(e=>{i
 /* a new real balance arrives (typed, or the last line of a NatWest file): compare it with what the entries say it should be */
 function applyBalance(value,dateStr,src){
   const had=STATE.bank!=null;const est=had?STATE.bank+sum(Object.values(TX).flat().filter(t=>(t.s==='man'||t.s==='tick')&&t.p==='bank'&&t.d>STATE.asOf&&t.d<=dateStr),t=>t.a):null;
+  audit('Bank balance set',`${GBP2(value)} as of ${dateStr} (${src||'typed'})${had?', check difference '+GBP2(Math.round((value-est)*100)/100):''}`);
   STATE.lastCheck=had?{d:dateStr,diff:Math.round((value-est)*100)/100,est,src}:null;STATE.bank=value;STATE.asOf=dateStr;invalidate()}
 function banners(){let h='';
   if(STATE.bank==null)h+=`<div class="banner warn"><span><b>Add today's NatWest balance.</b> Until you do, the forecast starts from £0 and its lines show change, not real cash.</span><span class="row"><input type="number" id="quickBal" placeholder="Balance £" style="width:130px"><button class="btn sm" data-act="setbal">Save</button><button class="btn ghost sm" data-go="daily">or upload a file</button></span></div>`;
@@ -39,7 +40,7 @@ function trackingData(){
 function vToday(){
   const S=fc(),T=trackingData(),buf=STATE.buffer||0;
   const d90=S.days.slice(0,90),low90=d90.reduce((a,b)=>b.bank<a.bank?b:a,d90[0]);
-  const np=S.events.find(e=>e.k==='in'),ni=np?S.days.findIndex(d=>d.t===np.t):0,seg=S.days.slice(0,Math.max(1,ni)),lowSeg=seg.reduce((a,b)=>b.tru<a.tru?b:a,seg[0]);
+  const np=S.events.find(e=>e.k==='in'&&e.a>=1000)||S.events.find(e=>e.k==='in'),ni=np?S.days.findIndex(d=>d.t===np.t):0,seg=S.days.slice(0,Math.max(1,ni)),lowSeg=seg.reduce((a,b)=>b.tru<a.tru?b:a,seg[0]);
   const head=lowSeg.tru-buf,s12=S.days[Math.min(364,S.days.length-1)],cardOn=S.cardSpend>0;
   const dd=S.days.slice(0,view.win===90?90:view.win===365?365:S.days.length);
   const bc=bankChart('c1',dd,S.events.filter(e=>e.t<=dd[dd.length-1].t),buf);
@@ -49,7 +50,7 @@ function vToday(){
   const debtRows=debtEffects(Math.min(view.debtAmt??1000,Math.max(0,head)||1000));
   return banners()+intro('Where you stand today, built from your real bank balance, your bills and what you have spent so far.')+`
   <div class="kpis">
-   <div class="kpi"><span>In the bank</span><b>${STATE.bank==null?'–':GBP(STATE.bank)}</b><small>${STATE.bank==null?'add a balance':'as of '+fdate(parseISO(STATE.asOf))}</small></div>
+   <div class="kpi"><span>In the bank</span><b>${STATE.bank==null?'–':GBP(STATE.bank+sinceBalance())}</b><small>${STATE.bank==null?'add a balance':Math.abs(sinceBalance())>=0.005?`${GBP2(STATE.bank)} at ${fdate(parseISO(STATE.asOf))}, ${sinceBalance()>0?'plus':'less'} ${GBP2(Math.abs(sinceBalance()))} ticked or typed since`:'as of '+fdate(parseISO(STATE.asOf))}</small></div>
    <div class="kpi"><span>Household cash</span><b>${GBP(cashBalance())}</b><small>shared cash pot</small></div>
    <div class="kpi"><span>Left over before payday</span><b class="${head<0?'neg':'pos'}">${GBP(head)}</b><small>${np?'wages '+fdate(np.t)+'. After every planned bill, your remaining budgets, what you owe Amex and your '+GBP(buf)+' buffer':'add wages in Budgets'}</small></div>
    <div class="kpi" ${lc&&Math.abs(lc.diff)>=1?'style="border-color:var(--warn)"':''}><span>Bank check</span><b class="${lc&&Math.abs(lc.diff)>=1?'warnc':''}">${lc?(Math.abs(lc.diff)<1?'Matches':GBP(lc.diff)):'–'}</b><small>${lc?(Math.abs(lc.diff)<1?'entries add up to the bank':'not explained, checked '+fdate(parseISO(lc.d))):'updates when you add a balance'}</small></div>

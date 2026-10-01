@@ -10,7 +10,7 @@ function simulate(o={}){
   const st=o.state||STATE,asOf=o.asOf||st.asOf,planOf=o.planOf||planFor,horizon=o.horizon||24;
   const s0=parseISO(asOf)+DAY,sd=new Date(s0),end=U(sd.getUTCFullYear(),sd.getUTCMonth()+horizon,sd.getUTCDate()),start=s0;
   const P0=planOf(ym(start)),A0=P0.amex;
-  let bank=(st.bank||0)+sum(Object.values(TX).flat().filter(t=>t.s==='tick'&&t.d>asOf),t=>t.a),cycle=o.amexOwed!=null?o.amexOwed:amexOwedNow(),cardSpend=0,feeTotal=0;const stmts=[];
+  let bank=(st.bank||0)+sinceBalance(asOf),cycle=o.amexOwed!=null?o.amexOwed:amexOwedNow(),cardSpend=0,feeTotal=0;const stmts=[];
   const P1=planOf(ym(start));const G0=buildGoals(P1,st);
   const pots={general:st.general||0,yearly:0};G0.forEach(g=>pots[g.id]=g.saved||0);
   const done={},hit={},gsp={},dbal={};(P1.debts||[]).forEach(d=>dbal[d.id]=st.debtBal[d.id]);
