@@ -51,18 +51,19 @@ function reconcileTicks(){
   Object.keys(TX).forEach(m=>{
     const ticks=TX[m].filter(t=>t.s==='tick');if(!ticks.length)return;
     const items=expectedItems(m);
+    let ch=false;
     ticks.forEach(r=>{const it=items.find(x=>x.id===r.item);if(!it)return;
       const b=bankRowFor(it,m);if(!b||Math.abs(parseISO(b.d)-parseISO(r.d))>12*DAY)return;
-      TX[m].splice(TX[m].indexOf(r),1);b.item=it.id;b.ticked=true;b.tickAmt=Math.abs(r.a);matched++;
+      TX[m].splice(TX[m].indexOf(r),1);b.item=it.id;b.ticked=true;b.tickAmt=Math.abs(r.a);matched++;ch=true;
       if(Math.abs(Math.abs(b.a)-Math.abs(r.a))>Math.max(1,Math.abs(r.a)*.02))diff++});
-    saveTx(m)});
+    if(ch)saveTx(m)});
   return{matched,diff}}
 /* in-place fixes used by the Weekly check */
-const fxRow=(r,lbl)=>`<span class="fxrow"><span class="small">${esc(lbl||(r.t||'entry').replace(/^(Paid|Received): /,'').slice(0,28))} (${fdate(parseISO(r.d))})</span> <span class="fxin"><input type="number" step="0.01" min="0" value="${Math.abs(r.a)}" aria-label="Amount"><button class="btn ghost sm" data-act="fx_amt" data-m="${r.d.slice(0,7)}" data-id="${esc(r.id)}">Save amount</button></span><button class="btn ghost sm" data-act="deltx" data-m="${r.d.slice(0,7)}" data-id="${esc(r.id)}">${r.s==='tick'?'Untick':'Remove'}</button></span>`;
+const fxRow=(r,lbl)=>`<span class="fxrow" ${r.chk?'style="opacity:.6"':''}><span class="small">${r.chk?'✓ ':''}${esc(lbl||(r.t||'entry').replace(/^(Paid|Received): /,'').slice(0,28))} (${fdate(parseISO(r.d))})</span> <span class="fxin"><input type="number" step="0.01" min="0" value="${Math.abs(r.a)}" aria-label="Amount"><button class="btn ghost sm" data-act="fx_amt" data-m="${r.d.slice(0,7)}" data-id="${esc(r.id)}">Save amount</button></span><button class="btn ghost sm" data-act="deltx" data-m="${r.d.slice(0,7)}" data-id="${esc(r.id)}">${r.s==='tick'?'Untick':'Remove'}</button></span>`;
 const fxDismiss=key=>`<button class="btn ghost sm" data-act="fx_dismiss" data-key="${esc(key)}">Dismiss</button>`;
 function fxApply(a,d,b){
   if(a==='fx_amt'){const r=(TX[d.m]||[]).find(x=>x.id===d.id),v=parseFloat(b.previousElementSibling.value);if(!r||!(v>=0))return;
-    audit('Changed amount in weekly check',`${(r.t||'').slice(0,40)}: ${GBP2(Math.abs(r.a))} to ${GBP2(v)}`);r.a=(r.a<0?-1:1)*v;saveTx(d.m)}
+    audit('Changed amount in weekly check',`${(r.t||'').slice(0,40)}: ${GBP2(Math.abs(r.a))} to ${GBP2(v)}`);r.a=(r.a<0?-1:1)*v;r.chk=1;saveTx(d.m);toast('Saved')}
   else if(a==='fx_accept'){const r=(TX[d.m]||[]).find(x=>x.id===d.id);if(!r)return;audit('Accepted bank amount',`${(r.t||'').slice(0,40)}: ${GBP2(r.tickAmt)} to ${GBP2(Math.abs(r.a))}`);r.tickAmt=Math.abs(r.a);saveTx(d.m)}
   else if(a==='fx_tick'){toggleTick(d.kind,d.id,d.m);return}
   else if(a==='fx_dismiss'){STATE.dismissed=STATE.dismissed||{};STATE.dismissed[d.key]=1;audit('Dismissed a weekly check item',d.key.slice(0,60))}
@@ -73,7 +74,7 @@ function anomalies(){
   const out=[],now=thisMonthK(),prev=addMonthsK(now,-1),asOf=STATE.asOf||todayISO(),dom=+asOf.slice(8);
   [prev,now].forEach(m=>{
     const items=expectedItems(m),cur=m===now;
-    TX[m]&&TX[m].filter(t=>t.s==='tick'&&parseISO(t.d)<=parseISO(asOf)-3*DAY).forEach(t=>out.push({sev:'warn',m,t:`You ticked "${t.t.replace(/^(Paid|Received): /,'')}" (${GBP2(Math.abs(t.a))}, ${fdate(parseISO(t.d))}) but no matching line has appeared in the bank file (data to ${fdate(parseISO(asOf))}).`,act:'Fix the amount below, or untick it if it has not happened.',fix:fxRow(t)}));
+    TX[m]&&TX[m].filter(t=>t.s==='tick'&&!t.chk&&parseISO(t.d)<=parseISO(asOf)-3*DAY).forEach(t=>out.push({sev:'warn',m,t:`You ticked "${t.t.replace(/^(Paid|Received): /,'')}" (${GBP2(Math.abs(t.a))}, ${fdate(parseISO(t.d))}) but no matching line has appeared in the bank file (data to ${fdate(parseISO(asOf))}).`,act:'Fix the amount below, or untick it if it has not happened.',fix:fxRow(t)}));
     items.forEach(it=>{const b=bankRowFor(it,m),tk=tickRow(m,it.id);
       if(b&&b.ticked&&Math.abs(Math.abs(b.a)-b.tickAmt)>Math.max(1,b.tickAmt*.02))out.push({sev:'warn',m,t:`${it.name}: you ticked ${GBP2(b.tickAmt)} but the bank shows ${GBP2(Math.abs(b.a))} on ${fdate(parseISO(b.d))}.`,act:`Difference ${GBP2(Math.abs(b.a)-b.tickAmt)}.`,fix:`<button class="btn ghost sm" data-act="fx_accept" data-m="${m}" data-id="${esc(b.id)}">Accept the bank amount</button>`});
       else if(b&&!it.variable&&it.kind!=='inc'&&Math.abs(Math.abs(b.a)-it.amt)>Math.max(2,it.amt*.05))out.push({sev:'info',m,t:`${it.name}: the bank shows ${GBP2(Math.abs(b.a))}, your plan has ${GBP2(it.amt)}.`,act:'If this is the new normal, update the plan on Budgets.',fix:`<button class="btn ghost sm" data-go="budgets">Open Budgets</button>`,dk:`plan|${m}|${it.id}`});
