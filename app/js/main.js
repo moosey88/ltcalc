@@ -26,6 +26,13 @@ function afterState(path,v){
   const a=path.match(/^assets\.(\d+)\.value$/);if(a){STATE.assets[+a[1]].updated=todayISO();audit('Asset value changed',`${STATE.assets[+a[1]].name}: ${v==null?'cleared':GBP2(v)}`)}}
 function parseVal(el){const t=el.dataset.t;if(t==='bool')return el.checked;if(t==='flag')return el.value==='1';
   if(t==='num'){if(el.value==='')return el.dataset.nul?null:0;return parseFloat(el.value)}return el.value}
+document.addEventListener('mousemove',e=>{const sv=e.target.closest&&e.target.closest('svg.cash'),tip=document.getElementById('scTip');if(!tip)return;
+  if(!sv||!view.scTip){tip.hidden=true;const l=document.getElementById('cgl');if(l)l.style.display='none';return}
+  const T=view.scTip,r=sv.getBoundingClientRect(),vx=(e.clientX-r.left)/r.width*T.W;if(vx<T.ox||vx>T.ox+T.pw){tip.hidden=true;return}
+  const i=Math.max(0,Math.min(T.n-1,Math.round((vx-T.ox)/T.pw*(T.n-1)))),d=T.days[i],l=document.getElementById('cgl'),xp=T.ox+i/Math.max(1,T.n-1)*T.pw;
+  if(l){l.setAttribute('x1',xp);l.setAttribute('x2',xp);l.style.display=''}
+  const diff=d.x-d.p;tip.innerHTML=`<b>${fdate(d.t)}</b><br>This scenario <b class="${d.x<0?'neg':''}">${GBP2(d.x)}</b><br>Current plan ${GBP2(d.p)}${Math.abs(diff)>=0.5?`<br>Difference ${GBP2(diff)}`:''}${d.ev.length?'<hr>'+d.ev.slice(0,8).map(x=>`${esc(String(x[0]).slice(0,26))} <b>${GBP2(x[1])}</b>`).join('<br>'):''}`;
+  tip.hidden=false;const cb=tip.parentElement.getBoundingClientRect(),left=e.clientX-cb.left+14;tip.style.left=Math.min(left,cb.width-190)+'px';tip.style.top=Math.max(0,e.clientY-cb.top-20)+'px'});
 document.addEventListener('click',e=>{
   const b=e.target.closest('[data-act],[data-tab],[data-go],[data-reset]');if(!b)return;
   if(b.dataset.tab){go(b.dataset.tab);return}
