@@ -28,6 +28,7 @@ function vSettings(){
   return intro('How strict the flags are, what history is loaded, and a backup of your data.')+`<div class="grid">
    <div class="panel c6"><h2>Flags and safety</h2><div class="list">
     <div class="item"><span>Safety buffer to keep in the bank</span>${F('state','buffer','num',STATE.buffer,'style="width:100px"')}</div>
+    <div class="item"><span>Joint Amex cardholder (first name as on the statement)</span>${F('state','amexJoint','str',STATE.amexJoint||'Annalisa','style="width:130px"')}</div>
     <div class="item"><span>Flag any payment over £</span>${F('state','flagLimit','num',STATE.flagLimit,'style="width:100px"')}</div></div>
     <div class="lbl" style="margin:14px 0 6px">Don't flag payments in these categories</div>
     <div class="row" style="gap:6px 16px">${cats.map(v=>`<label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-act="flagexcl" data-v="${v.id}" ${(STATE.flagExcl||[]).includes(v.id)?'checked':''}> ${esc(v.name)}</label>`).join('')}</div>

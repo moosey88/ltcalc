@@ -60,6 +60,7 @@ function vTax(){
 function vAmex(){
   const p=draft(),S=fc(),A=p.amex,st=S.stmts.slice(0,6),yr=S.cardSpend/S.nMonths*12,pts=yr*A.rate,val=pts*A.pv/100,fees=S.feeTotal/S.nMonths*12;
   return draftBar()+banners()+intro('The Amex is safe as long as the cash to clear it is already set aside. This tab shows each statement, when it is due and whether the bank can pay it.')+`<div class="grid">
+   <div class="panel c12" style="border-color:var(--bank)"><b>Note on the two cardholders.</b> The Amex has two cardmembers. Only <b>${esc(amexJointName())}</b>'s spending is joint and counts towards the household budget and what the bank must cover. The other cardholder's spending is personal and is left out when you upload a statement. Change the name in Settings if needed.</div>
    <div class="panel c4"><h2>Safety check</h2><p style="margin:0 0 8px">${verdictPill(S)}</p><p class="ink2" style="margin-top:0">${esc(S.why)}</p>
     <div class="note"><b>The rule:</b> money in the bank that you owe Amex is not yours to spend. The dashed line on the Today chart is your bank balance minus what you owe Amex. Keep it above your buffer and the card cannot put you in debt.</div>
     <div class="list" style="margin-top:10px"><div class="item"><span>Put on Amex</span><b>${p.amexShare||0}% of card-friendly spend</b></div><div class="item"><span>Owed now</span><b>${GBP(amexOwedNow())}</b></div><div class="item"><span>Card spend per year</span><b>${GBP(yr)}</b></div>

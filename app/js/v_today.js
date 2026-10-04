@@ -76,6 +76,7 @@ function vToday(){
    <div class="kpi" ${lc&&Math.abs(lc.diff)>=1?'style="border-color:var(--warn)"':''}><span>Bank check</span><b class="${lc&&Math.abs(lc.diff)>=1?'warnc':''}">${lc?(Math.abs(lc.diff)<1?'Matches':GBP(lc.diff)):'–'}</b><small>${lc?(Math.abs(lc.diff)<1?'entries add up to the bank':`Bank shows ${GBP2(lc.est+lc.diff)}, expected ${GBP2(lc.est)}. Fix it in Weekly check below.`):'updates when you add a balance'}</small></div>
    <div class="kpi"><span>Amex</span><b style="padding:6px 0;font-size:1.2rem">${verdictPill(S)}</b><small>${esc(S.why)}</small></div></div>
   <div class="grid">
+   ${advicePanel()}
    ${uploadPanel()}
    ${anomalyPanel()}
    ${budgetsPanel(T.k)}

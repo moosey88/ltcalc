@@ -111,7 +111,7 @@ function ledgerBlock(m,rec,rowsV,bud,by,unc,totB,totS,src,isNow,dom,n,P){
     ${pend.slice(0,12).map(it=>`<div class="row tk" style="justify-content:space-between"><span>${tickBox(it.kind,it.id,m)} ${esc(it.name)}</span><span class="small muted">${ord(it.day)} · ${GBP2(it.amt)}</span></div>`).join('')||'<p class="small muted" style="margin:4px 0 0">Everything is ticked or on the bank file.</p>'}${pend.length>12?`<p class="small muted" style="margin:4px 0 0">${pend.length-12} more in the full list below.</p>`:''}</div>`:''}</div>`;
   return`<div class="c12 dd"><div class="panel"><div class="row" style="justify-content:space-between"><h2>Day by day, ${fmonthLong(m)}</h2><div class="row"><button class="btn ghost sm" data-act="mprev" aria-label="Previous month">‹</button><button class="btn ghost sm" data-act="mnext" aria-label="Next month">›</button></div></div>${src==='sheet'?'<p class="small muted" style="margin-top:0">From your sheet. Budgets are what you planned then.</p>':''}${ledger}</div>${rail}</div>`}
 function uploadPanel(){return`<div class="panel c4 upl"><h2>Upload a statement</h2><div class="fileBox"><select id="impSrc"><option value="nw">NatWest current account</option><option value="amex">Amex card</option></select><input type="file" id="impFile" accept=".csv,text/csv"><p id="impMsg" class="small" style="margin:4px 0 0"></p></div>
-    <p class="small muted" style="margin:6px 0 0">CSV from NatWest or Amex online banking. The same file twice is safe. Account numbers are ignored.</p></div>`}
+    <p class="small muted" style="margin:6px 0 0">CSV from NatWest or Amex online banking. The same file twice is safe. <b>Amex has two cardholders: only ${esc(amexJointName())}\'s spending is joint and counted. The other cardholder\'s is personal and left out.</b></p></div>`}
 /* every budget this month, with progress: used on Today */
 function budgetsPanel(m){
   const bud=budgetsOf(m),{by,unc,src}=catTotalsFor(m),P=planFor(m),xcat=new Set((P.transfers||[]).map(x=>x.catId)),isNow=m===thisMonthK(),n=dim(+m.slice(0,4),monthOf(m)-1),dom=isNow?+todayISO().slice(8):n;
@@ -163,11 +163,14 @@ function toISO(s){s=(s||'').trim().replace(/^'/,'');let m=s.match(/^(\d{1,2})[\/
   m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[0];m=s.match(/^(\d{1,2}) (\w{3})\w* (\d{4})$/);if(m){const mo=MON.findIndex(x=>x.toLowerCase()===m[2].toLowerCase());if(mo>=0)return m[3]+'-'+String(mo+1).padStart(2,'0')+'-'+String(m[1]).padStart(2,'0')}return null}
 const num=s=>{const v=parseFloat(String(s).replace(/[£,\s]/g,''));return isNaN(v)?null:v};
 const dayGap=(a,b)=>Math.abs(parseISO(a)-parseISO(b))/DAY;
+/* Amex has two cardholders. Only the joint cardholder's spending counts towards the household. */
+const amexJointName=()=>String(STATE.amexJoint||'Annalisa').trim();
+const amexIsJoint=name=>{const j=amexJointName().toUpperCase();return !!j&&String(name).toUpperCase().includes(j)};
 function importText(text,src){
   const rows=parseCSV(text);if(rows.length<2)return'That file has no rows.';
   const H=rows[0].map(h=>h.trim().toLowerCase()),iD=H.findIndex(h=>h.includes('date')),iDesc=H.findIndex(h=>h==='description'||h.includes('descr')),iV=H.findIndex(h=>h==='value'||h==='amount'),iB=H.findIndex(h=>h==='balance'),iW=H.findIndex(h=>h==='cardmember');
   if(iD<0||iDesc<0||iV<0)return'Could not find Date, Description and Value or Amount columns. Is this a NatWest or Amex CSV?';
-  const parsed=[];rows.slice(1).forEach(r=>{const d=toISO(r[iD]||'');let a=num(r[iV]);if(!d||a==null)return;if(src==='amex')a=-a;parsed.push({d,t:(r[iDesc]||'').trim().replace(/\s+/g,' '),a,b:iB>=0?num(r[iB]):null,who:iW>=0?(/SANDER/i.test(r[iW]||'')||(r[iW]||'').trim()==='S'?'S':'A'):undefined})});
+  const parsed=[];rows.slice(1).forEach(r=>{const d=toISO(r[iD]||'');let a=num(r[iV]);if(!d||a==null)return;if(src==='amex')a=-a;parsed.push({d,t:(r[iDesc]||'').trim().replace(/\s+/g,' '),a,b:iB>=0?num(r[iB]):null,who:iW>=0?(amexIsJoint(r[iW]||'')?'A':'S'):undefined})});
   if(!parsed.length)return'No valid rows found.';
   const seen={};parsed.forEach(x=>{const key=x.d+'|'+x.t+'|'+x.a+'|'+x.b;seen[key]=(seen[key]||0)+1;x.id=src+'_'+key+'#'+seen[key]});
   let added=0,skipped=0,merged=0,asked=0;const pay=src==='amex'?'amex':'bank';
@@ -183,6 +186,8 @@ function importText(text,src){
       if(!(STATE.cash||[]).some(e=>e.type===typ&&Math.abs(e.a-amt)<0.005&&dayGap(e.d,x.d)<=3))(STATE.cash=STATE.cash||[]).push({id:'c_'+uid(),d:x.d,type:typ,a:amt,who:'',note:'From the bank file',auto:true})}});
   Object.keys(parsed.reduce((o,x)=>(o[x.d.slice(0,7)]=1,o),{})).forEach(k=>saveTx(k));
   let msg=`Added ${added} new lines (${merged} matched to entries you typed, ${skipped} already there${asked?`, ${asked} need your say-so`:''}).`;
+  if(src==='amex'){const oth=parsed.filter(x=>x.who==='S'&&x.a<0&&!/PAYMENT RECEIVED/i.test(x.t)),jt=parsed.filter(x=>x.who==='A'&&x.a<0);
+    msg+=parsed.some(x=>x.who!==undefined)?` Counted ${jt.length} ${esc(amexJointName())} (joint) card lines, ${GBP2(-sum(jt,x=>x.a))}. Left out ${oth.length} lines from the other cardholder, ${GBP2(-sum(oth,x=>x.a))}, because that spending is personal.${!jt.length?' No lines matched "'+esc(amexJointName())+'", so check the cardholder name in Settings.':''}`:' This file has no Cardmember column, so every line was counted as joint. Download the version that lists the cardmember.'}
   const rc=reconcileTicks();
   if(src==='nw'){const wb=parsed.filter(x=>x.b!=null);
     if(wb.length){const asc=wb[0].d<wb[wb.length-1].d,ld=wb.map(x=>x.d).sort().pop(),same=wb.filter(x=>x.d===ld),lastRow=asc?same[same.length-1]:same[0];
