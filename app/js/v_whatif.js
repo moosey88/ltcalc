@@ -56,7 +56,7 @@ function scenarioFlags(P,X,sc){
 /* the largest payments in the six weeks before a date, to say what pushed the bank down */
 function bigOut(X,t){const ev=(X.events||[]).filter(e=>e.a<0&&e.t<=t&&e.t>t-42*DAY&&e.k!=='var').sort((a,b)=>a.a-b.a).slice(0,3);
   return ev.length?` Biggest payments before then: ${ev.map(e=>esc(String(e.n))+' '+GBP(-e.a)).join(', ')}.`:''}
-function scPaint(){const p=scParts(),a=document.getElementById('scTop'),b=document.getElementById('scRes');if(a)a.innerHTML=p[0];if(b)b.innerHTML=p[1]}
+function scPaint(){const p=scParts(),a=document.getElementById('scTop'),b=document.getElementById('scRes');if(a)a.innerHTML=p[0];if(b)b.innerHTML=p[1];try{applyTips()}catch(e){}}
 function scParts(){
   const sc=view.scen,P=simulate(),X=simulate({planOf:k=>scPlan(sc,k),lumps:scLumps(sc)});
   const fm=S=>S.months.find(m=>m.k>=sc.from)||S.months[0];
@@ -66,11 +66,11 @@ function scParts(){
   const d=planFor(nextMonthK()).debts.find(x=>x.id===sc.debtSel);let debtHtml='';
   if(d&&(sc.extra>0||sc.lump>0)){
     const bal=STATE.debtBal[d.id],lm=Math.max(0,monthsBetween(parseISO(STATE.asOf),parseISO(sc.lumpDate)));
-    const a0=amort(bal,d.apr,d.pay,d.extra,0,-1),a1=amort(bal,d.apr,d.pay,(d.extra||0)+sc.extra,sc.lump,lm);
+    const a0=amort(bal,d.apr,d.pay,d.extra,0,-1),a1=amort(bal,d.apr,d.pay,(d.extra||0)+sc.extra,sc.lump,lm),erc=d.erc>0?sc.lump*d.erc/100:0,totIn=sc.lump+erc+sc.extra*((a1&&a1.n)||0);
     if(a0&&a1&&a0.n!=null&&a1.n!=null){const N=Math.min(480,Math.max(a0.n,a1.n)+2),ser=[],t0=addMonthsT(parseISO(STATE.asOf),0);
       for(let i=0;i<=N;i++)ser.push({t:addMonthsT(t0,i),p:a0.ser[i]??0,s:a1.ser[i]??0});
       debtHtml=`<h3 style="margin:16px 0 6px">${esc(d.name)}: what the extra does</h3><div class="kpis" style="margin-bottom:8px"><div class="kpi"><span>Debt free</span><b style="font-size:1.25rem">${fmonthT(addMonthsT(parseISO(STATE.asOf),a1.n))}</b><small>${ys(a0.n-a1.n)} sooner than ${fmonthT(addMonthsT(parseISO(STATE.asOf),a0.n))}</small></div>
-       <div class="kpi"><span>Interest saved</span><b class="pos" style="font-size:1.25rem">${GBP(a0.int-a1.int)}</b><small>${GBP(a0.int)} down to ${GBP(a1.int)}</small></div><div class="kpi"><span>Cash it costs</span><b style="font-size:1.25rem">${GBP(sc.lump+sc.extra*12)}</b><small>in the first year</small></div>${d.erc>0&&sc.lump>0?`<div class="kpi"><span>Early repayment charge</span><b class="neg" style="font-size:1.25rem">${GBP(sc.lump*d.erc/100)}</b><small>${pct(d.erc)} of the lump sum. Interest saved after it: ${GBP(a0.int-a1.int-sc.lump*d.erc/100)}</small></div>`:''}</div>
+       <div class="kpi"><span>Interest saved</span><b class="pos" style="font-size:1.25rem">${GBP(a0.int-a1.int)}</b><small>${GBP(a0.int)} down to ${GBP(a1.int)}</small></div><div class="kpi"><span>Cash you put in</span><b style="font-size:1.25rem">${GBP(totIn)}</b><small>${sc.lump>0?GBP(sc.lump)+' now':''}${sc.lump>0&&sc.extra>0?' + ':''}${sc.extra>0?GBP(sc.extra)+' a month for '+ys(a1.n):''}. Not lost: it pays the debt off. Year one alone: ${GBP(sc.lump+sc.extra*12)}.</small></div><div class="kpi"><span>Interest saved per £1</span><b style="font-size:1.25rem">${totIn>0?GBP2(Math.max(0,a0.int-a1.int-erc)/totIn):'–'}</b><small>after any early repayment charge. Total paid over the loan: ${GBP(bal+a0.int)} falls to ${GBP(bal+a1.int+erc)}.</small></div>${d.erc>0&&sc.lump>0?`<div class="kpi"><span>Early repayment charge</span><b class="neg" style="font-size:1.25rem">${GBP(sc.lump*d.erc/100)}</b><small>${pct(d.erc)} of the lump sum. Interest saved after it: ${GBP(a0.int-a1.int-sc.lump*d.erc/100)}</small></div>`:''}</div>
        ${lineChart('c3',ser,{label:'Debt balance',years:true,series:[{k:'p',c:'var(--muted)',name:'Current plan',dash:1},{k:'s',c:'var(--debt)',name:'With extra'}]})}`}
     else debtHtml=`<div class="note" style="margin-top:12px">Add the balance and interest rate for ${esc(d.name)} on the Debts tab to see how much sooner it ends and how much interest you save.</div>`}
   const flags=scenarioFlags(P,X,sc),fp={bad:'bad',warn:'warn',info:'info'},fl={bad:'Problem',warn:'Watch',info:'Note'};

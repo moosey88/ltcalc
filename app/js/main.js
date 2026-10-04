@@ -17,7 +17,7 @@ function render(){
   const groups=[...new Set(TABS.map(t=>t[3]))];
   $('#nav').innerHTML='<div class="navg">'+groups.map(g=>`<div class="ng"><small>${g}</small><div>${TABS.filter(t=>t[3]===g).map(([k,l])=>`<button role="tab" data-tab="${k}" aria-selected="${tab===k}">${l}</button>`).join('')}</div></div>`).join('')+'</div>';
   let html;try{html=TABS.find(x=>x[0]===tab)[2]()}catch(e){console.error(e);html=`<div class="panel"><h2>Something went wrong on this tab</h2><p class="small muted">${esc(e.message)}</p></div>`}
-  $('#main').innerHTML=html;
+  $('#main').innerHTML=html;try{applyTips()}catch(e){}
   if(view.modal==='commit')$('#main').insertAdjacentHTML('beforeend',commitModal())}
 function go(t){tab=t;view.modal=null;render();window.scrollTo(0,0)}
 function afterState(path,v){
