@@ -3,7 +3,7 @@ const tickRow=(m,id)=>(TX[m]||[]).find(t=>t.s==='tick'&&t.item===id);
 /* everything the plan expects in a month: money in, bills, debts, personal transfers */
 function expectedItems(m){
   const P=planFor(m),y=+m.slice(0,4),mo=monthOf(m)-1,n=dim(y,mo),out=[];
-  P.income.forEach(i=>out.push({kind:'inc',id:i.id,name:i.name,amt:i.amount,day:Math.min(i.day,n),sign:1,c:'_inc',sc:i.id}));
+  P.income.forEach(i=>out.push({kind:'inc',id:i.id,name:i.name,amt:i.amount,day:Math.min(i.day,n),sign:1,c:'_inc',sc:i.id,varies:!!i.varies}));
   P.bills.forEach(b=>{const fr=b.freq||'monthly';
     const due=fr==='monthly'||(fr==='yearly'&&mo+1===(b.month||12))||(fr==='quarterly'&&((mo+1-(b.month||1))%3+3)%3===0);
     if(due)out.push({kind:'bill',id:b.id,name:b.name,amt:b.amount,day:Math.min(b.day,n),sign:-1,c:'_skip',key:bkey(b),variable:b.variable,yearly:fr!=='monthly'})});
@@ -14,7 +14,9 @@ function expectedItems(m){
 /* the real bank/Amex line behind an item, if one has been uploaded */
 function bankRowFor(it,m){
   const rows=(TX[m]||[]).filter(t=>t.s!=='tick'&&t.s!=='man');
-  if(it.kind==='inc')return rows.find(t=>t.c==='_inc'&&t.sc===it.id&&t.a>0)||null;
+  if(it.kind==='inc'){const ok=t=>t.c==='_inc'&&t.a>0&&(!t.item||t.item===it.id),rel=t=>Math.abs(t.a-it.amt)/Math.max(1,it.amt);
+    const c=rows.filter(t=>ok(t)&&t.sc===it.id&&(it.varies||rel(t)<=.5)).concat(rows.filter(t=>ok(t)&&t.sc!==it.id&&rel(t)<=.05));
+    return c.sort((a,b)=>rel(a)-rel(b))[0]||null}
   if(it.kind==='sav')return rows.find(t=>t.a<0&&/NS&I|PREMIUM BOND|TO A\/C (67716245|67652417)/.test((t.t||'').toUpperCase()))||null;
   if(it.kind==='xfer')return rows.find(t=>t.c===it.c&&t.a<0&&Math.abs(-t.a-it.amt)<=it.amt*.3+1)||null;
   return it.key?rows.find(t=>t.a<0&&(t.t||'').toUpperCase().includes(it.key)&&Math.abs(-t.a-it.amt)<=it.amt*.3+1)||null:null}
@@ -35,8 +37,17 @@ function tickAllDue(m){
   toast(n?`Ticked ${n} items. Untick any that have not happened.`:'Nothing else is due yet');render()}
 function setTickAmt(m,id,v){const r=tickRow(m,id);if(!r||!(v>=0))return;audit('Changed ticked amount',`${r.t.replace(/^(Paid|Received): /,'')}: ${GBP2(Math.abs(r.a))} to ${GBP2(v)}`);r.a=(r.a<0?-1:1)*v;saveTx(m);invalidate();persistAll()}
 /* after a bank file is uploaded: swap each tick for the real line it matches */
+/* repair: a bank line wrongly claimed by an item (same payer, very different amount) goes back to being a tick */
+function repairTickClaims(){
+  Object.keys(TX).forEach(m=>{let ch=false;
+    TX[m].slice().forEach(b=>{if(b.s!=='nw'||!b.ticked)return;
+      if(Math.abs(Math.abs(b.a)-b.tickAmt)>Math.max(1,b.tickAmt*.5)){
+        const id=b.item,it=expectedItems(m).find(x=>x.id===id);
+        if(it&&!tickRow(m,id))TX[m].push({id:'tk_'+m+'_'+id,d:b.d,t:(it.kind==='inc'?'Received: ':'Paid: ')+it.name,a:it.sign*b.tickAmt,c:it.c,sc:it.kind==='inc'?it.id:undefined,s:'tick',p:'bank',item:id,planned:it.amt});
+        delete b.item;delete b.ticked;delete b.tickAmt;ch=true}});
+    if(ch)saveTx(m)})}
 function reconcileTicks(){
-  let matched=0,diff=0;
+  let matched=0,diff=0;repairTickClaims();
   Object.keys(TX).forEach(m=>{
     const ticks=TX[m].filter(t=>t.s==='tick');if(!ticks.length)return;
     const items=expectedItems(m);
@@ -57,7 +68,7 @@ function anomalies(){
       else if(b&&!it.variable&&it.kind!=='inc'&&Math.abs(Math.abs(b.a)-it.amt)>Math.max(2,it.amt*.05))out.push({sev:'info',m,t:`${it.name}: the bank shows ${GBP2(Math.abs(b.a))}, your plan has ${GBP2(it.amt)}.`,act:'If this is the new normal, update the plan on Budgets.'});
       if(cur&&!b&&!tk&&it.day+2<=dom&&it.kind!=='xfer')out.push({sev:it.kind==='inc'?'bad':'warn',m,t:it.kind==='inc'?`${it.name} has not arrived. It was expected on the ${ord(it.day)} (${GBP2(it.amt)}).`:`${it.name} (${GBP2(it.amt)}, due the ${ord(it.day)}) has not left the bank yet.`,act:it.kind==='inc'?'Check with the payer, or tick it if it is in a different account.':'Tick it if you paid another way, or check the date.'})});
     const seen={};(TX[m]||[]).filter(t=>t.s==='nw'&&t.a<0&&-t.a>=20).forEach(t=>{const k=t.d+'|'+t.a+'|'+(t.t||'').replace(/\s+\d{2}[A-Z]{3}\d{2}/,'').slice(0,40);if(seen[k]&&seen[k]!==t.id)out.push({sev:'warn',m,t:`Possible double payment: ${GBP2(-t.a)} to "${(t.t||'').replace(/^(Card Transaction|Direct Debit|OnLine Transaction)\s*/,'').slice(0,40)}" on ${fdate(parseISO(t.d))} appears twice.`,act:'If it is a duplicate charge, ask the shop or bank.'});seen[k]=t.id})});
-  const lc=liveCheck();if(lc&&Math.abs(lc.diff)>=1)out.push({sev:Math.abs(lc.diff)>=50?'bad':'warn',m:now,t:`The bank balance on ${fdate(parseISO(lc.d))} was ${lc.diff>0?GBP2(lc.diff)+' higher':GBP2(-lc.diff)+' lower'} than your ticks and entries predicted (${GBP2(lc.est)} expected).`,act:lc.unticked.length?`${lc.unticked.length} item${lc.unticked.length>1?'s':''} due by then are not ticked (${lc.unticked.slice(0,6).map(i=>i.name+' '+GBP2(i.amt)).join(', ')}${lc.unticked.length>6?', and more':''}). Tick the ones that have left the bank, or upload the bank file.`:'Look for a payment that is not entered, or a tick with the wrong amount.'});
+  const lc=liveCheck();if(lc&&Math.abs(lc.diff)>=1)out.push({sev:Math.abs(lc.diff)>=50?'bad':'warn',m:now,t:`The bank balance on ${fdate(parseISO(lc.d))} was ${lc.diff>0?GBP2(lc.diff)+' higher':GBP2(-lc.diff)+' lower'} than your ticks and entries predicted (${GBP2(lc.est)} expected).`,act:lc.pend&&lc.pend.length&&Math.abs(lc.diff)>=1?`Counted from your side but not on the bank file: ${lc.pend.map(r=>(r.t||'entry').replace(/^(Paid|Received): /,'')+' '+GBP2(Math.abs(r.a))+' ('+fdate(parseISO(r.d))+')').join(', ')}. If the bank is higher than predicted, one of these has probably not left the bank yet, was ticked early, or was entered after you typed the balance. File balance used: ${GBP2(lc.fa.b)} on ${fdate(parseISO(lc.fa.d))}.`:lc.unticked.length?`${lc.unticked.length} item${lc.unticked.length>1?'s':''} due by then are not ticked (${lc.unticked.slice(0,6).map(i=>i.name+' '+GBP2(i.amt)).join(', ')}${lc.unticked.length>6?', and more':''}). Tick the ones that have left the bank, or upload the bank file.`:'Look for a payment that is not entered, or a tick with the wrong amount.'});
   const rank={bad:0,warn:1,info:2};return out.sort((a,b)=>rank[a.sev]-rank[b.sev])}
 function tickBox(kind,id,m){m=m||thisMonthK();const it=expectedItems(m).find(x=>x.kind===kind&&x.id===id);if(!it)return'';
   const b=bankRowFor(it,m),t=tickRow(m,id);

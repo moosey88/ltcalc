@@ -51,8 +51,8 @@ document.addEventListener('click',e=>{
   else if(a==='add'){addToDraft(d.list);render()}
   else if(a==='auditcopy'){const t=AUDIT.slice().reverse().map(e=>`${e.t}\t${e.by}\t${e.act}\t${e.detail}`).join('\n')||'Nothing recorded';const o=$('#auditOut');o.style.display='block';o.value=t;o.select();try{navigator.clipboard.writeText(t);toast('Copied')}catch(err){toast('Select and copy the text below')}}
   else if(a==='tickall'){tickAllDue(d.m)}
-  else if(a==='sczoom'){view.scZoom=+d.z;const r=$('#scRes');if(r)r.innerHTML=scResults()}
-  else if(a==='schide'){view.scHide=!view.scHide;const r=$('#scRes');if(r)r.innerHTML=scResults()}
+  else if(a==='sczoom'){view.scZoom=+d.z;scPaint()}
+  else if(a==='schide'){view.scHide=!view.scHide;scPaint()}
   else if(a==='impadd'){impAdd()}
   else if(a==='impdone'){const x=(STATE.improvements||[]).find(y=>y.id===d.id);if(x){x.status=x.status==='done'?'open':'done';persistAll();render()}}
   else if(a==='impdel'){STATE.improvements=(STATE.improvements||[]).filter(y=>y.id!==d.id);persistAll();render()}
@@ -93,15 +93,15 @@ document.addEventListener('input',e=>{
   const id=d.sl||d.sn;if(!id)return;
   if(id==='cut'){view.cut=+el.value;$('#o_cut').textContent=pct(view.cut);const w=sum(planLines().L.filter(x=>x.k==='want'),x=>x.v);$('#cutRes').innerHTML=cutResult(w);return}
   if(id==='debtAmt'){view.debtAmt=+el.value;$('#o_debtAmt').textContent=GBP(view.debtAmt);const t=$('#debtEff');if(t)t.innerHTML=debtEffectTable(debtEffects(view.debtAmt));return}
-  if(id==='sweepbox'&&view.scen){view.scen.sweep=el.checked;cancelAnimationFrame(view.raf);view.raf=requestAnimationFrame(()=>{const r=$('#scRes');if(r)r.innerHTML=scResults()});return}
+  if(id==='sweepbox'&&view.scen){view.scen.sweep=el.checked;cancelAnimationFrame(view.raf);view.raf=requestAnimationFrame(()=>{scPaint()});return}
   if(!view.scen)return;const sc=view.scen;let v=el.value;
   if(d.sn){if(v==='')return;v=String(Math.max(0,+v));const r=document.getElementById(id);if(r){if(+v>+r.max)r.max=v;r.value=v}}
   else{const nb=document.getElementById('n_'+id);if(nb&&document.activeElement!==nb)nb.value=v}
   if(id==='debtSel'||id==='lumpDate'||id==='lumpFrom'||id==='from')sc[id]=v;
   else{const n=+v;if(id.startsWith('inc_'))sc.inc[id.slice(4)]=n;else if(id.startsWith('var_'))sc.vars[id.slice(4)]=n;else if(id.startsWith('xf_'))sc.xfer[id.slice(3)]=n;else if(id.startsWith('tax_'))sc.tax[id.slice(4)]=n;else sc[id]=n;
     const o=$('#o_'+id);if(o)o.textContent=id==='share'||id.startsWith('tax_')?pct(n):GBP(n);const rb=document.getElementById('r_'+id);if(rb)rb.hidden=Math.abs(n-(+rb.dataset.base))<1e-9}
-  cancelAnimationFrame(view.raf);view.raf=requestAnimationFrame(()=>{const r=$('#scRes');if(r)r.innerHTML=scResults()})});
+  cancelAnimationFrame(view.raf);view.raf=requestAnimationFrame(()=>{scPaint()})});
 $('#themeBtn').addEventListener('click',()=>{const r=document.documentElement;const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;r.dataset.theme=dark?'light':'dark'});
 (function boot(){
-  const had=loadLocal();ensureSnapshot();render();if(had)setSync('Loaded from this device','');
+  const had=loadLocal();try{reconcileTicks()}catch(e){}ensureSnapshot();render();if(had)setSync('Loaded from this device','');
   connectDb().catch(()=>{})})();

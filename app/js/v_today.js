@@ -8,13 +8,22 @@ function cashBalance(){let b=STATE.cashOpening||0;(STATE.cash||[]).forEach(e=>{i
 /* every bank movement we know of between two balances: ticks, typed entries and uploaded bank lines */
 const checkRows=(from,to)=>sum(Object.values(TX).flat().filter(t=>(t.s==='man'||t.s==='tick'||t.s==='nw')&&t.p==='bank'&&t.d>from&&t.d<=to),t=>t.a);
 /* the bank check, worked out again from what is recorded now, so a tick added later counts */
+/* the last running balance on the uploaded bank file: the one figure the bank itself vouches for */
+function fileAnchor(){
+  const rows=Object.values(TX).flat().filter(t=>t.s==='nw'&&t.p==='bank'&&t.b!=null);if(!rows.length)return null;
+  const ld=rows.reduce((m,t)=>t.d>m?t.d:m,'0'),same=rows.filter(t=>t.d===ld);
+  const last=same.find(r=>!same.some(q=>q!==r&&Math.abs(q.b-(r.b+q.a))<0.005))||same[0];
+  return{d:ld,b:Math.round(last.b*100)/100}}
 function liveCheck(){
   const lc=STATE.lastCheck;if(!lc)return null;
-  const pb=lc.prevBank!=null?lc.prevBank:lc.est,pa=lc.prevAsOf||addDays(lc.d,-1),est=pb+checkRows(pa,lc.d);
+  const fa=fileAnchor();let pb=lc.prevBank!=null?lc.prevBank:lc.est,pa=lc.prevAsOf||addDays(lc.d,-1),est;
+  if(fa&&fa.d<=lc.d){pa=fa.d;pb=fa.b;est=pb+sum(Object.values(TX).flat().filter(t=>(t.s==='man'||t.s==='tick')&&t.p==='bank'&&t.d<=lc.d&&(t.d>fa.d||t.s==='tick')),t=>t.a)}
+  else est=pb+checkRows(pa,lc.d);
   const diff=lc.d===STATE.asOf?Math.round((STATE.bank-est)*100)/100:lc.diff,m=lc.d.slice(0,7),dd=+lc.d.slice(8);
   const unticked=expectedItems(m).filter(it=>it.day<=dd&&!tickRow(m,it.id)&&!bankRowFor(it,m)),untickedSum=sum(unticked,it=>it.sign*it.amt);
   const rs=Object.values(TX).flat().filter(t=>(t.s==='man'||t.s==='tick'||t.s==='nw')&&t.p==='bank'&&t.d>pa&&t.d<=lc.d),inn=sum(rs.filter(t=>t.a>0),t=>t.a),out=-sum(rs.filter(t=>t.a<0),t=>t.a);
-  return{...lc,est,diff,unticked,untickedSum,inn,out,pb}}
+  const pend=fa&&fa.d<=lc.d?Object.values(TX).flat().filter(t=>(t.s==='man'||t.s==='tick')&&t.p==='bank'&&t.d<=lc.d&&(t.d>fa.d||t.s==='tick')):[];
+  return{...lc,est,diff,unticked,untickedSum,inn,out,pb,pend,fa}}
 function applyBalance(value,dateStr,src){
   const had=STATE.bank!=null,prevBank=STATE.bank,prevAsOf=STATE.asOf;const est=had?prevBank+checkRows(prevAsOf,dateStr):null;
   audit('Bank balance set',`${GBP2(value)} as of ${dateStr} (${src||'typed'})${had?', check difference '+GBP2(Math.round((value-est)*100)/100):''}`);

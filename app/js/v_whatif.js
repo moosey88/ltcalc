@@ -14,6 +14,7 @@ function vWhatIf(){
   const tax=P.tax.map(t=>slider('tax_'+t.id,esc(t.name)+': share of last year',sc.tax[t.id],0,200,5,'',pct,t.adj??100)).join('');
   const dopt=P.debts.map(d=>`<option value="${d.id}" ${sc.debtSel===d.id?'selected':''}>${esc(d.name)}</option>`).join('');
   const nm=nextMonthK(),fopts=Array.from({length:6},(_,i)=>addMonthsK(thisMonthK(),i+1)).map(k=>`<option value="${k}" ${sc.from===k?'selected':''}>${fmonthLong(k)}</option>`).join('');
+  const pp=scParts();
   return banners()+intro('Try changes without touching your real plan. Move a slider, or type a number in the box, and the results update. A saved plan starts from next month, so no past month ever changes.')+`<div class="grid">
    <div class="panel c12"><details><summary><b>How these sliders work</b></summary><div class="small ink2" style="margin-top:8px">
     <p style="margin:0 0 6px"><b>"Now"</b> under each slider is what your plan says today. The slider starts there. Moving it only changes this what-if, never your real plan.</p>
@@ -21,23 +22,24 @@ function vWhatIf(){
     <p style="margin:0 0 6px">The results on the right compare your <b>current plan</b> with <b>this scenario</b>: what is left over each month, savings after 6 and 12 months, the lowest the bank gets, and how much sooner a debt ends.</p>
     <p style="margin:0">Nothing is saved until you press <b>Make this my plan</b>, and that only applies from the month you choose.</p></div></details></div>
    <div class="wi">
-   <div class="panel wi-l"><div class="lbl" style="margin-bottom:10px">Income per month</div>${inc}
-    <div class="lbl" style="margin:14px 0 10px">Spending budgets per month</div>${vars}
-    ${xf?`<div class="lbl" style="margin:14px 0 10px">Transfers to personal accounts</div>${xf}`:''}
-    ${tax?`<div class="lbl" style="margin:14px 0 10px">Tax</div>${tax}`:''}
-    <div class="lbl" style="margin:14px 0 10px">Savings and card</div>
-    ${slider('sav','Monthly savings transfer',sc.sav,0,5000,50,'',GBP,P.savings.monthly)}
+   <div id="scTop" class="scwrap">${pp[0]}</div>
+   <div class="panel wi-l"><div class="slgrp"><div class="lbl">Income per month</div><div class="slcols">${inc}</div></div>
+    <div class="slgrp"><div class="lbl">Spending budgets per month</div><div class="slcols">${vars}</div></div>
+    ${xf?`<div class="slgrp"><div class="lbl">Transfers to personal accounts</div><div class="slcols">${xf}</div></div>`:''}
+    ${tax?`<div class="slgrp"><div class="lbl">Tax</div><div class="slcols">${tax}</div></div>`:''}
+    <div class="slgrp"><div class="lbl">Savings and card</div><div class="slcols">${slider('sav','Monthly savings transfer',sc.sav,0,5000,50,'',GBP,P.savings.monthly)}
     ${slider('share','Share of card-friendly spend put on Amex',sc.share,0,100,5,'Shopping, general, eating out and home maintenance.',pct,P.amexShare||0)}
-    <label class="small" style="display:flex;gap:6px;align-items:flex-start;margin:-4px 0 12px"><input type="checkbox" id="sweep" data-sl="sweepbox" ${sc.sweep?'checked':''}> <span>Also move any surplus above my ${GBP(STATE.buffer||0)} buffer into savings on the last day of each month</span></label>
-    <div class="lbl" style="margin:14px 0 10px">Pay a debt down faster</div>
+    <label class="small" style="display:flex;gap:6px;align-items:flex-start;margin:-4px 0 12px"><input type="checkbox" id="sweep" data-sl="sweepbox" ${sc.sweep?'checked':''}> <span>Also move any surplus above my ${GBP(STATE.buffer||0)} buffer into savings on the last day of each month</span></label></div></div>
+    <div class="slgrp"><div class="lbl">Pay a debt down faster</div><div class="slcols">
     <div class="sl"><label for="debtSel">Which debt</label><span></span><select id="debtSel" data-sl="debtSel" style="grid-column:1/-1">${dopt}</select></div>
     ${slider('extra','Extra each month',sc.extra,0,3000,25,`On top of the normal payment. Check your lender's yearly overpayment limit.`,GBP,0)}
     ${slider('lump','One-off lump sum',sc.lump,0,150000,500,'',GBP,0)}
     <div class="sl"><label for="lumpDate">Lump sum date</label><span></span><input type="date" id="lumpDate" data-sl="lumpDate" value="${sc.lumpDate}" style="grid-column:1/-1"></div>
     <div class="sl"><label for="lumpFrom">Paid from</label><span></span><select id="lumpFrom" data-sl="lumpFrom" style="grid-column:1/-1"><option value="savings" ${sc.lumpFrom==='savings'?'selected':''}>Savings first, then bank</option><option value="bank" ${sc.lumpFrom==='bank'?'selected':''}>Bank</option></select></div>
     <div class="sl"><label for="from">Changes start from</label><span></span><select id="from" data-sl="from" style="grid-column:1/-1">${fopts}</select></div>
+    </div></div>
     <div class="row" style="margin-top:8px"><button class="btn" data-act="commitask">Make this my plan</button><button class="btn ghost" data-act="screset">Back to baseline (all)</button></div></div>
-   <div class="wi-r" id="scRes">${scResults()}</div></div></div>`}
+   <div class="wi-r" id="scRes">${pp[1]}</div></div></div>`}
 /* plain-English warnings about what a scenario does to the account */
 function scenarioFlags(P,X,sc){
   const out=[],buf=STATE.buffer||0,fl=(sev,t)=>out.push({sev,t});
@@ -51,7 +53,8 @@ function scenarioFlags(P,X,sc){
   X.goals.filter(g=>g.target>0&&g.status!=='ok'&&(P.goals.find(x=>x.id===g.id)||{}).status==='ok').forEach(g=>fl('warn',`${g.name} (${GBP(g.target)} by ${fdate(parseISO(g.date))}) would no longer be fully funded${g.gs&&g.gs.short>1?`: ${GBP(g.gs.short)} short`:''}.`));
   if(!neg){if(X.verdict==='bad'&&P.verdict!=='bad')fl('bad','Amex: '+X.why);else if(X.verdict==='warn'&&P.verdict==='good')fl('warn','Amex: '+X.why)}
   return out}
-function scResults(){
+function scPaint(){const p=scParts(),a=document.getElementById('scTop'),b=document.getElementById('scRes');if(a)a.innerHTML=p[0];if(b)b.innerHTML=p[1]}
+function scParts(){
   const sc=view.scen,P=simulate(),X=simulate({planOf:k=>scPlan(sc,k),lumps:scLumps(sc)});
   const fm=S=>S.months.find(m=>m.k>=sc.from)||S.months[0];
   const at=(S,i)=>S.days[Math.min(i,S.days.length-1)];
@@ -75,7 +78,7 @@ function scResults(){
   const zoom=view.scZoom||60,zb=[[60,'2 months'],[365,'12 months'],[730,'24 months']].map(([z,l])=>`<button class="btn ${zoom===z?'':'ghost'} sm" data-act="sczoom" data-z="${z}">${l}</button>`).join('');
   const nb=flags.filter(x=>x.sev==='bad').length,nwn=flags.filter(x=>x.sev==='warn').length;
   const flagList=flags.length?flags.map(f=>`<div class="wf-i"><span class="pill ${fp[f.sev]}">${fl[f.sev]}</span> ${esc(f.t)}</div>`).join(''):'<div class="wf-i"><span class="pill good">All clear</span> No overdraft, no month overspent, no goal pushed late.</div>';
-  const sticky=`<div class="scsticky"><div class="wflags ${nb?'bad':nwn?'warn':'ok'}"><div class="flagsum">${nb?`<b>${nb} problem${nb>1?'s':''}</b>`:''}${nwn?` ${nwn} to watch`:''}${!nb&&!nwn?'All clear':''}</div><div class="flaglist">${flagList}</div></div>${kpis}
+  const sticky=`<div class="scsticky"><div class="scl"><div class="wflags ${nb?'bad':nwn?'warn':'ok'}"><div class="flagsum">${nb?`<b>${nb} problem${nb>1?'s':''}</b>`:''}${nwn?` ${nwn} to watch`:''}${!nb&&!nwn?'All clear':''}</div><div class="flaglist">${flagList}</div></div>${kpis}</div>
    <div class="chartbox"><div class="row" style="justify-content:space-between;margin:6px 0 2px"><b class="small">Bank balance, day by day</b><span class="row" style="gap:4px">${zb}<button class="btn ghost sm" data-act="schide">${view.scHide?'Show chart':'Hide chart'}</button></span></div>
    ${view.scHide?'':cashChart(P,X,zoom)}<div class="legend"><span><i style="border-color:#7a8b97;border-top-style:dashed"></i>Current plan</span><span><i style="border-color:${negX?'#c0392b':'var(--bank)'}"></i>This scenario</span><span><i style="border-color:#d98a1f;border-top-style:dashed"></i>${GBP(STATE.buffer||0)} buffer</span></div></div></div>`;
   const rows=rX.map((x,i)=>{const p=rP[i],c=(v,pv,sg)=>`<td class="n${v<-0.5?' neg':''}">${GBP(v,sg)}<i>plan ${GBP(pv,sg)}</i></td>`;
@@ -84,8 +87,8 @@ function scResults(){
   const monthly=`<div class="panel" style="margin-bottom:12px"><h3 style="margin:0 0 4px">Month by month</h3><p class="small muted" style="margin:0 0 6px">Grey bars and dashed lines are your current plan. Coloured is this scenario.</p>${growthChart(rP,rX)}
    <div class="tblwrap" style="margin-top:8px"><table class="wtab"><thead><tr><th>Month</th><th class="n">Money in</th><th class="n">Money out</th><th class="n">To savings</th><th class="n">Left over</th><th class="n">Bank at month end</th><th class="n">Savings</th><th class="n">Debt left</th><th class="n">Net worth change</th></tr></thead><tbody>${rows}${tot}</tbody></table></div>
    <p class="small muted" style="margin:6px 0 0">Net worth change = bank + savings + debts paid off in the month. Debts count only the part that reduces what you owe, not interest.</p></div>`;
-  return`${sticky}${monthly}<div class="note" style="margin:0 0 12px">Amex ${verdictPill(X)} ${esc(X.why)}</div>${debtHtml}
-   ${X.goals.some(g=>g.target>0)?`<h3 style="margin:16px 0 6px">Goals, holidays and tax</h3><div class="compare"><div class="h"></div><div class="h n">Current</div><div class="h n">Scenario</div><div class="h n"></div>${X.goals.filter(g=>g.target>0).map(g=>{const p0=P.goals.find(x=>x.id===g.id),f=x=>x.hit?fdate(x.hit):'not funded';return`<div>${esc(g.name)}</div><div class="n">${f(p0)}</div><div class="n">${f(g)}</div><div class="n">${g.status==='ok'?'<span class="pill good">on time</span>':'<span class="pill bad">late</span>'}</div>`}).join('')}</div>`:''}`}
+  return[sticky,`${monthly}<div class="note" style="margin:0 0 12px">Amex ${verdictPill(X)} ${esc(X.why)}</div>${debtHtml}
+   ${X.goals.some(g=>g.target>0)?`<h3 style="margin:16px 0 6px">Goals, holidays and tax</h3><div class="compare"><div class="h"></div><div class="h n">Current</div><div class="h n">Scenario</div><div class="h n"></div>${X.goals.filter(g=>g.target>0).map(g=>{const p0=P.goals.find(x=>x.id===g.id),f=x=>x.hit?fdate(x.hit):'not funded';return`<div>${esc(g.name)}</div><div class="n">${f(p0)}</div><div class="n">${f(g)}</div><div class="n">${g.status==='ok'?'<span class="pill good">on time</span>':'<span class="pill bad">late</span>'}</div>`}).join('')}</div>`:''}`]}
 /* one row per month: money, balances and the change in net worth */
 function scMonthRows(S,from){
   const idx=Math.max(0,S.months.findIndex(m=>m.k>=from)),sa=sum((STATE.assets||[]).filter(a=>a.group==='savings'),a=>a.value||0),out=[];
@@ -99,7 +102,7 @@ function scMonthRows(S,from){
 function niceStep(r){const t=r/4,p=Math.pow(10,Math.floor(Math.log10(t))),n=t/p;return(n<1.5?1:n<3.5?2:n<7.5?5:10)*p}
 function cashChart(P,X,zoom){
   const n=Math.min(zoom,P.days.length,X.days.length),dp=P.days.slice(0,n),dx=X.days.slice(0,n),buf=STATE.buffer||0;
-  const W=900,H=zoom<=60?250:230,ox=62,oy=12,pw=W-ox-14,ph=H-oy-34;
+  const W=900,H=200,ox=62,oy=12,pw=W-ox-14,ph=H-oy-34;
   const vals=[...dp,...dx].map(d=>d.bank),rawLo=Math.min(...vals,0),floor=-Math.max(8000,buf*8);
   const lo=Math.max(rawLo,floor),clip=rawLo<floor,hi=Math.max(Math.max(...vals),buf*2,2000)*1.05,st=niceStep(hi-lo);
   const Xp=i=>ox+i/Math.max(1,n-1)*pw,Yp=v=>oy+(hi-Math.max(v,lo))/(hi-lo)*ph;
