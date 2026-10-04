@@ -65,7 +65,9 @@ function simulate(o={}){
         gsp[g.id]={t,spent:sp,short:Math.max(0,g.target-sp)};done[g.id]=true;events.push({t,k:'goal',n:g.name,a:-sp,short:Math.max(0,g.target-sp),kind:g.kind})}});
     if(d===Math.min(A.closeDay,n)){if(cycle>0.005)stmts.push({close:t,due:t+A.dueDays*DAY,amt:cycle});cycle=0}
     let pend=0;stmts.forEach(s=>{if(!s.paid){if(s.due===t){bank-=s.amt;s.paid=true;events.push({t,k:'amex',n:'Amex statement due',a:-s.amt})}else pend+=s.amt}});
-    const owed=cycle+pend,tru=bank-owed,savT=Object.values(pots).reduce((a,b)=>a+b,0);
+    let owed=cycle+pend;
+    if(P.savings&&P.savings.sweep&&d===n){const sw=Math.max(0,bank-owed-(st.buffer||0));if(sw>0.005){bank-=sw;pots.general+=sw;M.sav+=sw;M.sweep=(M.sweep||0)+sw;events.push({t,k:'save',n:'Surplus moved to savings',a:-sw})}}
+    const tru=bank-owed,savT=Object.values(pots).reduce((a,b)=>a+b,0);
     if(bank<lowBank.v)lowBank={v:bank,t};if(tru<lowTrue.v)lowTrue={v:tru,t};
     days.push({t,bank,owed,tru,sav:savT});M.endBank=bank;M.endTrue=tru;M.endSav=savT;
   }
@@ -107,6 +109,6 @@ function scenarioPlanOf(sc,fromK){
     p.vars.forEach(v=>{if(sc.vars[v.id]!=null)v.budget=sc.vars[v.id]});
     (p.transfers||[]).forEach(x=>{if(sc.xfer[x.id]!=null)x.amount=sc.xfer[x.id]});
     p.tax.forEach(t=>{if(sc.tax[t.id]!=null)t.adj=sc.tax[t.id]});
-    p.savings.monthly=sc.sav;p.amexShare=sc.share;
+    p.savings.monthly=sc.sav;p.savings.sweep=!!sc.sweep;p.amexShare=sc.share;
     const d=p.debts.find(x=>x.id===sc.debtSel);if(d)d.extra=(d.extra||0)+sc.extra;
     return cache[k]=p}}

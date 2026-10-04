@@ -141,3 +141,4 @@ th{white-space:normal} td.n{white-space:nowrap}
 .sl .hint .lnk{background:none;border:0;padding:0;color:var(--bank);font:inherit;font-weight:600;cursor:pointer;text-decoration:underline}
 .sl .hint .lnk[hidden]{display:none}
 details>summary{cursor:pointer}
+.banner.bad{background:var(--bad-bg)}

@@ -1,7 +1,7 @@
 /* ===== What if ===== */
 function scInit(){
   const P=planFor(nextMonthK()),dsel=(P.debts.find(d=>STATE.debtBal[d.id]>0)||P.debts[0]||{}).id;
-  view.scen={inc:{},vars:{},xfer:{},tax:{},sav:P.savings.monthly,share:P.amexShare||0,debtSel:dsel,extra:0,lump:0,lumpDate:addDays(todayISO(),30),lumpFrom:'savings',from:nextMonthK()};
+  view.scen={inc:{},vars:{},xfer:{},tax:{},sav:P.savings.monthly,share:P.amexShare||0,debtSel:dsel,extra:0,lump:0,lumpDate:addDays(todayISO(),30),lumpFrom:'savings',from:nextMonthK(),sweep:!!(P.savings&&P.savings.sweep)};
   P.income.forEach(i=>view.scen.inc[i.id]=i.amount);P.vars.forEach(v=>view.scen.vars[v.id]=v.budget);(P.transfers||[]).forEach(x=>view.scen.xfer[x.id]=x.amount);P.tax.forEach(t=>view.scen.tax[t.id]=t.adj??100)}
 function scLumps(sc){return sc.lump>0&&sc.debtSel?[{id:'sc',debt:sc.debtSel,amount:sc.lump,date:sc.lumpDate,from:sc.lumpFrom}]:[]}
 function scPlan(sc,k){return scenarioPlanOf(sc,sc.from)(k)}
@@ -27,6 +27,7 @@ function vWhatIf(){
     <div class="lbl" style="margin:14px 0 10px">Savings and card</div>
     ${slider('sav','Monthly savings transfer',sc.sav,0,5000,50,'',GBP,P.savings.monthly)}
     ${slider('share','Share of card-friendly spend put on Amex',sc.share,0,100,5,'Shopping, general, eating out and home maintenance.',pct,P.amexShare||0)}
+    <label class="small" style="display:flex;gap:6px;align-items:flex-start;margin:-4px 0 12px"><input type="checkbox" id="sweep" data-sl="sweepbox" ${sc.sweep?'checked':''}> <span>Also move any surplus above my ${GBP(STATE.buffer||0)} buffer into savings on the last day of each month</span></label>
     <div class="lbl" style="margin:14px 0 10px">Pay a debt down faster</div>
     <div class="sl"><label for="debtSel">Which debt</label><span></span><select id="debtSel" data-sl="debtSel" style="grid-column:1/-1">${dopt}</select></div>
     ${slider('extra','Extra each month',sc.extra,0,3000,25,`On top of the normal payment. Check your lender's yearly overpayment limit.`,GBP,0)}
@@ -36,6 +37,19 @@ function vWhatIf(){
     <div class="sl"><label for="from">Changes start from</label><span></span><select id="from" data-sl="from" style="grid-column:1/-1">${fopts}</select></div>
     <div class="row" style="margin-top:8px"><button class="btn" data-act="commitask">Make this my plan</button><button class="btn ghost" data-act="screset">Back to baseline (all)</button></div></div>
    <div class="panel c8" id="scRes">${scResults()}</div></div>`}
+/* plain-English warnings about what a scenario does to the account */
+function scenarioFlags(P,X,sc){
+  const out=[],buf=STATE.buffer||0,fl=(sev,t)=>out.push({sev,t});
+  const neg=X.days.find(d=>d.bank<0),negBase=P.days.find(d=>d.bank<0);
+  if(neg)fl('bad',`The bank goes overdrawn on ${fdate(neg.t)} and the lowest it reaches is ${GBP(X.lowBank.v)} on ${fdate(X.lowBank.t)}.${negBase?'':' Your current plan never goes below zero.'} Bills and the mortgage could bounce.`);
+  else if(X.lowTrue.v<buf)fl('warn',`Cash drops to ${GBP(X.lowTrue.v)} on ${fdate(X.lowTrue.t)}, below your ${GBP(buf)} safety buffer.`);
+  const lm=X.months.slice(0,12).filter(m=>m.k>=sc.from).map(m=>({k:m.k,left:m.inc-(m.bills+m.yearly+m.debt+m.lump+m.vars+m.xfer+m.one+(m.sav-(m.sweep||0))+m.fee)})).filter(m=>m.left<-0.5);
+  if(lm.length)fl(lm.length>=3?'bad':'warn',`${lm.length} of the next 12 months spend more than comes in. The worst is ${fmonth(lm.reduce((a,b)=>b.left<a.left?b:a).k)} at ${GBP(lm.reduce((a,b)=>b.left<a.left?b:a).left)}.`);
+  const s12=X.days[Math.min(364,X.days.length-1)].sav,s12b=P.days[Math.min(364,P.days.length-1)].sav;
+  if(s12<s12b-0.5)fl(s12<=X.days[0].sav+0.5?'warn':'info',`Savings after 12 months are ${GBP(s12)}, which is ${GBP(s12b-s12)} less than the current plan (${GBP(s12b)}).`);
+  X.goals.filter(g=>g.target>0&&g.status!=='ok'&&(P.goals.find(x=>x.id===g.id)||{}).status==='ok').forEach(g=>fl('warn',`${g.name} (${GBP(g.target)} by ${fdate(parseISO(g.date))}) would no longer be fully funded${g.gs&&g.gs.short>1?`: ${GBP(g.gs.short)} short`:''}.`));
+  if(!neg){if(X.verdict==='bad'&&P.verdict!=='bad')fl('bad','Amex: '+X.why);else if(X.verdict==='warn'&&P.verdict==='good')fl('warn','Amex: '+X.why)}
+  return out}
 function scResults(){
   const sc=view.scen,P=simulate(),X=simulate({planOf:k=>scPlan(sc,k),lumps:scLumps(sc)});
   const fm=S=>S.months.find(m=>m.k>=sc.from)||S.months[0];
@@ -52,7 +66,9 @@ function scResults(){
        <div class="kpi"><span>Interest saved</span><b class="pos" style="font-size:1.25rem">${GBP(a0.int-a1.int)}</b><small>${GBP(a0.int)} down to ${GBP(a1.int)}</small></div><div class="kpi"><span>Cash it costs</span><b style="font-size:1.25rem">${GBP(sc.lump+sc.extra*12)}</b><small>in the first year</small></div>${d.erc>0&&sc.lump>0?`<div class="kpi"><span>Early repayment charge</span><b class="neg" style="font-size:1.25rem">${GBP(sc.lump*d.erc/100)}</b><small>${pct(d.erc)} of the lump sum. Interest saved after it: ${GBP(a0.int-a1.int-sc.lump*d.erc/100)}</small></div>`:''}</div>
        ${lineChart('c3',ser,{label:'Debt balance',years:true,series:[{k:'p',c:'var(--muted)',name:'Current plan',dash:1},{k:'s',c:'var(--debt)',name:'With extra'}]})}`}
     else debtHtml=`<div class="note" style="margin-top:12px">Add the balance and interest rate for ${esc(d.name)} on the Debts tab to see how much sooner it ends and how much interest you save.</div>`}
-  return`<h2>What it does</h2><div class="compare" style="margin-top:10px"><div class="h"></div><div class="h n">Current plan</div><div class="h n">This scenario</div><div class="h n">Change</div>
+  const flags=scenarioFlags(P,X,sc),fp={bad:'bad',warn:'warn',info:'info'},fl={bad:'Problem',warn:'Watch',info:'Note'};
+  const flagHtml=`<div class="panel" style="margin:0 0 12px;${flags.some(f=>f.sev==='bad')?'border-color:var(--bad)':flags.length?'border-color:var(--warn)':''}"><h3 style="margin:0 0 6px">Flags for this scenario</h3>${flags.length?`<div class="list">${flags.map(f=>`<div class="item"><span><span class="pill ${fp[f.sev]}">${fl[f.sev]}</span> ${esc(f.t)}</span></div>`).join('')}</div>`:'<p class="muted small" style="margin:0">Nothing to worry about: no overdraft, no month overspent, no goal pushed late.</p>'}</div>`;
+  return`${flagHtml}<h2>What it does</h2><div class="compare" style="margin-top:10px"><div class="h"></div><div class="h n">Current plan</div><div class="h n">This scenario</div><div class="h n">Change</div>
    ${row('Left over a month, from '+fmonth(sc.from),base.left,scn.left)}${row('Savings after 6 months',at(P,182).sav,at(X,182).sav)}${row('Savings after 12 months',at(P,364).sav,at(X,364).sav)}
    ${row('Lowest bank balance',P.lowBank.v,X.lowBank.v)}${row('Card spend a year',P.cardSpend/P.nMonths*12,X.cardSpend/X.nMonths*12)}</div>
    ${lineChart('c2',X.days.slice(0,365),{label:'Scenario',buffer:STATE.buffer,series:[{k:'bank',c:'var(--bank)',name:'Bank'},...(X.cardSpend>0?[{k:'tru',c:'var(--amex)',name:'After Amex owed',dash:1}]:[]),{k:'sav',c:'var(--save)',name:'Savings'}]})}
@@ -63,7 +79,7 @@ function scenarioToPlan(){
   const sc=view.scen,p=clone(planFor(sc.from));
   p.income.forEach(i=>{if(sc.inc[i.id]!=null)i.amount=sc.inc[i.id]});p.vars.forEach(v=>{if(sc.vars[v.id]!=null)v.budget=sc.vars[v.id]});
   (p.transfers||[]).forEach(x=>{if(sc.xfer[x.id]!=null)x.amount=sc.xfer[x.id]});p.tax.forEach(t=>{if(sc.tax[t.id]!=null)t.adj=sc.tax[t.id]});
-  p.savings.monthly=sc.sav;p.amexShare=sc.share;const d=p.debts.find(x=>x.id===sc.debtSel);if(d)d.extra=(d.extra||0)+sc.extra;return p}
+  p.savings.monthly=sc.sav;p.savings.sweep=!!sc.sweep;p.amexShare=sc.share;const d=p.debts.find(x=>x.id===sc.debtSel);if(d)d.extra=(d.extra||0)+sc.extra;return p}
 function commitModal(){
   const sc=view.scen,np=scenarioToPlan(),ch=changesBetween(planFor(sc.from),np);if(sc.lump>0)ch.push(`Lump sum ${GBP(sc.lump)} on ${fdate(parseISO(sc.lumpDate))}`);
   return`<div class="modal"><div><h2>Make this my plan</h2><p class="small ink2">You changed these on What if:</p>${ch.length?`<div class="list">${ch.map(c=>`<div class="item"><span>${esc(c)}</span></div>`).join('')}</div>`:`<p class="muted">You haven't changed anything yet.</p>`}

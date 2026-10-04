@@ -91,6 +91,7 @@ document.addEventListener('input',e=>{
   const id=d.sl||d.sn;if(!id)return;
   if(id==='cut'){view.cut=+el.value;$('#o_cut').textContent=pct(view.cut);const w=sum(planLines().L.filter(x=>x.k==='want'),x=>x.v);$('#cutRes').innerHTML=cutResult(w);return}
   if(id==='debtAmt'){view.debtAmt=+el.value;$('#o_debtAmt').textContent=GBP(view.debtAmt);const t=$('#debtEff');if(t)t.innerHTML=debtEffectTable(debtEffects(view.debtAmt));return}
+  if(id==='sweepbox'&&view.scen){view.scen.sweep=el.checked;cancelAnimationFrame(view.raf);view.raf=requestAnimationFrame(()=>{const r=$('#scRes');if(r)r.innerHTML=scResults()});return}
   if(!view.scen)return;const sc=view.scen;let v=el.value;
   if(d.sn){if(v==='')return;v=String(Math.max(0,+v));const r=document.getElementById(id);if(r){if(+v>+r.max)r.max=v;r.value=v}}
   else{const nb=document.getElementById('n_'+id);if(nb&&document.activeElement!==nb)nb.value=v}

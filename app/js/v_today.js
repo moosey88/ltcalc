@@ -21,6 +21,9 @@ function applyBalance(value,dateStr,src){
   STATE.lastCheck=had?{d:dateStr,diff:Math.round((value-est)*100)/100,est,src,prevBank,prevAsOf}:null;STATE.bank=value;STATE.asOf=dateStr;invalidate()}
 function banners(){let h='';
   if(STATE.bank==null)h+=`<div class="banner warn"><span><b>Add today's NatWest balance.</b> Until you do, the forecast starts from £0 and its lines show change, not real cash.</span><span class="row"><input type="number" id="quickBal" placeholder="Balance £" style="width:130px"><button class="btn sm" data-act="setbal">Save</button><button class="btn ghost sm" data-go="daily">or upload a file</button></span></div>`;
+  if(STATE.bank!=null){const S=fc(),neg=S.days.find(d=>d.bank<0),buf=STATE.buffer||0;
+    if(neg)h+=`<div class="banner bad"><span><b>Forecast: the bank goes overdrawn on ${fdate(neg.t)}</b> (lowest ${GBP(S.lowBank.v)} on ${fdate(S.lowBank.t)}). Check What if or Budgets before then.</span><button class="btn ghost sm" data-go="whatif">Open What if</button></div>`;
+    else if(S.lowTrue.v<buf)h+=`<div class="banner warn"><span><b>Forecast: cash falls to ${GBP(S.lowTrue.v)} on ${fdate(S.lowTrue.t)},</b> below your ${GBP(buf)} buffer.</span><button class="btn ghost sm" data-go="whatif">Open What if</button></div>`}
   const miss=curPlan().debts.filter(d=>STATE.debtBal[d.id]==null&&(d.pay>0));
   if(miss.length)h+=`<div class="banner warn"><span><b>Balances missing</b> for ${miss.map(d=>esc(d.name)).join(', ')}. End dates and the debt effects need them.</span><button class="btn ghost sm" data-go="debts">Add them</button></div>`;
   return h}
