@@ -10,7 +10,7 @@ document.addEventListener('pointercancel',()=>{ptrDown=false},true);
 document.addEventListener('focusout',()=>setTimeout(maybeRender,0));
 function updateDraftBar(){const h=$('#draftHost');if(!h)return;const now=draftBarInner(),had=!!h.firstElementChild;if(!!now===had)return;h.innerHTML=now}
 const TABS=[['today','Today',vToday,'Every day'],['daily','Day to day',vDaily,'Every day'],['cash','Cash and bank',vCash,'Every day'],
- ['where','Where it goes',vWhere,'Understand'],['patterns','Patterns',vPatterns,'Understand'],['pva','Plan vs actual',vPva,'Understand'],['whatif','What if',vWhatIf,'Understand'],['networth','Net worth',vNetworth,'Understand'],
+ ['where','Where it goes',vWhere,'Understand'],['patterns','Patterns',vPatterns,'Understand'],['pva','Plan vs actual',vPva,'Understand'],['whatif','What if',vWhatIf,'Understand'],['networth','Net worth',vNetworth,'Understand'],['retire','Retirement',vRetire,'Understand'],
  ['budgets','Budgets',vBudgets,'Commitments'],['debts','Debts',vDebts,'Commitments'],['goals','Goals and holidays',vGoals,'Commitments'],['tax','Tax',vTax,'Commitments'],['amex','Amex',vAmex,'Commitments'],
  ['improve','Improvements',vImprove,'Help and settings'],['guide','Guide',vGuide,'Help and settings'],['settings','Settings',vSettings,'Help and settings']];
 function render(){
@@ -57,6 +57,7 @@ document.addEventListener('click',e=>{
   else if(a==='setopen'){STATE.cashOpening=parseFloat($('#c_open').value)||0;STATE.cashOpenDate=todayISO();STATE.cash=[];persistAll();toast('Opening cash set to today');render()}
   else if(a==='add'){addToDraft(d.list);render()}
   else if(a==='auditcopy'){const t=AUDIT.slice().reverse().map(e=>`${e.t}\t${e.by}\t${e.act}\t${e.detail}`).join('\n')||'Nothing recorded';const o=$('#auditOut');o.style.display='block';o.value=t;o.select();try{navigator.clipboard.writeText(t);toast('Copied')}catch(err){toast('Select and copy the text below')}}
+  else if(a==='retbiz'){STATE.assets.push({id:'a_'+uid(),group:'other',owner:'',name:'New business',value:null});persistAll();render()}
   else if(a==='tickall'){tickAllDue(d.m)}
   else if(a&&a.indexOf('fx_')===0){fxApply(a,d,b)}
   else if(a==='sczoom'){view.scZoom=+d.z;scPaint()}
@@ -87,7 +88,7 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('change',async e=>{
   const el=e.target,d=el.dataset;
-  if(d.r){const v=parseVal(el);if(d.r==='plan'){setPath(draft(),d.p,v);invalidate()}else{setPath(STATE,d.p,v);afterState(d.p,v);invalidate();persistAll()}updateDraftBar();softRender();return}
+  if(d.r){const v=parseVal(el);if(d.r==='plan'){setPath(draft(),d.p,v);invalidate()}else{setPath(STATE,d.p,v);afterState(d.p,v);invalidate();persistAll()}updateDraftBar();if(tab==='retire'){const ae=document.activeElement,key=ae&&ae.dataset&&ae.dataset.p;render();if(key){const n=document.querySelector('[data-p="'+key+'"]');if(n)n.focus()}return}softRender();return}
   if(d.cat!==undefined){sortTx(d.cat,d.m,el.value);return}
   if(el.id==='fCompare'){view.compare=el.value;render();return}
   if(el.id==='fCat'){view.cat=el.value;render();return}

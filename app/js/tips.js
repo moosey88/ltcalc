@@ -39,6 +39,12 @@ const TIPS=[
  [/^upload a statement/,'Choose NatWest or Amex. Amex lines for anyone but the joint cardholder are left out.'],
  [/^still to tick/,'Bills, wages and transfers the plan expects that are not yet on the bank file or ticked.'],
  [/^all budgets/,'Every category this month with spend against budget.'],
+ [/^earliest we could both stop$/,'The first year that stopping work leaves your savings and pensions lasting to the age you set, after spending, debts and state pensions. It assumes you keep saving what you set until then.'],
+ [/^if we stop in$/,'The year you picked (or the earliest year if you left Annie\'s age blank), and whether the money lasts.'],
+ [/^savings and pensions then$/,'Savings plus pensions the year work stops, in today\'s money. Businesses and your home are not included here.'],
+ [/^safe yearly income from assets$/,'A rule of thumb: a small percentage of your pot each year, adjusted for inflation, that should last a long retirement. Compare it with what you need a year.'],
+ [/^what brings it forward$/,'Each line changes one thing and shows the new earliest year, so you can see what matters most.'],
+ [/^your businesses/,'Value each business at what it could be sold for. Choose whether it is sold when you stop, keeps paying you, or is left out.'],
  [/^not on the bank yet/,'Counted from your side but missing on the bank file.']
 ];
 function applyTips(){
