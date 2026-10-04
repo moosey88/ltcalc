@@ -1,6 +1,6 @@
 /* ===== shared helpers ===== */
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
-const GBP=v=>{if(v==null||isNaN(v))return'–';const s=Math.abs(v).toLocaleString('en-GB',{maximumFractionDigits:0});return(v<-0.5?'−':'')+'£'+s};
+const GBP=(v,sign)=>{if(v==null||isNaN(v))return'–';const s=Math.abs(v).toLocaleString('en-GB',{maximumFractionDigits:0});return(v<-0.5?'−':(sign===true&&v>0.5?'+':''))+'£'+s};
 const GBP2=v=>{if(v==null||isNaN(v))return'–';return(v<0?'−':'')+'£'+Math.abs(v).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})};
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const DAY=864e5, U=(y,m,d)=>Date.UTC(y,m,d);

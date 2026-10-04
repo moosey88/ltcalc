@@ -142,3 +142,11 @@ th{white-space:normal} td.n{white-space:nowrap}
 .sl .hint .lnk[hidden]{display:none}
 details>summary{cursor:pointer}
 .banner.bad{background:var(--bad-bg)}
+.wi{display:grid;grid-template-columns:minmax(300px,4fr) minmax(0,8fr);gap:16px;align-items:start;grid-column:1/-1}
+.wi-r{min-width:0}.scsticky{position:sticky;top:0;z-index:6;background:var(--bg);padding:6px 0 10px;margin-bottom:6px;border-bottom:1px solid var(--line)}
+.wflags{border:1px solid var(--line);border-radius:10px;padding:6px 10px;background:var(--surface);margin-bottom:8px}.wflags.bad{border-color:var(--bad)}.wflags.warn{border-color:var(--warn)}
+.flagsum{font-size:.82rem;margin-bottom:2px;color:var(--ink2)}.flaglist{max-height:84px;overflow:auto;font-size:.84rem}.wf-i{padding:2px 0}
+.wks{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.wk{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 10px}.wk small{display:block;color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.04em}.wk b{font-size:1.2rem}.wk i{display:block;font-style:normal;font-size:.72rem;color:var(--muted)}
+.cc{width:100%;height:auto;display:block}.cgrid{stroke:var(--line)}.czero{stroke:var(--ink);stroke-width:1.1}.cbuf{stroke:#d98a1f;stroke-dasharray:5 4}.cax{font-size:11px;fill:var(--muted)}.clb{font-size:11.5px;fill:var(--ink);font-weight:600}
+.wtab{width:100%;border-collapse:collapse;font-size:.82rem}.wtab th{text-align:left;font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:5px;border-bottom:1px solid var(--line)}.wtab td{padding:4px 5px;border-bottom:1px solid var(--line);white-space:nowrap}.wtab td i{display:block;font-style:normal;color:var(--muted);font-size:.68rem}.wtab .tot td{font-weight:700;border-top:2px solid var(--ink)}.wtab .negbg{background:var(--bad-bg)}.wtab th.n,.wtab td.n{text-align:right}
+@media(max-width:900px){.wi{grid-template-columns:1fr}.wi-r{order:-1}.scsticky .chartbox,.scsticky .flaglist{display:none}.wks{grid-template-columns:1fr 1fr}}

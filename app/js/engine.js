@@ -69,7 +69,7 @@ function simulate(o={}){
     if(P.savings&&P.savings.sweep&&d===n){const sw=Math.max(0,bank-owed-(st.buffer||0));if(sw>0.005){bank-=sw;pots.general+=sw;M.sav+=sw;M.sweep=(M.sweep||0)+sw;events.push({t,k:'save',n:'Surplus moved to savings',a:-sw})}}
     const tru=bank-owed,savT=Object.values(pots).reduce((a,b)=>a+b,0);
     if(bank<lowBank.v)lowBank={v:bank,t};if(tru<lowTrue.v)lowTrue={v:tru,t};
-    days.push({t,bank,owed,tru,sav:savT});M.endBank=bank;M.endTrue=tru;M.endSav=savT;
+    days.push({t,bank,owed,tru,sav:savT});M.debtLeft=Object.values(dbal).reduce((p,v)=>p+(v||0),0);M.endBank=bank;M.endTrue=tru;M.endSav=savT;
   }
   const Gend=buildGoals(planOf(ym(end)),st);
   const goals=Gend.map(g=>{const ht=hit[g.id],gs=gsp[g.id],dl=parseISO(g.date);let status='ok';

@@ -16,7 +16,7 @@ function defaultPlan(){return{
     {id:'b_homeserve',name:'Homeserve',amount:19.74,day:14,kind:'need',freq:'monthly',match:'homeserve'},
     {id:'b_cartax',name:'Car tax (Mini)',amount:23.18,day:1,kind:'need',freq:'monthly',match:'dvla'}],
   debts:[
-    {id:'d_mort',name:'Mortgage (Halifax)',type:'mortgage',pay:1818.69,day:1,apr:null,extra:0,match:'halifax'},
+    {id:'d_mort',name:'Mortgage (Halifax)',type:'mortgage',pay:1818.69,day:1,apr:3.78,extra:0,match:'halifax',note:'Rate inferred from your spreadsheet (about 3.78%) - check it'},
     {id:'d_tax',name:'HMRC tax on shares (not vested yet)',type:'tax',pay:1000,day:1,apr:0,extra:0,match:'hmrc',note:'About £40,000 still owed, to be confirmed'},
     {id:'d_mbna',name:'MBNA loan (Annie car)',type:'loan',pay:479.16,day:1,apr:null,extra:0,match:'mbna',note:'Annie is paid a directors loan of the same amount by APEX each month'},
     {id:'d_ikea',name:'Ikea repayment',type:'loan',pay:0,day:1,apr:0,extra:0}],
