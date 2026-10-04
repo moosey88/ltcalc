@@ -53,8 +53,8 @@ function catSelect(id,k,sel,ss){
 function trackingData(){
   const k=thisMonthK(),P=curPlan(),y=+k.slice(0,4),mo=monthOf(k)-1,n=dim(y,mo),dom=+todayISO().slice(8);
   const xcat=new Set((P.transfers||[]).map(x=>x.catId));
-  const budget=sum(P.vars.filter(v=>!xcat.has(v.id)),v=>v.budget),spent=monthSpent(k);
-  const cum=[];let run=0;for(let d=1;d<=dom;d++){run+=-sum(monthSpendTx(k).filter(t=>+t.d.slice(8)===d),t=>t.a);cum.push(run)}
+  const stx=monthSpendTx(k).filter(t=>!xcat.has(t.c)),budget=sum(P.vars.filter(v=>!xcat.has(v.id)),v=>v.budget),spent=-sum(stx,t=>t.a);
+  const cum=[];let run=0;for(let d=1;d<=dom;d++){run+=-sum(stx.filter(t=>+t.d.slice(8)===d),t=>t.a);cum.push(run)}
   const mb=P.bills.filter(b=>(b.freq||'monthly')==='monthly'),billsAll=sum(mb,b=>b.amount)+sum(P.debts,d=>(d.pay||0)+(d.extra||0));
   const paidB=(key,amt,day)=>!!findBillTx(key,amt,k)||Math.min(day,n)<=dom;
   const billsPaid=sum(mb.filter(b=>paidB(bkey(b),b.amount,b.day)),b=>b.amount)+sum(P.debts.filter(d=>(d.pay||0)>0&&paidB((d.match||d.name.split(' ')[0]).toUpperCase(),(d.pay||0)+(d.extra||0),d.day)),d=>(d.pay||0)+(d.extra||0));
@@ -64,8 +64,6 @@ function vToday(){
   const d90=S.days.slice(0,90),low90=d90.reduce((a,b)=>b.bank<a.bank?b:a,d90[0]);
   const np=S.events.find(e=>e.k==='in'&&e.a>=1000)||S.events.find(e=>e.k==='in'),ni=np?S.days.findIndex(d=>d.t===np.t):0,seg=S.days.slice(0,Math.max(1,ni)),lowSeg=seg.reduce((a,b)=>b.tru<a.tru?b:a,seg[0]);
   const head=lowSeg.tru-buf,s12=S.days[Math.min(364,S.days.length-1)],cardOn=S.cardSpend>0;
-  const dd=S.days.slice(0,view.win===90?90:view.win===365?365:S.days.length);
-  const bc=bankChart('c1',dd,S.events.filter(e=>e.t<=dd[dd.length-1].t),buf);
   const lc=liveCheck();
   const comingAll=S.events.filter(e=>e.t<=S.start+90*DAY&&((e.k==='bill'&&(e.variable||-e.a>=200))||((e.k==='debt'||e.k==='xfer')&&-e.a>=200)||e.k==='yearly'||e.k==='one'||e.k==='goal'||e.k==='lump'||(e.k==='amex'&&-e.a>=200)));
   const pace=T.budget*T.dom/T.n,under=pace-T.spent;
@@ -78,6 +76,9 @@ function vToday(){
    <div class="kpi" ${lc&&Math.abs(lc.diff)>=1?'style="border-color:var(--warn)"':''}><span>Bank check</span><b class="${lc&&Math.abs(lc.diff)>=1?'warnc':''}">${lc?(Math.abs(lc.diff)<1?'Matches':GBP(lc.diff)):'–'}</b><small>${lc?(Math.abs(lc.diff)<1?'entries add up to the bank':`Bank shows ${GBP2(lc.est+lc.diff)}, expected ${GBP2(lc.est)}: ${GBP(lc.pb)} before, ${GBP(lc.inn)} in and ${GBP(lc.out)} out ticked or entered.${lc.unticked.length?` ${lc.unticked.length} item${lc.unticked.length>1?'s':''} due by then (${GBP(Math.abs(lc.untickedSum))}) not ticked.`:''}`):'updates when you add a balance'}</small></div>
    <div class="kpi"><span>Amex</span><b style="padding:6px 0;font-size:1.2rem">${verdictPill(S)}</b><small>${esc(S.why)}</small></div></div>
   <div class="grid">
+   ${uploadPanel()}
+   ${anomalyPanel()}
+   ${budgetsPanel(T.k)}
    <div class="panel c12"><h2>How are we tracking in ${MONL[monthOf(T.k)-1]}?</h2><div class="grid" style="margin-top:6px">
     <div class="c5"><div class="note" style="margin-bottom:12px">${T.budget>0?`<b class="${under>=0?'pos':'neg'}">${under>=0?'On track.':'Over pace.'}</b> You have spent ${GBP(T.spent)} by day ${T.dom}. The budget pace is ${GBP(pace)}, so you are ${GBP(Math.abs(under))} ${under>=0?'under':'over'}.`:'Set spending budgets on the Budgets tab to see your pace.'}</div>
      <div class="lbl" style="margin-bottom:4px">Spending</div><div class="row" style="justify-content:space-between"><span>${GBP(T.spent)} of ${GBP(T.budget)}</span><span class="${under>=0?'pos':'neg'} small">${GBP(Math.abs(under))} ${under>=0?'under':'over'} pace</span></div><div class="bar"><i class="${T.spent>T.budget?'r':T.spent>pace*1.1?'w':'g'}" style="width:${Math.min(100,T.budget?T.spent/T.budget*100:0)}%"></i></div>
@@ -89,10 +90,7 @@ function vToday(){
      ${slider('debtAmt','Put towards debt',Math.min(view.debtAmt??1000,Math.max(1000,Math.round(Math.max(0,head)/50)*50)),0,Math.max(1000,Math.round(Math.max(0,head)/50)*50),50,`Out of your ${GBP(Math.max(0,head))} left over.`)}
      ${debtRows.missing?'<div class="note">Add your balances and interest rates on the Debts tab. Until then this has nothing to work with.</div>':''}</div>
     <div class="c8" id="debtEff">${debtEffectTable(debtRows)}</div></div></div>
-   <div class="panel c8"><div class="row" style="justify-content:space-between;margin-bottom:6px"><h2>Bank balance, day by day</h2><div class="tabs2">${[[90,'90 days'],[365,'12 months'],[9999,'All']].map(([w,l])=>`<button data-act="win" data-w="${w}" aria-pressed="${view.win===w}">${l}</button>`).join('')}</div></div>
-    ${bc.html}<div class="legend"><span><i style="border-color:var(--bank)"></i>Bank balance</span><span><b class="sw" style="background:var(--surface2);border:1px solid var(--line)"></b>Months alternate</span><span><i style="border-color:var(--good);border-top-style:dashed"></i>Trend of each month's lowest point</span><span><i style="border-color:var(--warn);border-top-style:dotted"></i>Your buffer</span></div>
-    <p class="small muted" style="margin:8px 0 0">The rows under the chart show money going out: orange for bills, violet for debts, teal for savings. Bigger dot, bigger payment.${bc.trend!==''?` The lowest points ${bc.trend>=0?'are rising':'are falling'} by about ${GBP(Math.abs(bc.trend))} a month.`:''}</p></div>
-   <div class="panel c4"><h2>Coming up: big and variable bills</h2><p class="small muted" style="margin-top:0">Bills over £200, any marked variable, yearly bills and one-offs, over the next 90 days.</p>
+   <div class="panel c12"><h2>Coming up: big and variable bills</h2><p class="small muted" style="margin-top:0">Bills over £200, any marked variable, yearly bills and one-offs, over the next 90 days.</p>
     <div class="list">${dedupeComing(comingAll).slice(0,12).map(e=>`<div class="item"><span class="l">${esc(e.n)}${e.variable?' <span class="pill warn">variable</span>':''}${e.k==='yearly'?' <span class="pill info">yearly</span>':''}<br><small class="muted">${fdate(e.t)}</small></span><b>${GBP(e.a)}</b></div>`).join('')||'<span class="muted small">Nothing big coming up in the next 90 days.</span>'}</div></div>
    <div class="panel c12"><h2>Goals, holidays and tax</h2>${goalsMini(S)}</div>
    <div class="panel c12"><div class="row" style="justify-content:space-between"><h2>The next 12 months</h2><button class="btn ghost sm" data-act="toggle" data-v="year">${view.open.year?'Hide':'Show'}</button></div>${view.open.year?annualBlock(S):'<p class="small muted" style="margin:0">Month by month: what comes in, what goes out, and where the bank and savings end up.</p>'}</div>

@@ -80,7 +80,7 @@ function vDaily(){
   const totB=sum(rowsV,v=>bud[v.id]),totS=sum(rowsV,v=>by[v.id]||0)+unc;
   const entShop=sum(rec.rows.filter(t=>t.c==='v_shop'&&t.sc==='entertain'),t=>-t.a);
   const dups=rec.rows.filter(t=>t.maybe&&t.maybe.length);
-  return banners()+intro('Fill this in as you spend, or upload a NatWest or Amex file. Every entry is kept by month, so nothing is lost when budgets change. Earlier months come from your sheet.')+`
+  return banners()+intro('Fill this in as you spend. Upload bank and Amex files on the Today tab. Every entry is kept by month, so nothing is lost when budgets change. Earlier months come from your sheet.')+`
   <div class="grid">
    <div class="panel c12"><h2>Add spending</h2>
     <div class="entry"><label>Date<input type="date" id="e_date" value="${todayISO()}"></label><label>Amount £<input type="number" step="0.01" min="0" id="e_amt" placeholder="0.00"></label>
@@ -93,19 +93,29 @@ function vDaily(){
    ${incomePanel(m,P,src)}
    ${unsortedPanel(m,false)}
    ${dups.map(t=>`<div class="panel c12" style="border-color:var(--warn);grid-column:span 12"><h3>Is this the same purchase?</h3><div class="row" style="justify-content:space-between"><span><b>On the bank file:</b> ${esc(t.t)}, ${fdate(parseISO(t.d))}, ${GBP2(t.a)}<br><b>Typed:</b> ${t.maybe.map(id=>{const x=rec.rows.find(r=>r.id===id);return x?esc(x.t||'(no note)')+', '+fdate(parseISO(x.d)):''}).join(' or ')}</span><span class="row"><button class="btn" data-act="merge" data-id="${esc(t.id)}">Same, merge them</button><button class="btn ghost" data-act="keepboth" data-id="${esc(t.id)}">Different, keep both</button></span></div></div>`).join('')}
-   <div class="panel c7"><div class="row" style="justify-content:space-between"><h2>${fmonthLong(m)} against budget</h2><div class="row"><button class="btn ghost sm" data-act="mprev" aria-label="Previous month">‹</button><button class="btn ghost sm" data-act="mnext" aria-label="Next month">›</button></div></div>
+   <div class="panel c12"><div class="row" style="justify-content:space-between"><h2>${fmonthLong(m)} against budget</h2><div class="row"><button class="btn ghost sm" data-act="mprev" aria-label="Previous month">‹</button><button class="btn ghost sm" data-act="mnext" aria-label="Next month">›</button></div></div>
     ${src==='none'?`<p class="muted">Nothing for ${fmonthLong(m)} yet.</p>`:`${src==='sheet'?'<p class="small muted" style="margin-top:0">From your sheet. Budgets are what you planned then.</p>':''}<div class="tblwrap"><table><thead><tr><th>Category</th><th class="n">Spent</th><th class="n">Budget</th><th class="n">Left</th><th>Progress</th></tr></thead><tbody>
      ${rowsV.map(v=>{const b=bud[v.id],a=by[v.id]||0,pc=b?a/b*100:0,pace=b*dom/n;return`<tr><td>${esc(v.name)} <span class="pill ${v.kind==='need'?'info':'warn'}">${KIND[v.kind||'want'][0]}</span></td><td class="n">${GBP(a)}</td><td class="n">${b?GBP(b):'none'}</td><td class="n ${a>b&&b?'neg':''}">${b?GBP(b-a):'–'}</td><td style="min-width:110px">${b?`<div class="bar"><i class="${a>b?'r':a>pace*1.1?'w':'g'}" style="width:${Math.min(100,pc)}%"></i></div>`:''}</td></tr>`}).join('')}
      ${unc>0?`<tr><td><b>Unsorted</b> <span class="pill warn">sort me</span></td><td class="n">${GBP(unc)}</td><td class="n muted">none</td><td></td><td></td></tr>`:''}
      <tr class="tot"><td>Total</td><td class="n">${GBP(totS)}</td><td class="n">${GBP(totB)}</td><td class="n ${totS>totB?'neg':''}">${GBP(totB-totS)}</td><td></td></tr></tbody></table></div>
      <p class="small muted" style="margin-bottom:0">${isNow?`Day ${dom} of ${n}: on pace you would have spent ${GBP(totB*dom/n)}. `:''}${(P.transfers||[]).length&&src!=='sheet'?`Transfers to personal accounts (${GBP(sum(P.transfers,x=>x.amount))}) are planned separately on Budgets.`:''}</p>`}</div>
-   <div class="panel c5"><h2>Upload a statement</h2><div class="fileBox"><p class="small" style="margin-top:0">Export the CSV from NatWest online banking or Amex, then choose it here. The same file twice is safe.</p>
-    <div class="row" style="justify-content:center"><select id="impSrc"><option value="nw">NatWest current account</option><option value="amex">Amex card</option></select><input type="file" id="impFile" accept=".csv,text/csv" style="max-width:100%"></div><p id="impMsg" class="small" style="margin-bottom:0"></p></div>
-    <p class="small muted">Account numbers are ignored. NatWest's latest balance becomes today's balance, and the bank check compares it with what you had entered.</p></div>
    <div class="panel c12"><h2>Every category and what is in it</h2><p class="small ink2" style="margin-top:0">Click a category to open it. Payments are grouped by shop, with how each was paid.</p>
     ${allVars().filter(v=>(by[v.id]||0)!==0||rec.rows.some(t=>t.c===v.id)||(v.id==='v_ent'&&entShop>0)).map(v=>catAccordion(v.id==='v_ent'&&entShop>0?{...v,note:`Also ${GBP2(entShop)} of entertaining food shops, counted under Shopping › Entertaining so the grocery budget is honest. Not added again here.`}:v,rec.rows.filter(t=>t.c===v.id),by[v.id]||0,bud[v.id],m,src)).join('')||'<p class="muted">Nothing here yet.</p>'}
     ${(()=>{const u=rec.rows.filter(t=>!t.c&&t.a<0);return u.length?catAccordion({id:'_unsorted',name:'Unsorted'},u,unc,0,m,src):''})()}</div>
   </div>`}
+function uploadPanel(){return`<div class="panel c12"><h2>Upload a statement</h2><div class="fileBox"><p class="small" style="margin-top:0">Export the CSV from NatWest online banking or Amex, then choose it here. The same file twice is safe.</p>
+    <div class="row" style="justify-content:center"><select id="impSrc"><option value="nw">NatWest current account</option><option value="amex">Amex card</option></select><input type="file" id="impFile" accept=".csv,text/csv" style="max-width:100%"></div><p id="impMsg" class="small" style="margin-bottom:0"></p></div>
+    <p class="small muted">Account numbers are ignored. NatWest's latest balance becomes today's balance, and the bank check compares it with what you had entered.</p></div>`}
+/* every budget this month, with progress: used on Today */
+function budgetsPanel(m){
+  const bud=budgetsOf(m),{by,unc,src}=catTotalsFor(m),P=planFor(m),xcat=new Set((P.transfers||[]).map(x=>x.catId)),isNow=m===thisMonthK(),n=dim(+m.slice(0,4),monthOf(m)-1),dom=isNow?+todayISO().slice(8):n;
+  const rowsV=allVars().filter(v=>src==='sheet'||!xcat.has(v.id)).filter(v=>bud[v.id]>0||by[v.id]>0),totB=sum(rowsV,v=>bud[v.id]),totS=sum(rowsV,v=>by[v.id]||0)+unc;
+  return`<div class="panel c12"><div class="row" style="justify-content:space-between"><h2>All budgets, ${fmonthLong(m)}</h2><span class="small muted">${isNow?`Day ${dom} of ${n}: on pace you would have spent ${GBP(totB*dom/n)}`:''}</span></div>
+   <div class="tblwrap"><table><thead><tr><th>Category</th><th class="n">Spent</th><th class="n">Budget</th><th class="n">Left</th><th>Progress</th></tr></thead><tbody>
+   ${rowsV.map(v=>{const b=bud[v.id],a=by[v.id]||0,pc=b?a/b*100:0,pace=b*dom/n;return`<tr><td>${esc(v.name)}</td><td class="n">${GBP(a)}</td><td class="n">${b?GBP(b):'none'}</td><td class="n ${a>b&&b?'neg':''}">${b?GBP(b-a):'–'}</td><td style="min-width:120px">${b?`<div class="bar"><i class="${a>b?'r':a>pace*1.1?'w':'g'}" style="width:${Math.min(100,pc)}%"></i></div>`:''}</td></tr>`}).join('')}
+   ${unc>0?`<tr><td><b>Unsorted</b> <span class="pill warn">sort me</span></td><td class="n">${GBP(unc)}</td><td class="n muted">none</td><td></td><td></td></tr>`:''}
+   <tr class="tot"><td>Total</td><td class="n">${GBP(totS)}</td><td class="n">${GBP(totB)}</td><td class="n ${totS>totB?'neg':''}">${GBP(totB-totS)}</td><td></td></tr></tbody></table></div>
+   <p class="small muted" style="margin:6px 0 0">Open Day to day to see what is inside each category. Transfers to personal accounts are planned on Budgets.</p></div>`}
 function incomePanel(m,P,src){
   const h=normHist(m),bankIn=sum((TX[m]||[]).filter(t=>t.c==='_inc'&&t.a>0),t=>t.a);
   if(src==='sheet'&&h){const rows=Object.entries(h.wages).map(([n,w])=>[n,w.f,w.a]);if(h.otherIn||h.otherInF)rows.push(['other money in',h.otherInF,h.otherIn]);
