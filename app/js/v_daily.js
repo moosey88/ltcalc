@@ -89,7 +89,6 @@ function vDaily(){
      <label>Note<input type="text" id="e_note" placeholder="optional"></label><button class="btn" data-act="addtx">Add</button></div>
     <p class="small muted" style="margin-bottom:0">Spending is joint, so there is no "who". If you also upload the NatWest file, the matching entry is merged so nothing is counted twice.</p></div>
    ${tickPanel(m)}
-   ${anomalyPanel()}
    ${incomePanel(m,P,src)}
    ${unsortedPanel(m,false)}
    ${dups.map(t=>`<div class="panel c12" style="border-color:var(--warn);grid-column:span 12"><h3>Is this the same purchase?</h3><div class="row" style="justify-content:space-between"><span><b>On the bank file:</b> ${esc(t.t)}, ${fdate(parseISO(t.d))}, ${GBP2(t.a)}<br><b>Typed:</b> ${t.maybe.map(id=>{const x=rec.rows.find(r=>r.id===id);return x?esc(x.t||'(no note)')+', '+fdate(parseISO(x.d)):''}).join(' or ')}</span><span class="row"><button class="btn" data-act="merge" data-id="${esc(t.id)}">Same, merge them</button><button class="btn ghost" data-act="keepboth" data-id="${esc(t.id)}">Different, keep both</button></span></div></div>`).join('')}
@@ -103,9 +102,8 @@ function vDaily(){
     ${allVars().filter(v=>(by[v.id]||0)!==0||rec.rows.some(t=>t.c===v.id)||(v.id==='v_ent'&&entShop>0)).map(v=>catAccordion(v.id==='v_ent'&&entShop>0?{...v,note:`Also ${GBP2(entShop)} of entertaining food shops, counted under Shopping › Entertaining so the grocery budget is honest. Not added again here.`}:v,rec.rows.filter(t=>t.c===v.id),by[v.id]||0,bud[v.id],m,src)).join('')||'<p class="muted">Nothing here yet.</p>'}
     ${(()=>{const u=rec.rows.filter(t=>!t.c&&t.a<0);return u.length?catAccordion({id:'_unsorted',name:'Unsorted'},u,unc,0,m,src):''})()}</div>
   </div>`}
-function uploadPanel(){return`<div class="panel c12"><h2>Upload a statement</h2><div class="fileBox"><p class="small" style="margin-top:0">Export the CSV from NatWest online banking or Amex, then choose it here. The same file twice is safe.</p>
-    <div class="row" style="justify-content:center"><select id="impSrc"><option value="nw">NatWest current account</option><option value="amex">Amex card</option></select><input type="file" id="impFile" accept=".csv,text/csv" style="max-width:100%"></div><p id="impMsg" class="small" style="margin-bottom:0"></p></div>
-    <p class="small muted">Account numbers are ignored. NatWest's latest balance becomes today's balance, and the bank check compares it with what you had entered.</p></div>`}
+function uploadPanel(){return`<div class="panel c4 upl"><h2>Upload a statement</h2><div class="fileBox"><select id="impSrc"><option value="nw">NatWest current account</option><option value="amex">Amex card</option></select><input type="file" id="impFile" accept=".csv,text/csv"><p id="impMsg" class="small" style="margin:4px 0 0"></p></div>
+    <p class="small muted" style="margin:6px 0 0">CSV from NatWest or Amex online banking. The same file twice is safe. Account numbers are ignored.</p></div>`}
 /* every budget this month, with progress: used on Today */
 function budgetsPanel(m){
   const bud=budgetsOf(m),{by,unc,src}=catTotalsFor(m),P=planFor(m),xcat=new Set((P.transfers||[]).map(x=>x.catId)),isNow=m===thisMonthK(),n=dim(+m.slice(0,4),monthOf(m)-1),dom=isNow?+todayISO().slice(8):n;

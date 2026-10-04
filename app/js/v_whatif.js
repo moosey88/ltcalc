@@ -74,12 +74,13 @@ function scParts(){
   const rP=scMonthRows(P,sc.from),rX=scMonthRows(X,sc.from),bank0=(STATE.bank||0)+sinceBalance();
   const negX=X.days.find(d=>d.bank<0),negP=P.days.find(d=>d.bank<0),nw=R=>sum(R,r=>r.nw);
   const k=(label,v,sub,cls)=>`<div class="wk"><small>${label}</small><b class="${cls||''}">${v}</b><i>${sub}</i></div>`;
-  const kpis=`<div class="wks">${k('Left over a month',GBP(scn.left),'plan '+GBP(base.left,true),scn.left<0?'neg':'')}${k('First day overdrawn',negX?fdate(negX.t):'never','plan: '+(negP?fdate(negP.t):'never'),negX?'neg':'pos')}${k('Bank in 12 months',GBP(at(X,364).bank),'plan '+GBP(at(P,364).bank),at(X,364).bank<0?'neg':'')}${k('Net worth change, 12 months',GBP(nw(rX),true),'plan '+GBP(nw(rP),true),nw(rX)<0?'neg':'')}</div>`;
-  const zoom=view.scZoom||60,zb=[[60,'2 months'],[365,'12 months'],[730,'24 months']].map(([z,l])=>`<button class="btn ${zoom===z?'':'ghost'} sm" data-act="sczoom" data-z="${z}">${l}</button>`).join('');
+  const kpis=`<div class="wks">${k('Left over / month',GBP(scn.left),'plan '+GBP(base.left,true),scn.left<0?'neg':'')}${k('First overdrawn',negX?fdate(negX.t):'never','plan: '+(negP?fdate(negP.t):'never'),negX?'neg':'pos')}${k('Bank in 12 mo',GBP(at(X,364).bank),'plan '+GBP(at(P,364).bank),at(X,364).bank<0?'neg':'')}${k('Net worth 12 mo',GBP(nw(rX),true),'plan '+GBP(nw(rP),true),nw(rX)<0?'neg':'')}</div>`;
+  const zoom=view.scZoom||180,zb=[[90,'3 mo'],[180,'6 mo'],[270,'9 mo'],[365,'12 mo']].map(([z,l])=>`<button class="btn ${zoom===z?'':'ghost'} sm" data-act="sczoom" data-z="${z}">${l}</button>`).join('');
   const nb=flags.filter(x=>x.sev==='bad').length,nwn=flags.filter(x=>x.sev==='warn').length;
   const flagList=flags.length?flags.map(f=>`<div class="wf-i"><span class="pill ${fp[f.sev]}">${fl[f.sev]}</span> ${esc(f.t)}</div>`).join(''):'<div class="wf-i"><span class="pill good">All clear</span> No overdraft, no month overspent, no goal pushed late.</div>';
-  const sticky=`<div class="scsticky"><div class="scl"><div class="wflags ${nb?'bad':nwn?'warn':'ok'}"><div class="flagsum">${nb?`<b>${nb} problem${nb>1?'s':''}</b>`:''}${nwn?` ${nwn} to watch`:''}${!nb&&!nwn?'All clear':''}</div><div class="flaglist">${flagList}</div></div>${kpis}</div>
-   <div class="chartbox"><div class="row" style="justify-content:space-between;margin:6px 0 2px"><b class="small">Bank balance, day by day</b><span class="row" style="gap:4px">${zb}<button class="btn ghost sm" data-act="schide">${view.scHide?'Show chart':'Hide chart'}</button></span></div>
+  const sticky=`<div class="scsticky"><div class="wtop"><button class="wpill ${nb?'bad':nwn?'warn':'ok'}" data-act="scflags" title="Show or hide all flags">${nb?`⚠ ${nb} problem${nb>1?'s':''}`:nwn?`⚠ ${nwn} to watch`:'✓ All clear'}${flags.length?`<span class="wpt"> ${esc(flags[0].t)}</span>`:''}${flags.length>1?` <span class="wmore">+${flags.length-1} more</span>`:''}</button>${kpis}</div>
+   ${view.scFlags?`<div class="wflags ${nb?'bad':nwn?'warn':'ok'}"><div class="flaglist" style="max-height:none">${flagList}</div></div>`:''}
+   <div class="chartbox"><div class="row" style="justify-content:space-between;margin:2px 0"><b class="small">Bank balance, day by day</b><span class="row" style="gap:4px">${zb}<button class="btn ghost sm" data-act="schide">${view.scHide?'Show':'Hide'}</button></span></div>
    ${view.scHide?'':cashChart(P,X,zoom)}<div class="legend"><span><i style="border-color:#7a8b97;border-top-style:dashed"></i>Current plan</span><span><i style="border-color:${negX?'#c0392b':'var(--bank)'}"></i>This scenario</span><span><i style="border-color:#d98a1f;border-top-style:dashed"></i>${GBP(STATE.buffer||0)} buffer</span></div></div></div>`;
   const rows=rX.map((x,i)=>{const p=rP[i],c=(v,pv,sg)=>`<td class="n${v<-0.5?' neg':''}">${GBP(v,sg)}<i>plan ${GBP(pv,sg)}</i></td>`;
     return`<tr><td><b>${fmonth(x.k)}</b></td><td class="n">${GBP(x.inc)}</td><td class="n">${GBP(x.out)}</td><td class="n">${GBP(x.sav)}</td>${c(x.left,p.left,true)}<td class="n b${x.end<0?' negbg':''}">${GBP(x.end)}<i>plan ${GBP(p.end)}</i></td><td class="n">${GBP(x.savTot)}</td><td class="n">${GBP(x.debtLeft)}</td>${c(x.nw,p.nw,true)}</tr>`}).join('');
@@ -102,7 +103,7 @@ function scMonthRows(S,from){
 function niceStep(r){const t=r/4,p=Math.pow(10,Math.floor(Math.log10(t))),n=t/p;return(n<1.5?1:n<3.5?2:n<7.5?5:10)*p}
 function cashChart(P,X,zoom){
   const n=Math.min(zoom,P.days.length,X.days.length),dp=P.days.slice(0,n),dx=X.days.slice(0,n),buf=STATE.buffer||0;
-  const W=900,H=200,ox=62,oy=12,pw=W-ox-14,ph=H-oy-34;
+  const W=900,H=135,ox=62,oy=12,pw=W-ox-14,ph=H-oy-26;
   const vals=[...dp,...dx].map(d=>d.bank),rawLo=Math.min(...vals,0),floor=-Math.max(8000,buf*8);
   const lo=Math.max(rawLo,floor),clip=rawLo<floor,hi=Math.max(Math.max(...vals),buf*2,2000)*1.05,st=niceStep(hi-lo);
   const Xp=i=>ox+i/Math.max(1,n-1)*pw,Yp=v=>oy+(hi-Math.max(v,lo))/(hi-lo)*ph;
@@ -111,8 +112,8 @@ function cashChart(P,X,zoom){
   for(let v=Math.ceil(lo/st)*st;v<=hi;v+=st)g+=`<line x1="${ox}" x2="${W-14}" y1="${Yp(v).toFixed(1)}" y2="${Yp(v).toFixed(1)}" class="cgrid"/><text x="${ox-6}" y="${(Yp(v)+4).toFixed(1)}" class="cax" text-anchor="end">${GBP(v)}</text>`;
   if(lo<0)g+=`<rect x="${ox}" y="${Yp(0).toFixed(1)}" width="${pw}" height="${(Yp(lo)-Yp(0)).toFixed(1)}" fill="#c0392b" opacity=".10"/>`;
   g+=`<line x1="${ox}" x2="${W-14}" y1="${Yp(0).toFixed(1)}" y2="${Yp(0).toFixed(1)}" class="czero"/><line x1="${ox}" x2="${W-14}" y1="${Yp(buf).toFixed(1)}" y2="${Yp(buf).toFixed(1)}" class="cbuf"/>`;
-  const step=zoom<=60?7:zoom<=365?30:91;
-  for(let i=0;i<n;i+=step)g+=`<text x="${Xp(i).toFixed(1)}" y="${H-12}" class="cax" text-anchor="middle">${zoom<=60?fdateS(dp[i].t):fmonth(ym(dp[i].t))}</text>`;
+  const step=30;
+  for(let i=0;i<n;i+=step)g+=`<text x="${Xp(i).toFixed(1)}" y="${H-6}" class="cax" text-anchor="middle">${fmonth(ym(dp[i].t))}</text>`;
   g+=`<path d="${path(dp)}" fill="none" stroke="#7a8b97" stroke-width="2.2" stroke-dasharray="6 4"/><path d="${path(dx)}" fill="none" stroke="${vals.some(v=>v<0)&&dx.some(d=>d.bank<0)?'#c0392b':'var(--bank)'}" stroke-width="3"/>`;
   const fi=dx.findIndex(d=>d.bank<0);
   if(fi>=0){const right=Xp(fi)>W*.6;g+=`<circle cx="${Xp(fi).toFixed(1)}" cy="${Yp(dx[fi].bank).toFixed(1)}" r="5.5" fill="#c0392b"/><text x="${(Xp(fi)+(right?-9:9)).toFixed(1)}" y="${(Yp(dx[fi].bank)+16).toFixed(1)}" class="clb" text-anchor="${right?'end':'start'}" fill="#c0392b">Overdrawn from ${fdate(dx[fi].t)}</text>`}
@@ -135,7 +136,7 @@ function growthChart(rP,rX){
   const pl=(R,key,c,d)=>`<path d="M${R.map((r,i)=>`${x(i).toFixed(1)},${y2(r[key]).toFixed(1)}`).join(' L')}" fill="none" stroke="${c}" stroke-width="2.6" ${d?'stroke-dasharray="6 4"':''}/>`;
   g+=pl(rP,'end','#7a8b97',1)+pl(rP,'savTot','#97c9b0',1)+pl(rX,'end',rX.some(r=>r.end<0)?'#c0392b':'var(--bank)')+pl(rX,'savTot','#1d8a4e');
   const last=rX[n-1];g+=`<text x="${(x(n-1)-4).toFixed(1)}" y="${(y2(last.end)-8).toFixed(1)}" class="clb" text-anchor="end" fill="${last.end<0?'#c0392b':'currentColor'}">Bank ${GBP(last.end)}</text>`;
-  for(let i=0;i<n;i++)g+=`<text x="${x(i).toFixed(1)}" y="${H-12}" class="cax" text-anchor="middle">${fmonth(rX[i].k)}</text>`;
+  for(let i=0;i<n;i++)g+=`<text x="${x(i).toFixed(1)}" y="${H-6}" class="cax" text-anchor="middle">${fmonth(rX[i].k)}</text>`;
   return g+'</svg><div class="legend"><span><i style="border-color:#7a8b97;border-top-style:dashed"></i>Bank, plan</span><span><i style="border-color:#c0392b"></i>Bank, scenario</span><span><i style="border-color:#97c9b0;border-top-style:dashed"></i>Savings, plan</span><span><i style="border-color:#1d8a4e"></i>Savings, scenario</span></div>'}
 function scenarioToPlan(){
   const sc=view.scen,p=clone(planFor(sc.from));

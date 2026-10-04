@@ -51,7 +51,9 @@ document.addEventListener('click',e=>{
   else if(a==='add'){addToDraft(d.list);render()}
   else if(a==='auditcopy'){const t=AUDIT.slice().reverse().map(e=>`${e.t}\t${e.by}\t${e.act}\t${e.detail}`).join('\n')||'Nothing recorded';const o=$('#auditOut');o.style.display='block';o.value=t;o.select();try{navigator.clipboard.writeText(t);toast('Copied')}catch(err){toast('Select and copy the text below')}}
   else if(a==='tickall'){tickAllDue(d.m)}
+  else if(a&&a.indexOf('fx_')===0){fxApply(a,d,b)}
   else if(a==='sczoom'){view.scZoom=+d.z;scPaint()}
+  else if(a==='scflags'){view.scFlags=!view.scFlags;scPaint()}
   else if(a==='schide'){view.scHide=!view.scHide;scPaint()}
   else if(a==='impadd'){impAdd()}
   else if(a==='impdone'){const x=(STATE.improvements||[]).find(y=>y.id===d.id);if(x){x.status=x.status==='done'?'open':'done';persistAll();render()}}
