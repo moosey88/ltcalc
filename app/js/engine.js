@@ -1,7 +1,7 @@
 /* ===== forecast engine: runs day by day from today's real bank balance ===== */
 const monthTx=k=>TX[k]||[];
 const spentIn=(k,catId)=>-sum(monthTx(k).filter(t=>t.c===catId),t=>t.a);   // spend is stored negative
-const amexOwedNow=()=>(STATE.amexOwed||0)+sum(Object.values(TX).flat().filter(t=>t.p==='amex'&&t.who!=='S'&&t.a<0&&t.d>(STATE.amexOwedDate||STATE.startedAt||'0')),t=>-t.a);
+const amexOwedNow=()=>(STATE.amexOwed||0)+sum(Object.values(TX).flat().filter(t=>t.p==='amex'&&t.who!=='S'&&(t.a<0||(t.c&&isSpendCat(t.c)))&&t.d>(STATE.amexOwedDate||STATE.startedAt||'0')),t=>-t.a);
 function buildGoals(P,st){
   return[...(P.tax||[]).map(t=>({id:t.id,name:t.name,kind:'tax',target:(t.last||0)*((t.adj??100)/100),saved:(st.taxSaved||{})[t.id]||0,date:t.date,monthly:0,spend:true,amex:false,pri:0})),
          ...(P.goals||[]).map(g=>({...g,kind:g.kind||'other',spend:true,saved:(st.goalSaved||{})[g.id]||0,pri:1}))]}

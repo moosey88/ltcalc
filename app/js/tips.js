@@ -45,6 +45,7 @@ const TIPS=[
  [/^safe yearly income from assets$/,'A rule of thumb: a small percentage of your pot each year, adjusted for inflation, that should last a long retirement. Compare it with what you need a year.'],
  [/^what brings it forward$/,'Each line changes one thing and shows the new earliest year, so you can see what matters most.'],
  [/^your businesses/,'Value each business at what it could be sold for. Choose whether it is sold when you stop, keeps paying you, or is left out.'],
+ [/^refund/,'Money back from a shop. It reduces spending in the category it was bought in and is not counted as income.'],
  [/^not on the bank yet/,'Counted from your side but missing on the bank file.']
 ];
 function applyTips(){

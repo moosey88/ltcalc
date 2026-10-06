@@ -50,10 +50,14 @@ const MERCH_RULES=[
  [/T J MORRIS|UA UK|OFFICE |SPORTSDIRECT|SPORTS DIRECT|SPOTS|NEW LOOK|H & M|\bHM \w|DUNE|TK ?MAXX|T K MAXX|PANDORA|CREW CLOTHING|NEW BALANCE|CASTORE|DECATHLON|C&A|OLIVER BONAS|J D SPORTS|JD SPORTS|ANGEL BOUTIQUE|MARKS&SPENCER|\bM&S|LULUOM|SERRY|TOMS TRUNKS|PURDY|WEDDING SHOP|CARD FACTORY|WH SMITH|KLARNA|OPTIC KLEER|BERKELEY SPORTS|HOBBYCRAFT|COFFE MACHINE|COFFEE MACHINE|TIMPSON|PULLINGERS|TECH FOG|EMPOWERED/,'v_gen'],
  [/INTEREST CHARGE|INTEREST \w+ A\/C|MEMBERSHIP FEE|MICROSOFT|RING (BASIC|SOLO) PLAN|WISE PLAN|SYMBIOS/,'v_other']];
 function merchClass(D){for(const r of MERCH_RULES)if(r[0].test(D))return r[2]?{c:r[1],sc:r[2]}:{c:r[1]};return null}
+/* a refund goes back to the category the shop was last paid from */
+function refundCat(D){const key=merchKey(D.replace(/REFUND|RETURN|REVERSAL|CREDIT|VOUCHER|CHARGEBACK/g,' ')).toUpperCase();if(!key||key==='OTHER')return null;
+  const hit=Object.values(TX).flat().filter(t=>t.a<0&&t.c&&isSpendCat(t.c)&&(t.t||'').toUpperCase().includes(key)).sort((x,y)=>x.d<y.d?1:-1)[0];
+  if(hit)return{c:hit.c,sc:hit.sc};const r=ruleOf(D.replace(/REFUND|RETURN|REVERSAL/g,''));return r?{c:r.c,sc:r.s}:null}
 function classifyFull(desc,amount){
   const D=(desc||'').toUpperCase(),P=curPlan();
   const b=bankClass(D,amount);if(b)return b;
-  if(amount>0)return{c:/REFUND|RETURN/.test(D)?catRule(D)||'_inc':'_inc'};
+  if(amount>0){if(/REFUND|RETURN|REVERSAL|CREDIT VOUCHER|CHARGEBACK/.test(D)&&!/APEX|SALARY|WAGES/.test(D)){const r=refundCat(D);return r||{c:''}}return{c:'_inc'}}
   if(/CASH WITHDRAWAL|\bATM\b|CASHPOINT|CASH MACHINE/.test(D))return{c:'_cashout'};
   if(/CASH DEPOSIT|CASH IN BRANCH/.test(D))return{c:'_cashin'};
   if(/AMERICAN EXPRESS|\bAMEX\b/.test(D))return{c:'_amexpay'};
@@ -84,10 +88,10 @@ function vDaily(){
   <div class="grid">
    <div class="panel c12"><h2>Add spending</h2>
     <div class="entry"><label>Date<input type="date" id="e_date" value="${todayISO()}"></label><label>Amount £<input type="number" step="0.01" min="0" id="e_amt" placeholder="0.00"></label>
-     <label>Category<select id="e_cat"><option value="">Choose…</option>${catOptions('','',activeVars().filter(v=>!xcat.has(v.id)))}<option value="_unplanned">Unplanned bill</option></select></label>
+     <label>Type<select id="e_type"><option value="spend">Spending</option><option value="refund">Refund (money back)</option></select></label><label>Category<select id="e_cat"><option value="">Choose…</option>${catOptions('','',activeVars().filter(v=>!xcat.has(v.id)))}<option value="_unplanned">Unplanned bill</option></select></label>
      <label>Paid with<select id="e_pay"><option value="bank">Bank card</option><option value="amex">Amex</option><option value="cash">Household cash</option></select></label>
      <label>Note<input type="text" id="e_note" placeholder="optional"></label><button class="btn" data-act="addtx">Add</button></div>
-    <p class="small muted" style="margin-bottom:0">Spending is joint, so there is no "who". If you also upload the NatWest file, the matching entry is merged so nothing is counted twice.</p></div>
+    <p class="small muted" style="margin-bottom:0">Choose Refund when a shop pays money back: it comes into the bank and reduces that category's spending, and is not counted as income. Spending is joint, so there is no "who". If you also upload the NatWest file, the matching entry is merged so nothing is counted twice.</p></div>
    ${unsortedPanel(m,false)}
    ${dups.map(t=>`<div class="panel c12" style="border-color:var(--warn);grid-column:span 12"><h3>Is this the same purchase?</h3><div class="row" style="justify-content:space-between"><span><b>On the bank file:</b> ${esc(t.t)}, ${fdate(parseISO(t.d))}, ${GBP2(t.a)}<br><b>Typed:</b> ${t.maybe.map(id=>{const x=rec.rows.find(r=>r.id===id);return x?esc(x.t||'(no note)')+', '+fdate(parseISO(x.d)):''}).join(' or ')}</span><span class="row"><button class="btn" data-act="merge" data-id="${esc(t.id)}">Same, merge them</button><button class="btn ghost" data-act="keepboth" data-id="${esc(t.id)}">Different, keep both</button></span></div></div>`).join('')}
    ${ledgerBlock(m,rec,rowsV,bud,by,unc,totB,totS,src,isNow,dom,n,P)}
@@ -103,7 +107,7 @@ const catLabel=t=>t.c==='_inc'?'Money in':t.c==='_skip'?'Bill or transfer':t.c==
 function ledgerBlock(m,rec,rowsV,bud,by,unc,totB,totS,src,isNow,dom,n,P){
   const rows=rec.rows.slice().sort((x,y)=>x.d<y.d?1:x.d>y.d?-1:0),days={};rows.forEach(t=>(days[t.d]=days[t.d]||[]).push(t));
   const pend=expectedItems(m).filter(it=>!tickRow(m,it.id)&&!bankRowFor(it,m)),dueNow=pend.filter(it=>it.day<=(isNow?dom:99));
-  const ledger=src==='none'?`<p class="muted">Nothing for ${fmonthLong(m)} yet.</p>`:Object.keys(days).sort().reverse().map(dt=>`<div class="dayh">${fdate(parseISO(dt))}</div><table class="ledg"><tbody>${days[dt].map(t=>`<tr><td>${esc((t.t||'(no note)').replace(/^(Paid|Received): /,'').slice(0,60))}${t.s==='tick'?' <span class="pill good">ticked</span>':t.s==='man'?' <span class="pill info">typed</span>':t.ticked?' <span class="pill good">bank ✓</span>':''}${t.p==='amex'||t.s==='amex'?' <span class="pill info">Amex</span>':''}</td><td class="muted small">${esc(catLabel(t))}</td><td class="n ${t.a>0?'pos':''}">${t.a>0?'+':'−'}${GBP2(Math.abs(t.a))}</td><td class="n">${src==='app'&&(t.s==='man'||t.s==='tick')?`<button class="btn ghost sm" data-act="deltx" data-m="${m}" data-id="${esc(t.id)}" aria-label="Remove">✕</button>`:''}</td></tr>`).join('')}</tbody></table>`).join('');
+  const ledger=src==='none'?`<p class="muted">Nothing for ${fmonthLong(m)} yet.</p>`:Object.keys(days).sort().reverse().map(dt=>`<div class="dayh">${fdate(parseISO(dt))}</div><table class="ledg"><tbody>${days[dt].map(t=>`<tr><td>${esc((t.t||'(no note)').replace(/^(Paid|Received): /,'').slice(0,60))}${t.a>0&&t.c&&isSpendCat(t.c)?' <span class="pill good">refund</span>':''}${t.s==='tick'?' <span class="pill good">ticked</span>':t.s==='man'?' <span class="pill info">typed</span>':t.ticked?' <span class="pill good">bank ✓</span>':''}${t.p==='amex'||t.s==='amex'?' <span class="pill info">Amex</span>':''}</td><td class="muted small">${esc(catLabel(t))}</td><td class="n ${t.a>0?'pos':''}">${t.a>0?'+':'−'}${GBP2(Math.abs(t.a))}</td><td class="n">${src==='app'&&(t.s==='man'||t.s==='tick')?`<button class="btn ghost sm" data-act="deltx" data-m="${m}" data-id="${esc(t.id)}" aria-label="Remove">✕</button>`:''}</td></tr>`).join('')}</tbody></table>`).join('');
   const rail=`<div class="rail"><div class="panel"><h3 style="margin:0 0 6px">Budgets, ${fmonthLong(m)}</h3>${rowsV.map(v=>{const b=bud[v.id],a=by[v.id]||0,pace=b*dom/n;return`<div class="rb"><div class="row" style="justify-content:space-between"><span>${esc(v.name)}</span><span class="small ${a>b&&b?'neg':'muted'}">${GBP(a)}${b?' / '+GBP(b):''}</span></div>${b?`<div class="bar"><i class="${a>b?'r':a>pace*1.1?'w':'g'}" style="width:${Math.min(100,a/b*100)}%"></i></div>`:''}</div>`}).join('')}
     ${unc>0?`<div class="rb"><div class="row" style="justify-content:space-between"><span><b>Unsorted</b></span><span class="small neg">${GBP(unc)}</span></div></div>`:''}
     <div class="row rtot" style="justify-content:space-between"><b>Total</b><b class="${totS>totB?'neg':''}">${GBP(totS)} / ${GBP(totB)}</b></div>${isNow?`<p class="small muted" style="margin:4px 0 0">Day ${dom} of ${n}: pace ${GBP(totB*dom/n)}</p>`:''}</div>
@@ -141,10 +145,11 @@ function catAccordion(v,rows,total,budget,m,src){
 function addTx(){
   const d=$('#e_date').value,amt=parseFloat($('#e_amt').value),cv=$('#e_cat').value,c=cv.split(':')[0],sc=cv.split(':')[1],p=$('#e_pay').value,note=$('#e_note').value.trim();
   if(!d||!(amt>0)||!c){toast('Add a date, an amount and a category');return}
+  const refund=($('#e_type')||{}).value==='refund';if(refund&&c==='_unplanned'){toast('Pick the category the money came back to');return}
   const k=d.slice(0,7);const id='m_'+uid();
-  (TX[k]=TX[k]||[]).push({id,d,t:note,a:-amt,c:c==='_unplanned'?'':c,sc:sc||undefined,s:'man',p,unplanned:c==='_unplanned'||undefined});
+  (TX[k]=TX[k]||[]).push({id,d,t:refund?('Refund: '+(note||'')).trim():note,a:refund?amt:-amt,refund:refund||undefined,c:c==='_unplanned'?'':c,sc:sc||undefined,s:'man',p,unplanned:c==='_unplanned'||undefined});
   if(c==='_unplanned'){STATE.notes[id]={kind:'oneoff',text:note||'Unplanned bill'}}
-  audit('Added transaction',`${GBP2(amt)} ${note||''} on ${d}, ${c==='_unplanned'?'unplanned bill':(catName({vars:allVars()},c)||c)}, paid by ${p}`);
+  audit(refund?'Added refund':'Added transaction',`${GBP2(amt)} ${note||''} on ${d}, ${c==='_unplanned'?'unplanned bill':(catName({vars:allVars()},c)||c)}, paid by ${p}`);
   view.m=k;saveTx(k);invalidate();persistAll();toast('Added');render()}
 function sortTx(id,k,cv){
   const t=(TX[k]||[]).find(x=>x.id===id);if(!t)return;const c=cv.split(':')[0],sc=cv.split(':')[1];audit('Re-categorised',`${GBP2(Math.abs(t.a))} "${(t.t||'').slice(0,40)}" (${t.d}): ${t.c?(catName({vars:allVars()},t.c)||t.c):'unsorted'} to ${c?(catName({vars:allVars()},c)||c):'unsorted'}`);t.c=c;t.sc=sc||undefined;

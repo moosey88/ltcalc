@@ -44,9 +44,9 @@ function goalsMini(S){
     return`<div style="margin-bottom:14px"><div class="row" style="justify-content:space-between"><b>${esc(g.name)}</b>${st}</div><div class="bar" style="margin:6px 0"><i class="${g.status==='ok'?'g':g.status==='late'?'r':'w'}" style="width:${p}%"></i></div>
     <div class="small ink2">${GBP(g.saved)} of ${GBP(g.target)} saved · needed by ${fdate(parseISO(g.date))} · put aside about ${GBP(g.reqM)} a month${g.kind==='tax'?' (tax comes first)':''}</div></div>`}).join('')}
 function unsortedPanel(k,compact){
-  const u=monthTx(k).filter(t=>!t.c&&t.a<0);if(!u.length)return'';
-  return`<div class="panel c12" style="border-color:var(--warn)"><div class="row" style="justify-content:space-between"><h3>Needs sorting: ${u.length} payment${u.length>1?'s':''}, ${GBP(-sum(u,t=>t.a))}</h3><span class="small muted">counted in spending as "Unsorted" until you pick a category</span></div>
-   <div class="tblwrap"><table><tbody>${u.slice(0,compact?6:30).map(t=>`<tr><td>${fdate(parseISO(t.d))}</td><td>${esc(t.t)}</td><td class="n">${GBP2(-t.a)}</td><td>${catSelect(t.id,k,'')}</td></tr>`).join('')}</tbody></table></div>
+  const u=monthTx(k).filter(t=>!t.c&&t.a!==0);if(!u.length)return'';
+  return`<div class="panel c12" style="border-color:var(--warn)"><div class="row" style="justify-content:space-between"><h3>Needs sorting: ${u.length} line${u.length>1?'s':''}${u.some(t=>t.a>0)?' (includes refunds)':''}, ${GBP(-sum(u,t=>t.a))}</h3><span class="small muted">counted in spending as "Unsorted" until you pick a category</span></div>
+   <div class="tblwrap"><table><tbody>${u.slice(0,compact?6:30).map(t=>`<tr><td>${fdate(parseISO(t.d))}</td><td>${esc(t.t)}</td><td class="n ${t.a>0?'pos':''}">${t.a>0?'+':''}${GBP2(Math.abs(t.a))}${t.a>0?' <span class="pill good">refund</span>':''}</td><td>${catSelect(t.id,k,'')}</td></tr>`).join('')}</tbody></table></div>
    ${u.length>6&&compact?`<p class="small muted" style="margin:6px 0 0">${u.length-6} more on Day to day.</p>`:''}</div>`}
 function catSelect(id,k,sel,ss){
   return`<select data-cat="${esc(id)}" data-m="${k}"><option value="">Choose…</option>${catOptions(sel,ss)}<option value="_skip" ${sel==='_skip'?'selected':''}>Not a spending item</option></select>`}
