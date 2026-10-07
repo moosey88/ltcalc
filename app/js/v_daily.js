@@ -182,7 +182,9 @@ function importText(text,src){
 function importRows(parsed,src){
   /* the same line may arrive from a CSV and a PDF with different wording: match on date, amount and balance */
   const cnt={};Object.values(TX).flat().filter(t=>t.s===src).forEach(t=>{const k=t.d+'|'+t.a+'|'+(src==='nw'?t.b:(t.who||''));cnt[k]=(cnt[k]||0)+1});
-  parsed=parsed.filter(x=>{const k=x.d+'|'+x.a+'|'+(src==='nw'?x.b:(x.who||''));if(cnt[k]>0){cnt[k]--;x.dupe=true}return true});
+  const cnt2={};if(src==='nw')Object.values(TX).flat().filter(t=>t.s==='nw').forEach(t=>{const k=t.d+'|'+t.a;cnt2[k]=(cnt2[k]||0)+1});
+  parsed=parsed.filter(x=>{if(src==='nw'&&x.b==null){const k=x.d+'|'+x.a;if(cnt2[k]>0){cnt2[k]--;x.dupe=true}return true}
+    const k=x.d+'|'+x.a+'|'+(src==='nw'?x.b:(x.who||''));if(cnt[k]>0){cnt[k]--;x.dupe=true}return true});
   const seen={};parsed.forEach(x=>{const key=x.d+'|'+x.t+'|'+x.a+'|'+x.b;seen[key]=(seen[key]||0)+1;x.id=src+'_'+key+'#'+seen[key]});
   let added=0,skipped=0,merged=0,asked=0;const pay=src==='amex'?'amex':'bank';
   const have=new Set(Object.values(TX).flat().filter(t=>t.s===src).map(t=>t.id));

@@ -12,7 +12,7 @@ async function pdfLines(file){
     its.forEach(i=>{const l=lines[lines.length-1];if(l&&Math.abs(l.y-i.y)<=3)l.items.push(i);else lines.push({y:i.y,items:[i]})});
     lines.forEach(l=>{l.items.sort((a,b)=>a.x-b.x);l.text=l.items.map(i=>i.s).join(' ')});pages.push(lines)}
   return pages}
-const pdfKind=pages=>{const t=pages.slice(0,2).map(p=>p.map(l=>l.text).join(' ')).join(' ');return /American Express/i.test(t)&&/Membership Number|Statement of Account/i.test(t)?'amex':/NatWest|Paid In\(|Withdrawn\(|Sort Code/i.test(t)?'nw':null};
+const pdfKind=pages=>{const t=pages.slice(0,2).map(p=>p.map(l=>l.text).join(' ')).join(' ');return /American Express/i.test(t)&&/Membership Number|Statement of Account/i.test(t)?'amex':/Your transactions/i.test(t)&&/Paid out \(£\)/i.test(t)?'nwtx':/NatWest|Paid In\(|Withdrawn\(|Sort Code/i.test(t)?'nw':null};
 function parseNatWestPdf(pages){
   const all=pages.flat().map(l=>l.text).join(' | '),per=all.match(/(\d{1,2})\s+([A-Z]{3})\s+(\d{4})\s+to\s+(\d{1,2})\s+([A-Z]{3})\s+(\d{4})/),
     pv=all.match(/Previous Balance\s*\|?\s*(-?£?[\d,]+\.\d{2})(\s*OD)?/i),nb=all.match(/New Balance\s*\|?\s*(-?£?[\d,]+\.\d{2})(\s*OD)?/i);
@@ -35,6 +35,19 @@ function parseNatWestPdf(pages){
     rows.push({d:d0,t:buf.map(b=>b.t).join(' ').replace(/\s+/g,' ').trim(),a:Math.round(a*100)/100,b:Math.round(bal*100)/100,who:undefined});buf=[];prev=bal})});
   const chk=nb?pnum(nb[1])*(nb[2]?-1:1):null,last=rows.length?rows[rows.length-1].b:null;
   return{rows,warn:chk!=null&&last!=null&&Math.abs(chk-last)>.006?`The last balance read (${GBP2(last)}) does not match the statement's New Balance (${GBP2(chk)}), so check this file.`:''}}
+/* the online-banking transaction export: Date, Description, Type, Paid in, Paid out, no balances */
+function parseNatWestTxPdf(pages){
+  const txt=pages[0].map(l=>l.text).join(' | '),ds=[...txt.matchAll(/(\d{2})\/(\d{2})\/(\d{4})/g)];if(ds.length<2)throw new Error('Could not find the date range');
+  const sY=+ds[0][3],eY=+ds[1][3],eM=+ds[1][2],rows=[];
+  pages.forEach(lines=>lines.forEach(l=>{
+    const left=l.items.filter(i=>i.x<95).map(i=>i.s).join(' '),dm=left.match(/^(\d{1,2})\s+([A-Za-z]{3})$/),mon=dm&&PMON[dm[2].toUpperCase()];
+    const am=l.items.filter(i=>i.x>=400&&PNUM.test(i.s)),mid=l.items.filter(i=>i.x>=95&&i.x<400&&!/^Date$|^Description$|^Type$/.test(i.s));
+    if(!dm||!mon||!am.length){if(rows.length&&!dm&&!am.length&&l.items.every(i=>i.x>=95&&i.x<400)&&l.y>0&&!/^(Your transactions|Transactions-)/i.test(l.text)&&!/Date\s+Description/.test(l.text)&&rows[rows.length-1].open){rows[rows.length-1].t+=' '+l.text}return}
+    const a=am[0],v=pnum(a.s),amt=a.s.trim().startsWith('-')?-Math.abs(v):(a.x<500?Math.abs(v):-Math.abs(v)),y=mon>eM?sY:eY;
+    const desc=mid.filter(i=>i.x<268).map(i=>i.s).join(' '),type=mid.filter(i=>i.x>=268).map(i=>i.s).join(' ');
+    rows.push({d:`${y}-${String(mon).padStart(2,'0')}-${String(+dm[1]).padStart(2,'0')}`,t:`${type} ${desc}`.replace(/\s+/g,' ').trim(),a:Math.round(amt*100)/100,b:null,who:undefined,open:true})}));
+  rows.forEach(r=>delete r.open);
+  return{rows,warn:'This export has no balances, so the bank balance was not changed. Type or upload a file with a balance to set it.'}}
 function parseAmexPdf(pages){
   const all=pages.flat().map(l=>l.text).join(' | '),per=all.match(/Statement Period\s*\|?\s*From\s+(\d{1,2})\s+([A-Za-z]+)\s+to\s+(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/i);
   if(!per)throw new Error('Could not find the statement period');
@@ -54,5 +67,5 @@ function parseAmexPdf(pages){
   return{rows,warn:bad.length?'The lines read do not add up to the statement total, so check this file.':''}}
 async function importPdfFile(file){
   const pages=await pdfLines(file),kind=pdfKind(pages);if(!kind)throw new Error('That PDF does not look like a NatWest or Amex statement');
-  const r=kind==='amex'?parseAmexPdf(pages):parseNatWestPdf(pages);if(!r.rows.length)throw new Error('No transactions found in that PDF');
-  const msg=importRows(r.rows,kind);return`${file.name}: ${kind==='amex'?'Amex':'NatWest'}. ${msg}${r.warn?' '+r.warn:''}`}
+  const r=kind==='amex'?parseAmexPdf(pages):kind==='nwtx'?parseNatWestTxPdf(pages):parseNatWestPdf(pages);if(!r.rows.length)throw new Error('No transactions found in that PDF');
+  const msg=importRows(r.rows,kind==='nwtx'?'nw':kind);return`${file.name}: ${kind==='amex'?'Amex':'NatWest'}${kind==='nwtx'?' transactions':''}. ${msg}${r.warn?' '+r.warn:''}`}
