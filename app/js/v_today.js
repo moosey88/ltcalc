@@ -17,13 +17,15 @@ function fileAnchor(){
 function liveCheck(){
   const lc=STATE.lastCheck;if(!lc)return null;
   const fa=fileAnchor();let pb=lc.prevBank!=null?lc.prevBank:lc.est,pa=lc.prevAsOf||addDays(lc.d,-1),est;
-  if(fa&&fa.d<=lc.d){pa=fa.d;pb=fa.b;est=pb+sum(Object.values(TX).flat().filter(t=>(t.s==='man'||t.s==='tick')&&t.p==='bank'&&t.d<=lc.d&&(t.d>fa.d||t.s==='tick')),t=>t.a)}
+  if(fa&&fa.d<=lc.d){pa=fa.d;pb=fa.b;est=pb+sum(Object.values(TX).flat().filter(t=>t.p==='bank'&&t.d<=lc.d&&Math.abs(t.a)>0.004&&((t.s==='nw'&&t.d>fa.d)||(t.s==='man'&&t.d>fa.d)||t.s==='tick')),t=>t.a)}
   else est=pb+checkRows(pa,lc.d);
   const diff=lc.d===STATE.asOf?Math.round((STATE.bank-est)*100)/100:lc.diff,m=lc.d.slice(0,7),dd=+lc.d.slice(8);
   const unticked=expectedItems(m).filter(it=>it.day<=dd&&!tickRow(m,it.id)&&!bankRowFor(it,m)),untickedSum=sum(unticked,it=>it.sign*it.amt);
   const rs=Object.values(TX).flat().filter(t=>(t.s==='man'||t.s==='tick'||t.s==='nw')&&t.p==='bank'&&t.d>pa&&t.d<=lc.d),inn=sum(rs.filter(t=>t.a>0),t=>t.a),out=-sum(rs.filter(t=>t.a<0),t=>t.a);
-  const pend=fa&&fa.d<=lc.d?Object.values(TX).flat().filter(t=>(t.s==='man'||t.s==='tick')&&t.p==='bank'&&t.d<=lc.d&&(t.d>fa.d||t.s==='tick')):[];
-  return{...lc,est,diff,unticked,untickedSum,inn,out,pb,pend,fa}}
+  const all=Object.values(TX).flat(),pend=fa&&fa.d<=lc.d?all.filter(t=>(t.s==='man'||t.s==='tick')&&t.p==='bank'&&t.d<=lc.d&&Math.abs(t.a)>0.004&&(t.d>fa.d||t.s==='tick')):[],after=fa&&fa.d<=lc.d?all.filter(t=>t.s==='nw'&&t.p==='bank'&&t.d>fa.d&&t.d<=lc.d&&Math.abs(t.a)>0.004):[];
+  return{...lc,est,diff,unticked,untickedSum,inn,out,pb,pend,fa,after,afterSum:sum(after,t=>t.a),pendSum:sum(pend,t=>t.a)}}
+/* the sum behind the bank check, in words */
+const bcExplain=lc=>lc&&lc.fa?`Last balance on your bank file: ${GBP2(lc.fa.b)} (${fdate(parseISO(lc.fa.d))}). Since then the file shows ${lc.after.length} line${lc.after.length===1?'':'s'} (${GBP2(lc.afterSum)}), and your own entries not yet on the file come to ${GBP2(lc.pendSum)}. That makes ${GBP2(lc.est)}. You typed ${GBP2(lc.est+lc.diff)}.`:''
 function applyBalance(value,dateStr,src){
   const had=STATE.bank!=null,prevBank=STATE.bank,prevAsOf=STATE.asOf;const est=had?prevBank+checkRows(prevAsOf,dateStr):null;
   audit('Bank balance set',`${GBP2(value)} as of ${dateStr} (${src||'typed'})${had?', check difference '+GBP2(Math.round((value-est)*100)/100):''}`);
@@ -73,7 +75,7 @@ function vToday(){
    <div class="kpi"><span>In the bank</span><b>${STATE.bank==null?'–':GBP(STATE.bank+sinceBalance())}</b><small>${STATE.bank==null?'add a balance':Math.abs(sinceBalance())>=0.005?`${GBP2(STATE.bank)} at ${fdate(parseISO(STATE.asOf))}, ${sinceBalance()>0?'plus':'less'} ${GBP2(Math.abs(sinceBalance()))} ticked or typed since`:'as of '+fdate(parseISO(STATE.asOf))}</small></div>
    <div class="kpi"><span>Household cash</span><b>${GBP(cashBalance())}</b><small>shared cash pot</small></div>
    <div class="kpi"><span>Left over before payday</span><b class="${head<0?'neg':'pos'}">${GBP(head)}</b><small>${np?'wages '+fdate(np.t)+'. After every planned bill, your remaining budgets, what you owe Amex and your '+GBP(buf)+' buffer':'add wages in Budgets'}</small></div>
-   <div class="kpi" ${lc&&Math.abs(lc.diff)>=1?'style="border-color:var(--warn)"':''}><span>Bank check</span><b class="${lc&&Math.abs(lc.diff)>=1?'warnc':''}">${lc?(Math.abs(lc.diff)<1?'Matches':GBP(lc.diff)):'–'}</b><small>${lc?(Math.abs(lc.diff)<1?'entries add up to the bank':`Bank shows ${GBP2(lc.est+lc.diff)}, expected ${GBP2(lc.est)}. Fix it in Weekly check below.`):'updates when you add a balance'}</small></div>
+   <div class="kpi" ${lc&&Math.abs(lc.diff)>=1?'style="border-color:var(--warn)"':''}><span>Bank check</span><b class="${lc&&Math.abs(lc.diff)>=1?'warnc':''}">${lc?(Math.abs(lc.diff)<1?'Matches':GBP(lc.diff)):'–'}</b><small>${lc?(Math.abs(lc.diff)<1?'Everything adds up. '+(lc.fa?`${GBP2(lc.fa.b)} on the file at ${fdate(parseISO(lc.fa.d))}, ${lc.afterSum+lc.pendSum<0?'less':'plus'} ${GBP2(Math.abs(lc.afterSum+lc.pendSum))} since.`:''):`Bank shows ${GBP2(lc.est+lc.diff)}, expected ${GBP2(lc.est)}. The Weekly check below shows the sum.`):'updates when you add a balance'}</small></div>
    ${reviewCount()?`<div class="kpi" style="border-color:var(--warn)"><span>To review</span><b class="warnc">${reviewCount()} line${reviewCount()>1?'s':''}</b><small>new from your last upload. Approve them below.</small></div>`:''}
    ${amexTile(S)}</div>
   <div class="grid">

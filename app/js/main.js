@@ -120,5 +120,5 @@ document.addEventListener('input',e=>{
   cancelAnimationFrame(view.raf);view.raf=requestAnimationFrame(()=>{scPaint()})});
 $('#themeBtn').addEventListener('click',()=>{const r=document.documentElement;const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;r.dataset.theme=dark?'light':'dark'});
 (function boot(){
-  const had=loadLocal();try{reconcileTicks();fixWeakClass();fixAdmiral()}catch(e){}ensureSnapshot();render();if(had)setSync('Loaded from this device','');
+  const had=loadLocal();try{reconcileTicks();fixWeakClass();fixAdmiral();mergeTypedCredits()}catch(e){}ensureSnapshot();render();if(had)setSync('Loaded from this device','');
   connectDb().catch(()=>{})})();

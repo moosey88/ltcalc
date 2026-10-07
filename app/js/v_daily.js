@@ -218,7 +218,7 @@ function importRows(parsed,src){
   const have=new Set(Object.values(TX).flat().filter(t=>t.s===src).map(t=>t.id));
   parsed.forEach(x=>{if(have.has(x.id)||x.dupe){skipped++;return}
     const k=x.d.slice(0,7),arr=TX[k]=TX[k]||[];const own=x.who==='S'&&x.a<0&&!/PAYMENT RECEIVED/i.test(x.t),cf=own?{c:'_skip',how:'known',why:'Other cardholder, personal'}:classifyWhy(x.t,x.a);let c=cf.c;
-    const cands=x.a<0?arr.filter(t=>t.s==='man'&&t.p===pay&&!t.m&&Math.abs(t.a-x.a)<0.005&&dayGap(t.d,x.d)<=3):[];
+    const cands=arr.filter(t=>t.s==='man'&&t.p===pay&&!t.m&&Math.abs(t.a-x.a)<0.005&&dayGap(t.d,x.d)<=(x.a<0?3:4));
     let row={id:x.id,d:x.d,t:x.t,a:x.a,b:x.b,c,sc:cf.sc,who:x.who,s:src,p:pay,how:cf.how,why:cf.why};if(!own&&x.who!=='S'&&cf.how)row.rv='p';
     if(cands.length===1){const mt=cands[0];row.c=mt.c||c;row.sc=mt.c?mt.sc:row.sc;row.note=mt.t;row.how='typed';row.why='Matched your entry: '+(mt.t||'typed').slice(0,28);arr.splice(arr.indexOf(mt),1);merged++}
     else if(cands.length>1){row.maybe=cands.map(t=>t.id);asked++}

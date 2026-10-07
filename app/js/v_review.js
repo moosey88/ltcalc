@@ -33,3 +33,9 @@ function fixWeakClass(){let any=false;const P=curPlan();
     const D=(t.t||'').toUpperCase();if(!weak(D)||bankClass(D,t.a))return;const r=classifyWhy(t.t,t.a);
     if(r.c!=='_skip'){t.c=r.c;t.sc=r.sc;t.how=r.how;t.why=r.why;t.rv='p';ch=true}});
     if(ch){saveTx(m);any=true}});if(any)invalidate();return any}
+
+/* a refund you typed and the same credit arriving on the bank file are one thing: keep the bank line, with your category and note */
+function mergeTypedCredits(){let any=false;Object.keys(TX).forEach(m=>{const arr=TX[m]||[];let ch=false;
+  arr.filter(t=>t.s==='man'&&t.a>0&&t.p==='bank').forEach(t=>{const hit=Object.values(TX).flat().find(x=>x.s==='nw'&&x.a>0&&Math.abs(x.a-t.a)<.005&&Math.abs(parseISO(x.d)-parseISO(t.d))<=4*DAY&&!x.mergedFrom);
+    if(hit){if(t.c)hit.c=t.c;if(t.sc)hit.sc=t.sc;hit.note=hit.note||(t.t&&t.t!==hit.t?t.t:undefined);hit.mergedFrom=t.id;hit.how='typed';hit.why='Matched your refund entry';arr.splice(arr.indexOf(t),1);ch=true}});
+  if(ch){saveTx(m);any=true}});if(any)invalidate();return any}

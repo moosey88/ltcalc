@@ -14,6 +14,7 @@ function expectedItems(m){
 /* the real bank/Amex line behind an item, if one has been uploaded */
 function bankRowFor(it,m){
   const rows=(TX[m]||[]).filter(t=>t.s!=='tick'&&t.s!=='man');
+  const cl=rows.find(t=>t.item===it.id&&t.ticked&&t.a*it.sign>0);if(cl)return cl;
   if(it.kind==='inc'){const ok=t=>t.c==='_inc'&&t.a>0&&(!t.item||t.item===it.id),rel=t=>Math.abs(t.a-it.amt)/Math.max(1,it.amt);
     const c=rows.filter(t=>ok(t)&&t.sc===it.id&&(it.varies||rel(t)<=.5)).concat(rows.filter(t=>ok(t)&&t.sc!==it.id&&rel(t)<=.05));
     return c.sort((a,b)=>rel(a)-rel(b))[0]||null}
@@ -53,6 +54,9 @@ function reconcileTicks(){
     const items=expectedItems(m);
     let ch=false;
     ticks.forEach(r=>{const it=items.find(x=>x.id===r.item);if(!it)return;
+      /* a payment that arrives in two or more lines (for example two Ikano debits) */
+      if(it.key&&(it.kind==='bill'||it.kind==='debt')){const part=(TX[m]||[]).filter(t=>t.s==='nw'&&t.a<0&&!t.item&&keyHit(t.t,it.key)&&Math.abs(parseISO(t.d)-parseISO(r.d))<=12*DAY);
+        if(part.length>1&&Math.abs(-sum(part,t=>t.a)-it.amt)<=Math.max(1,it.amt*.02)){TX[m].splice(TX[m].indexOf(r),1);part.forEach(t=>{t.item=it.id;t.ticked=true;t.tickAmt=-t.a});matched++;ch=true;return}}
       const b=bankRowFor(it,m);if(!b||Math.abs(parseISO(b.d)-parseISO(r.d))>12*DAY)return;
       TX[m].splice(TX[m].indexOf(r),1);b.item=it.id;b.ticked=true;b.tickAmt=Math.abs(r.a);matched++;ch=true;
       if(Math.abs(Math.abs(b.a)-Math.abs(r.a))>Math.max(1,Math.abs(r.a)*.02))diff++});
@@ -80,7 +84,7 @@ function anomalies(){
       else if(b&&!it.variable&&it.kind!=='inc'&&Math.abs(Math.abs(b.a)-it.amt)>Math.max(2,it.amt*.05))out.push({sev:'info',m,t:`${it.name}: the bank shows ${GBP2(Math.abs(b.a))}, your plan has ${GBP2(it.amt)}.`,act:'If this is the new normal, update the plan on Budgets.',fix:`<button class="btn ghost sm" data-go="budgets">Open Budgets</button>`,dk:`plan|${m}|${it.id}`});
       if(cur&&!b&&!tk&&it.day+2<=dom&&it.kind!=='xfer')out.push({sev:it.kind==='inc'?'bad':'warn',m,t:it.kind==='inc'?`${it.name} has not arrived. It was expected on the ${ord(it.day)} (${GBP2(it.amt)}).`:`${it.name} (${GBP2(it.amt)}, due the ${ord(it.day)}) has not left the bank yet.`,act:it.kind==='inc'?'Check with the payer, or tick it if it is in a different account.':'Tick it if you paid another way, or check the date.',fix:`<button class="btn ghost sm" data-act="fx_tick" data-kind="${it.kind}" data-id="${it.id}" data-m="${m}">${it.kind==='inc'?'Mark received':'Mark paid'}</button>`,dk:`due|${m}|${it.id}`})});
     const seen={};(TX[m]||[]).filter(t=>t.s==='nw'&&t.a<0&&-t.a>=20).forEach(t=>{const k=t.d+'|'+t.a+'|'+(t.t||'').replace(/\s+\d{2}[A-Z]{3}\d{2}/,'').slice(0,40);if(seen[k]&&seen[k]!==t.id)out.push({sev:'warn',m,t:`Possible double payment: ${GBP2(-t.a)} to "${(t.t||'').replace(/^(Card Transaction|Direct Debit|OnLine Transaction)\s*/,'').slice(0,40)}" on ${fdate(parseISO(t.d))} appears twice.`,act:'If it is a duplicate charge, ask the shop or bank.',fix:`<button class="btn ghost sm" data-act="deltx" data-m="${m}" data-id="${esc(t.id)}">Remove the second one</button>`+fxDismiss('dup|'+t.id)});seen[k]=t.id})});
-  const lc=liveCheck();if(lc&&Math.abs(lc.diff)>=1)out.push({sev:Math.abs(lc.diff)>=50?'bad':'warn',m:now,t:`The bank balance on ${fdate(parseISO(lc.d))} was ${lc.diff>0?GBP2(lc.diff)+' higher':GBP2(-lc.diff)+' lower'} than your ticks and entries predicted (${GBP2(lc.est)} expected).`,act:lc.pend&&lc.pend.length&&Math.abs(lc.diff)>=1?`These are counted but not on the bank file yet (file balance ${GBP2(lc.fa.b)} on ${fdate(parseISO(lc.fa.d))}). Fix an amount, remove one, tick what is due, or correct the balance:`:lc.unticked.length?`${lc.unticked.length} item${lc.unticked.length>1?'s':''} due by then are not ticked (${lc.unticked.slice(0,6).map(i=>i.name+' '+GBP2(i.amt)).join(', ')}${lc.unticked.length>6?', and more':''}). Tick the ones that have left the bank, or upload the bank file.`:'Look for a payment that is not entered, or a tick with the wrong amount.'});
+  const lc=liveCheck();if(lc&&Math.abs(lc.diff)>=1)out.push({sev:Math.abs(lc.diff)>=50?'bad':'warn',m:now,t:`The bank balance on ${fdate(parseISO(lc.d))} was ${lc.diff>0?GBP2(lc.diff)+' higher':GBP2(-lc.diff)+' lower'} than your ticks and entries predicted (${GBP2(lc.est)} expected).`,act:bcExplain(lc)+(lc.pend&&lc.pend.length?' Your entries that are not on the file yet are listed below. If one is already on the file it is counted twice: remove yours.':'')});
   if(lc&&Math.abs(lc.diff)>=1){const o=out[out.length-1];o.fix=(lc.pend||[]).map(r=>fxRow(r)).join('')+(lc.unticked||[]).slice(0,6).map(i=>`<button class="btn ghost sm" data-act="fx_tick" data-kind="${i.kind}" data-id="${i.id}" data-m="${lc.d.slice(0,7)}">Tick: ${esc(i.name)} ${GBP2(i.amt)}</button>`).join('')+`<span class="fxrow"><span class="small">Or the typed balance was wrong:</span> <span class="fxin"><input type="number" step="0.01" value="${STATE.bank}"><button class="btn ghost sm" data-act="fx_bal" data-d="${lc.d}">Use this balance</button></span></span>`}
   const D=STATE.dismissed||{},keep=out.filter(x=>!(x.dk&&D[x.dk])&&!(x.t&&D[x.t]));
   const rank={bad:0,warn:1,info:2};return keep.sort((a,b)=>rank[a.sev]-rank[b.sev])}
