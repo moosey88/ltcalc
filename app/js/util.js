@@ -34,3 +34,8 @@ function niceStep(raw){const mag=Math.pow(10,Math.floor(Math.log10(raw))),f=raw/
 function toast(msg){let t=$('#toast');if(!t){t=document.createElement('div');t.id='toast';t.className='toast';document.body.appendChild(t)}t.textContent=msg;t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',3200)}
 
 function ord(n){const s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0])}
+
+/* matching a payee keyword against a bank description: ignore the transaction type at the start, and match whole words so "car" never matches "card" */
+const DESC_PREFIX=/^(DEBIT CARD TRANSACTION|CARD TRANSACTION|DIRECT DEBIT|STANDING ORDER|ONLINE TRANSACTION|MOBILE\/ONLINE TRANSACTION|AUTOMATED CREDIT|AUTOMATED DEBIT|BILL PAYMENT|TRANSFER|DEBIT|CREDIT)\s+/;
+const cleanD=D=>String(D||'').toUpperCase().replace(DESC_PREFIX,'');
+const keyHit=(text,key)=>{key=String(key||'').toUpperCase().trim();if(!key)return false;const t=cleanD(text);if(key.length>=7)return t.includes(key);return new RegExp('(^|[^A-Z0-9])'+key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'($|[^A-Z0-9])').test(t)};

@@ -101,5 +101,5 @@ function needsNote(){
   const lim=STATE.flagLimit||100,ex=new Set(STATE.flagExcl||[]),P=curPlan();
   const keys=P.bills.map(b=>(b.match||b.name.split(' ')[0]).toLowerCase()).filter(Boolean);
   const out=[];Object.keys(TX).sort().forEach(k=>TX[k].forEach(t=>{if(t.a<=-lim&&isSpendCat(t.c)&&!ex.has(t.c)&&!STATE.notes[t.id]){
-    const desc=(t.t||'').toLowerCase();if(keys.some(x=>x&&desc.includes(x)))return;out.push(t)}}));
+    const desc=(t.t||'').toLowerCase();if(P.bills.some(b=>bkey(b)&&keyHit(t.t,bkey(b))))return;out.push(t)}}));
   return out.sort((a,b)=>a.d<b.d?1:-1)}

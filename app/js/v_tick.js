@@ -19,7 +19,7 @@ function bankRowFor(it,m){
     return c.sort((a,b)=>rel(a)-rel(b))[0]||null}
   if(it.kind==='sav')return rows.find(t=>t.a<0&&/NS&I|PREMIUM BOND|TO A\/C (67716245|67652417)/.test((t.t||'').toUpperCase()))||null;
   if(it.kind==='xfer')return rows.find(t=>t.c===it.c&&t.a<0&&Math.abs(-t.a-it.amt)<=it.amt*.3+1)||null;
-  return it.key?rows.find(t=>t.a<0&&(t.t||'').toUpperCase().includes(it.key)&&Math.abs(-t.a-it.amt)<=it.amt*.3+1)||null:null}
+  return it.key?rows.find(t=>t.a<0&&keyHit(t.t,it.key)&&Math.abs(-t.a-it.amt)<=it.amt*.3+1)||null:null}
 function tickDate(m,it){const t=todayISO();return t.slice(0,7)===m?t:m+'-'+String(it.day).padStart(2,'0')}
 function toggleTick(kind,id,m){
   const it=expectedItems(m).find(x=>x.kind===kind&&x.id===id);if(!it)return;
@@ -97,7 +97,7 @@ function tickPanel(m){
   return`<div class="panel c12"><div class="row" style="justify-content:space-between"><h2>Tick off ${fmonthLong(m)} <span class="muted small">money in, bills, debts and transfers</span></h2><button class="btn ghost sm" data-act="tickall" data-m="${m}">Tick everything due so far</button></div>
    <p class="small ink2" style="margin-top:0">Tick an item when it has happened, so you do not need to type it as a transaction. A tick counts straight away in the forecast. When you upload your NatWest file, each tick is swapped for the real bank line and anything that does not match is flagged below.</p>
    <div class="tblwrap"><table><tbody>${grp('inc','Money in','Not received')}${grp('bill','Bills','Not paid')}${grp('debt','Debts','Not paid')}${grp('xfer','Transfers to personal accounts','Not sent')}${grp('sav','Savings','Not moved')}</tbody></table></div></div>`}
-function anomalyPanel(){
+function anomalyPanel(w){w=w||'c8';
   const a=anomalies(),pill={bad:'bad',warn:'warn',info:'info'},lab={bad:'Check now',warn:'Check',info:'FYI'};
-  return`<div class="panel c8 chk" ${a.some(x=>x.sev!=='info')?'style="border-color:var(--warn)"':''}><h2>Weekly check <span class="muted small">${a.length?a.length+' thing'+(a.length>1?'s':'')+' to look at':'everything matches'}</span></h2>
+  return`<div class="panel ${w} chk" ${a.some(x=>x.sev!=='info')?'style="border-color:var(--warn)"':''}><h2>Weekly check <span class="muted small">${a.length?a.length+' thing'+(a.length>1?'s':'')+' to look at':'everything matches'}</span></h2>
    ${a.length?`<div class="list scrollbox">${a.map(x=>`<div class="item" style="align-items:flex-start"><span><span class="pill ${pill[x.sev]}">${lab[x.sev]}</span> ${esc(x.t)}<br><span class="small muted">${esc(x.act)}</span>${x.fix?`<span class="fixes">${x.fix}${x.dk?fxDismiss(x.dk):''}</span>`:(x.dk?`<span class="fixes">${fxDismiss(x.dk)}</span>`:'')}</span></div>`).join('')}</div>`:'<p class="muted small" style="margin-bottom:0">After each upload the app compares your ticks, your plan and the bank file. Anything that does not add up will appear here.</p>'}</div>`}

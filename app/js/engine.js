@@ -25,6 +25,11 @@ function simulate(o={}){
     const dt=new Date(t),y=dt.getUTCFullYear(),m=dt.getUTCMonth(),d=dt.getUTCDate(),n=dim(y,m),k=ym(t),ds=iso(t),P=planOf(k),A=P.amex;
     const M=months[k]||(months[k]={k,inc:0,bills:0,yearly:0,debt:0,lump:0,vars:0,xfer:0,one:0,sav:0,fee:0,goalOut:0,ySet:0});
     const on=day=>d===Math.min(day,n);
+    /* bills and debts that were due on or before the balance date but are not on the bank file yet are assumed to leave today */
+    if(t===start&&o.overdue!==false&&typeof expectedItems==='function'&&!o.state){const kA=ym(parseISO(asOf)),dA=+asOf.slice(8);
+      expectedItems(kA).filter(it=>it.sign<0&&it.kind!=='xfer'&&it.day<=dA&&!tickRow(kA,it.id)&&!bankRowFor(it,kA)).forEach(it=>{const amt=it.amt;bank-=amt;
+        if(it.kind==='debt')M.debt+=amt;else if(it.kind==='sav'){M.sav+=amt;pots.general+=amt}else if(it.yearly)M.yearly+=amt;else M.bills+=amt;
+        events.push({t,k:it.kind==='debt'?'debt':it.kind==='sav'?'save':it.yearly?'yearly':'bill',n:it.name,a:-amt,overdue:true})})}
     P.income.forEach(i=>{if(on(i.day)){const tk=tickRow(k,i.id),a=tk?tk.a:incFor(k,i);if(!tk)bank+=a;M.inc+=a;if(!tk)events.push({t,k:'in',n:i.name,a})}});
     P.bills.forEach(b=>{
       const fr=b.freq||'monthly';let due=false;
@@ -33,7 +38,7 @@ function simulate(o={}){
       else if(fr==='quarterly')due=((m+1-(b.month||1))%3+3)%3===0&&on(b.day);
       if(!due)return;
       const amt=b.amount;
-      if(fr!=='monthly'&&b.spread){const take=Math.min(pots.yearly,amt);pots.yearly-=take;bank-=amt-take;M.yearly+=amt;events.push({t,k:'yearly',n:b.name,a:-amt,variable:!!b.variable})}
+      if(fr!=='monthly'&&b.spread){const take=Math.min(pots.yearly,amt);pots.yearly-=take;bank-=amt-take;M.yearly+=amt;M.yPot=(M.yPot||0)+take;events.push({t,k:'yearly',n:b.name,a:-amt,variable:!!b.variable})}
       else{if(b.card){cycle+=amt;cardSpend+=amt;const f=amt*(b.fee||0)/100;bank-=f;feeTotal+=f;M.fee+=f}else if(!tickRow(k,b.id))bank-=amt;
         if(fr==='monthly'){M.bills+=amt;if(!tickRow(k,b.id))events.push({t,k:'bill',n:b.name,a:-amt,variable:!!b.variable})}else{M.yearly+=amt;events.push({t,k:'yearly',n:b.name,a:-amt})}}});
     // spread-over-the-year set aside, on the savings day

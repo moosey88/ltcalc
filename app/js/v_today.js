@@ -44,7 +44,7 @@ function goalsMini(S){
     return`<div style="margin-bottom:14px"><div class="row" style="justify-content:space-between"><b>${esc(g.name)}</b>${st}</div><div class="bar" style="margin:6px 0"><i class="${g.status==='ok'?'g':g.status==='late'?'r':'w'}" style="width:${p}%"></i></div>
     <div class="small ink2">${GBP(g.saved)} of ${GBP(g.target)} saved · needed by ${fdate(parseISO(g.date))} · put aside about ${GBP(g.reqM)} a month${g.kind==='tax'?' (tax comes first)':''}</div></div>`}).join('')}
 function unsortedPanel(k,compact){
-  const u=monthTx(k).filter(t=>!t.c&&t.a!==0);if(!u.length)return'';
+  const u=monthTx(k).filter(t=>!t.c&&t.a!==0&&t.rv!=='p');if(!u.length)return'';
   return`<div class="panel c12" style="border-color:var(--warn)"><div class="row" style="justify-content:space-between"><h3>Needs sorting: ${u.length} line${u.length>1?'s':''}${u.some(t=>t.a>0)?' (includes refunds)':''}, ${GBP(-sum(u,t=>t.a))}</h3><span class="small muted">counted in spending as "Unsorted" until you pick a category</span></div>
    <div class="tblwrap"><table><tbody>${u.slice(0,compact?6:30).map(t=>`<tr><td>${fdate(parseISO(t.d))}</td><td>${esc(t.t)}</td><td class="n ${t.a>0?'pos':''}">${t.a>0?'+':''}${GBP2(Math.abs(t.a))}${t.a>0?' <span class="pill good">refund</span>':''}</td><td>${catSelect(t.id,k,'')}</td></tr>`).join('')}</tbody></table></div>
    ${u.length>6&&compact?`<p class="small muted" style="margin:6px 0 0">${u.length-6} more on Day to day.</p>`:''}</div>`}
@@ -74,19 +74,14 @@ function vToday(){
    <div class="kpi"><span>Household cash</span><b>${GBP(cashBalance())}</b><small>shared cash pot</small></div>
    <div class="kpi"><span>Left over before payday</span><b class="${head<0?'neg':'pos'}">${GBP(head)}</b><small>${np?'wages '+fdate(np.t)+'. After every planned bill, your remaining budgets, what you owe Amex and your '+GBP(buf)+' buffer':'add wages in Budgets'}</small></div>
    <div class="kpi" ${lc&&Math.abs(lc.diff)>=1?'style="border-color:var(--warn)"':''}><span>Bank check</span><b class="${lc&&Math.abs(lc.diff)>=1?'warnc':''}">${lc?(Math.abs(lc.diff)<1?'Matches':GBP(lc.diff)):'–'}</b><small>${lc?(Math.abs(lc.diff)<1?'entries add up to the bank':`Bank shows ${GBP2(lc.est+lc.diff)}, expected ${GBP2(lc.est)}. Fix it in Weekly check below.`):'updates when you add a balance'}</small></div>
+   ${reviewCount()?`<div class="kpi" style="border-color:var(--warn)"><span>To review</span><b class="warnc">${reviewCount()} line${reviewCount()>1?'s':''}</b><small>new from your last upload. Approve them below.</small></div>`:''}
    <div class="kpi"><span>Amex</span><b style="padding:6px 0;font-size:1.2rem">${verdictPill(S)}</b><small>${esc(S.why)}</small></div></div>
   <div class="grid">
-   ${advicePanel()}
    ${uploadPanel()}
-   ${anomalyPanel()}
+   ${reviewPanel()||''}
+   ${anomalyPanel(reviewCount()?'c12':'c8')}
+   ${advicePanel()}
    ${budgetsPanel(T.k)}
-   <div class="panel c12"><h2>How are we tracking in ${MONL[monthOf(T.k)-1]}?</h2><div class="grid" style="margin-top:6px">
-    <div class="c5"><div class="note" style="margin-bottom:12px">${T.budget>0?`<b class="${under>=0?'pos':'neg'}">${under>=0?'On track.':'Over pace.'}</b> You have spent ${GBP(T.spent)} by day ${T.dom}. The budget pace is ${GBP(pace)}, so you are ${GBP(Math.abs(under))} ${under>=0?'under':'over'}.`:'Set spending budgets on the Budgets tab to see your pace.'}</div>
-     <div class="lbl" style="margin-bottom:4px">Spending</div><div class="row" style="justify-content:space-between"><span>${GBP(T.spent)} of ${GBP(T.budget)}</span><span class="${under>=0?'pos':'neg'} small">${GBP(Math.abs(under))} ${under>=0?'under':'over'} pace</span></div><div class="bar"><i class="${T.spent>T.budget?'r':T.spent>pace*1.1?'w':'g'}" style="width:${Math.min(100,T.budget?T.spent/T.budget*100:0)}%"></i></div>
-     <div class="lbl" style="margin:12px 0 4px">Bills and debts paid</div><div class="row" style="justify-content:space-between"><span>${GBP(T.billsPaid)} of ${GBP(T.billsAll)}</span><span class="small muted">${GBP(T.billsAll-T.billsPaid)} still to come</span></div><div class="bar"><i class="g" style="width:${T.billsAll?T.billsPaid/T.billsAll*100:0}%"></i></div>
-     <div class="lbl" style="margin:12px 0 4px">Moved to savings</div><div class="row" style="justify-content:space-between"><span>${T.savDone?GBP(T.sav):GBP(0)} of ${GBP(T.sav)}</span><span class="small muted">${T.savDone?'done':'due on the '+ord(T.P.savings.day)}</span></div><div class="bar"><i class="g" style="width:${T.savDone?100:0}%"></i></div></div>
-    <div class="c7">${T.cum.length?paceChart(T.cum,T.budget,T.n,T.dom):'<p class="muted">Enter spending on Day to day and the month builds here.</p>'}<div class="legend"><span><i style="border-color:var(--bank)"></i>Spent so far</span><span><i style="border-color:var(--bank);border-top-style:dotted"></i>If the rest of the month looks the same</span><span><i style="border-color:var(--muted);border-top-style:dashed"></i>Budget pace</span></div></div></div>
-    ${unsortedPanel(T.k,true)?`<div style="margin-top:14px">${unsortedPanel(T.k,true)}</div>`:''}</div>
    <div class="panel c12"><h2>Left over: what could it do for your debts?</h2><div class="grid"><div class="c4">
      ${slider('debtAmt','Put towards debt',Math.min(view.debtAmt??1000,Math.max(1000,Math.round(Math.max(0,head)/50)*50)),0,Math.max(1000,Math.round(Math.max(0,head)/50)*50),50,`Out of your ${GBP(Math.max(0,head))} left over.`)}
      ${debtRows.missing?'<div class="note">Add your balances and interest rates on the Debts tab. Until then this has nothing to work with.</div>':''}</div>
@@ -94,8 +89,17 @@ function vToday(){
    <div class="panel c12"><h2>Coming up: big and variable bills</h2><p class="small muted" style="margin-top:0">Bills over £200, any marked variable, yearly bills and one-offs, over the next 90 days.</p>
     <div class="list">${dedupeComing(comingAll).slice(0,12).map(e=>`<div class="item"><span class="l">${esc(e.n)}${e.variable?' <span class="pill warn">variable</span>':''}${e.k==='yearly'?' <span class="pill info">yearly</span>':''}<br><small class="muted">${fdate(e.t)}</small></span><b>${GBP(e.a)}</b></div>`).join('')||'<span class="muted small">Nothing big coming up in the next 90 days.</span>'}</div></div>
    <div class="panel c12"><h2>Goals, holidays and tax</h2>${goalsMini(S)}</div>
-   <div class="panel c12"><div class="row" style="justify-content:space-between"><h2>The next 12 months</h2><button class="btn ghost sm" data-act="toggle" data-v="year">${view.open.year?'Hide':'Show'}</button></div>${view.open.year?annualBlock(S):'<p class="small muted" style="margin:0">Month by month: what comes in, what goes out, and where the bank and savings end up.</p>'}</div>
+
   </div>`}
+
+function trackingPanel(S,T){const pace=T.budget*T.dom/T.n,under=pace-T.spent;return`   <div class="panel c12"><h2>How are we tracking in ${MONL[monthOf(T.k)-1]}?</h2><div class="grid" style="margin-top:6px">
+    <div class="c5"><div class="note" style="margin-bottom:12px">${T.budget>0?`<b class="${under>=0?'pos':'neg'}">${under>=0?'On track.':'Over pace.'}</b> You have spent ${GBP(T.spent)} by day ${T.dom}. The budget pace is ${GBP(pace)}, so you are ${GBP(Math.abs(under))} ${under>=0?'under':'over'}.`:'Set spending budgets on the Budgets tab to see your pace.'}</div>
+     <div class="lbl" style="margin-bottom:4px">Spending</div><div class="row" style="justify-content:space-between"><span>${GBP(T.spent)} of ${GBP(T.budget)}</span><span class="${under>=0?'pos':'neg'} small">${GBP(Math.abs(under))} ${under>=0?'under':'over'} pace</span></div><div class="bar"><i class="${T.spent>T.budget?'r':T.spent>pace*1.1?'w':'g'}" style="width:${Math.min(100,T.budget?T.spent/T.budget*100:0)}%"></i></div>
+     <div class="lbl" style="margin:12px 0 4px">Bills and debts paid</div><div class="row" style="justify-content:space-between"><span>${GBP(T.billsPaid)} of ${GBP(T.billsAll)}</span><span class="small muted">${GBP(T.billsAll-T.billsPaid)} still to come</span></div><div class="bar"><i class="g" style="width:${T.billsAll?T.billsPaid/T.billsAll*100:0}%"></i></div>
+     <div class="lbl" style="margin:12px 0 4px">Moved to savings</div><div class="row" style="justify-content:space-between"><span>${T.savDone?GBP(T.sav):GBP(0)} of ${GBP(T.sav)}</span><span class="small muted">${T.savDone?'done':'due on the '+ord(T.P.savings.day)}</span></div><div class="bar"><i class="g" style="width:${T.savDone?100:0}%"></i></div></div>
+    <div class="c7">${T.cum.length?paceChart(T.cum,T.budget,T.n,T.dom):'<p class="muted">Enter spending on Day to day and the month builds here.</p>'}<div class="legend"><span><i style="border-color:var(--bank)"></i>Spent so far</span><span><i style="border-color:var(--bank);border-top-style:dotted"></i>If the rest of the month looks the same</span><span><i style="border-color:var(--muted);border-top-style:dashed"></i>Budget pace</span></div></div></div>
+    ${unsortedPanel(T.k,true)?`<div style="margin-top:14px">${unsortedPanel(T.k,true)}</div>`:''}</div>`}
+function yearPanel(S){return`<div class="panel c12"><div class="row" style="justify-content:space-between"><h2>The next 12 months</h2><button class="btn ghost sm" data-act="toggle" data-v="year">${view.open.year?'Hide':'Show'}</button></div>${view.open.year?annualBlock(S):'<p class="small muted" style="margin:0">Month by month: what comes in, what goes out, and where the bank and savings end up.</p>'}</div>`}
 function debtEffects(amt){
   const P=curPlan(),rows=[];let missing=true;
   P.debts.forEach(d=>{const bal=STATE.debtBal[d.id];if(!(bal>0))return;missing=false;
@@ -114,6 +118,6 @@ function annualBlock(S){
    <tr class="tot"><td>12 months</td><td class="n">${GBP(tot('inc'))}</td><td class="n">${GBP(tot('bills'))}</td><td class="n">${GBP(tot('yearly'))}</td><td class="n">${GBP(tot('debt')+tot('lump'))}</td><td class="n">${GBP(tot('vars'))}</td><td class="n">${GBP(tot('xfer'))}</td><td class="n">${GBP(tot('one'))}</td><td class="n">${GBP(tot('sav'))}</td><td></td><td></td></tr></tbody></table></div>
    <div class="note" style="margin-top:12px">Goals and tax due in the next 12 months need <b>${GBP(dueNeed)}</b> more (tax alone ${GBP(tx)}). You plan to save <b>${GBP(curPlan().savings.monthly)}</b> a month, ${GBP(curPlan().savings.monthly*12)} a year.</div>`}
 
-const findBillTx=(key,amt,k)=>key?monthTx(k).find(t=>t.s!=='man'&&t.a<0&&(t.t||'').toUpperCase().includes(key)&&Math.abs(-t.a-amt)<=amt*.3+1):null;
+const findBillTx=(key,amt,k)=>key?monthTx(k).find(t=>t.s!=='man'&&t.a<0&&keyHit(t.t,key)&&Math.abs(-t.a-amt)<=amt*.3+1):null;
 
 function dedupeComing(list){const seen=new Set(),out=[];list.forEach(e=>{const k=e.k+'|'+e.n;if(e.k==='bill'||e.k==='debt'||e.k==='xfer'){if(seen.has(k))return;seen.add(k)}out.push(e)});return out}

@@ -2,7 +2,7 @@
 const merchKey=t=>{const w=(t||'').toLowerCase().replace(/[^a-z& ]+/g,' ').split(/\s+/).filter(x=>x.length>2&&!/^(the|ltd|plc|uk|card|payment|purchase|visa)$/.test(x));return w.slice(0,2).join(' ')||'other'};
 const ruleOf=D=>(STATE.rules||[]).find(r=>D.includes(r.k.toUpperCase()));
 const catRule=D=>{const r=ruleOf(D);return r?r.c:''};
-const bkey=b=>(b.match||b.name.split(' ')[0]||'').toUpperCase();
+const bkey=b=>(b.match||b.name.replace(/\(.*?\)/g,'').trim()||'').toUpperCase();
 /* bank-specific knowledge: who pays in, which transfers are movements between your own accounts, which payments are debts */
 function bankClass(D,amount){
   if(/PAYMENT RECEIVED|THANK YOU/.test(D))return{c:'_amexpay'};
@@ -25,7 +25,6 @@ function bankClass(D,amount){
   if(/KLARNA.*(TICKET|TICK ET)/.test(D))return{c:'v_ent'};
   if(/AIRBNB/.test(D))return{c:'v_hol'};
   if(/PARENTPAY|ERIN OROURKE|NIAMH CASH/.test(D))return{c:'v_kids'};
-  if(/\b(SHELL|BP|ESSO|TEXACO|JET)\b/.test(D)&&/CD|CARD/.test(D))return{c:'_skip'};
   return null}
 /* shops, venues and people, in the order they should win; only used when nothing more specific has matched */
 const MERCH_RULES=[
@@ -54,19 +53,24 @@ function merchClass(D){for(const r of MERCH_RULES)if(r[0].test(D))return r[2]?{c
 function refundCat(D){const key=merchKey(D.replace(/REFUND|RETURN|REVERSAL|CREDIT|VOUCHER|CHARGEBACK/g,' ')).toUpperCase();if(!key||key==='OTHER')return null;
   const hit=Object.values(TX).flat().filter(t=>t.a<0&&t.c&&isSpendCat(t.c)&&(t.t||'').toUpperCase().includes(key)).sort((x,y)=>x.d<y.d?1:-1)[0];
   if(hit)return{c:hit.c,sc:hit.sc};const r=ruleOf(D.replace(/REFUND|RETURN|REVERSAL/g,''));return r?{c:r.c,sc:r.s}:null}
-function classifyFull(desc,amount){
+function classifyWhy(desc,amount){
   const D=(desc||'').toUpperCase(),P=curPlan();
-  const b=bankClass(D,amount);if(b)return b;
-  if(amount>0){if(/REFUND|RETURN|REVERSAL|CREDIT VOUCHER|CHARGEBACK/.test(D)&&!/APEX|SALARY|WAGES/.test(D)){const r=refundCat(D);return r||{c:''}}return{c:'_inc'}}
-  if(/CASH WITHDRAWAL|\bATM\b|CASHPOINT|CASH MACHINE/.test(D))return{c:'_cashout'};
-  if(/CASH DEPOSIT|CASH IN BRANCH/.test(D))return{c:'_cashin'};
-  if(/AMERICAN EXPRESS|\bAMEX\b/.test(D))return{c:'_amexpay'};
-  const r=ruleOf(D);if(r)return{c:r.c,sc:r.s};
-  if(P.bills.some(b=>bkey(b)&&D.includes(bkey(b))))return{c:'_skip'};
-  if(P.debts.some(d=>D.includes((d.match||d.name.split(' ')[0]).toUpperCase())))return{c:'_skip'};
-  if(/SAVINGS|PREMIUM BOND/.test(D))return{c:'_skip'};
-  const m=merchClass(D);if(m)return m;
-  return{c:''}}
+  const bk=bankClass(D,amount);
+  if(bk){let why='Known payee';if(bk.c==='_inc'&&bk.sc){const i=P.income.find(x=>x.id===bk.sc);why='Matches your income'+(i?': '+i.name.trim():'')}else if(bk.c==='_amexpay')why='Amex payment';else if(bk.c==='v_acash'||bk.c==='v_scash'){const x=(P.transfers||[]).find(t=>t.catId===bk.c);why='Spending money transfer';if(x&&Math.abs(Math.abs(amount)-x.amount)>1)return{...bk,how:'check',why:'Not the usual '+GBP(x.amount)+'. An extra, or a mistake?'}}else if(bk.c==='v_round')why='Round-up to savings';else if(bk.c==='_skip'){why='Known bill, debt or transfer';if(/IKANO/.test(D)&&!P.debts.some(x=>/IKEA|IKANO/i.test(x.name+x.match)&&x.pay>0))return{...bk,how:'check',why:'Looks like your Ikea loan, but no payment is set on it. Add one on Debts?'}}return{...bk,how:'known',why}}
+  if(amount>0){if(/REFUND|RETURN|REVERSAL|CREDIT VOUCHER|CHARGEBACK/.test(D)&&!/APEX|SALARY|WAGES/.test(D)){const r=refundCat(D);return{...(r||{c:''}),how:'refund',why:r?'Looks like a refund to a shop you pay':'Looks like a refund, but no matching shop found'}}
+    const r=refundCat(D);if(r)return{...r,how:'refund',why:'Money in from a shop you pay: refund, not income?'};
+    return{c:'_inc',how:'in',why:'Money in from an unfamiliar payer. Income?'}}
+  if(/CASH WITHDRAWAL|\bATM\b|CASHPOINT|CASH MACHINE/.test(D))return{c:'_cashout',how:'known',why:'Cash withdrawal'};
+  if(/CASH DEPOSIT|CASH IN BRANCH/.test(D))return{c:'_cashin',how:'known',why:'Cash paid in'};
+  if(/AMERICAN EXPRESS|\bAMEX\b/.test(D))return{c:'_amexpay',how:'known',why:'Amex payment'};
+  const r=ruleOf(D);if(r)return{c:r.c,sc:r.s,how:'rule',why:'Your rule: '+r.k.toLowerCase()};
+  if(/\b(SHELL|BP|ESSO|TEXACO|JET)\b/.test(D)&&/\bCD\b|CARD/.test(D)&&!/COFFEE|CAFE|DELI/.test(D))return{c:'_skip',how:'builtin',why:'Fuel station: left out of the household budget. Change it if this was food or coffee.'};
+  const bl=P.bills.find(b=>bkey(b)&&keyHit(D,bkey(b)));if(bl)return{c:'_skip',how:'bill',why:'Matches your bill: '+bl.name.replace(/\(.*?\)/g,'').trim()};
+  const db=P.debts.find(x=>keyHit(D,(x.match||x.name.split(' ')[0])));if(db)return{c:'_skip',how:'bill',why:'Matches your debt: '+db.name};
+  if(/SAVINGS|PREMIUM BOND/.test(D))return{c:'_skip',how:'known',why:'Savings transfer'};
+  const m=merchClass(D);if(m)return{...m,how:'builtin',why:'Built-in guess from the name'};
+  return{c:'',how:'none',why:'Not seen before'}}
+function classifyFull(desc,amount){const r=classifyWhy(desc,amount);return r.sc!==undefined?{c:r.c,sc:r.sc}:{c:r.c}}
 function classify(desc,amount){return classifyFull(desc,amount).c}
 function monthRecords(k){
   if(TX[k]&&TX[k].length)return{src:'app',rows:TX[k]};
@@ -153,7 +157,7 @@ function addTx(){
   view.m=k;saveTx(k);invalidate();persistAll();toast('Added');render()}
 function sortTx(id,k,cv){
   const t=(TX[k]||[]).find(x=>x.id===id);if(!t)return;const c=cv.split(':')[0],sc=cv.split(':')[1];audit('Re-categorised',`${GBP2(Math.abs(t.a))} "${(t.t||'').slice(0,40)}" (${t.d}): ${t.c?(catName({vars:allVars()},t.c)||t.c):'unsorted'} to ${c?(catName({vars:allVars()},c)||c):'unsorted'}`);t.c=c;t.sc=sc||undefined;
-  const kw=merchKey(t.t).toUpperCase();
+  const kw=merchKey(cleanD(t.t)).toUpperCase();
   if(c&&kw&&kw!=='OTHER'&&t.s!=='man'){if(!STATE.rules.find(r=>r.k===kw))STATE.rules.push({k:kw,c,s:sc});
     TX[k].forEach(x=>{if(!x.c&&x.s!=='man'&&x.a<0&&(x.t||'').toUpperCase().includes(kw)){x.c=c;x.sc=sc||undefined}})}
   saveTx(k);invalidate();persistAll();render()}
@@ -189,10 +193,10 @@ function importRows(parsed,src){
   let added=0,skipped=0,merged=0,asked=0;const pay=src==='amex'?'amex':'bank';
   const have=new Set(Object.values(TX).flat().filter(t=>t.s===src).map(t=>t.id));
   parsed.forEach(x=>{if(have.has(x.id)||x.dupe){skipped++;return}
-    const k=x.d.slice(0,7),arr=TX[k]=TX[k]||[];const cf=x.who==='S'&&x.a<0&&!/PAYMENT RECEIVED/i.test(x.t)?{c:'_skip'}:classifyFull(x.t,x.a);let c=cf.c;
+    const k=x.d.slice(0,7),arr=TX[k]=TX[k]||[];const own=x.who==='S'&&x.a<0&&!/PAYMENT RECEIVED/i.test(x.t),cf=own?{c:'_skip',how:'known',why:'Other cardholder, personal'}:classifyWhy(x.t,x.a);let c=cf.c;
     const cands=x.a<0?arr.filter(t=>t.s==='man'&&t.p===pay&&!t.m&&Math.abs(t.a-x.a)<0.005&&dayGap(t.d,x.d)<=3):[];
-    let row={id:x.id,d:x.d,t:x.t,a:x.a,b:x.b,c,sc:cf.sc,who:x.who,s:src,p:pay};
-    if(cands.length===1){const mt=cands[0];row.c=mt.c||c;row.sc=mt.c?mt.sc:row.sc;row.note=mt.t;arr.splice(arr.indexOf(mt),1);merged++}
+    let row={id:x.id,d:x.d,t:x.t,a:x.a,b:x.b,c,sc:cf.sc,who:x.who,s:src,p:pay,how:cf.how,why:cf.why};if(!own&&x.who!=='S'&&cf.how)row.rv='p';
+    if(cands.length===1){const mt=cands[0];row.c=mt.c||c;row.sc=mt.c?mt.sc:row.sc;row.note=mt.t;row.how='typed';row.why='Matched your entry: '+(mt.t||'typed').slice(0,28);arr.splice(arr.indexOf(mt),1);merged++}
     else if(cands.length>1){row.maybe=cands.map(t=>t.id);asked++}
     arr.push(row);added++;
     if(c==='_cashout'||c==='_cashin'){const typ=c==='_cashout'?'out':'deposit',amt=Math.abs(x.a);

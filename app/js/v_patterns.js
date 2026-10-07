@@ -57,7 +57,7 @@ function billsStatus(){
     let range='';if(it.variable){const v=ak.map(kk=>(normHist(kk).fixed.find(f=>f.key===it.fk)||{}).a).filter(x=>x>0);if(v.length>=3)range=` · usually ${GBP(Math.min(...v))} to ${GBP(Math.max(...v))}`}
     const chip=m?'<span class="chip in">✓ Paid</span>':it.day<=dom?'<span class="chip wait">Due, day passed</span>':'<span class="chip mv">Expected</span>';
     return`<tr><td>${esc(it.n)}${it.variable?' <span class="pill warn">variable</span>':''}</td><td>${chip}</td><td class="n">${m?GBP2(-m.a):'about '+GBP2(it.amt)}</td><td class="small muted">${m?fdateS(parseISO(m.d))+(Math.abs(-m.a-it.amt)>=0.5?` · plan ${GBP2(it.amt)}`:' · as planned'):'due the '+ord(it.day)}${range}</td></tr>`}).join('');
-  const paid=items.filter(it=>tx.some(t=>it.key&&(t.t||'').toUpperCase().includes(it.key))).length;
+  const paid=items.filter(it=>tx.some(t=>it.key&&keyHit(t.t,it.key))).length;
   return`<div class="tblwrap"><table><thead><tr><th>Bill</th><th>Status</th><th class="n">Amount</th><th>Note</th></tr></thead><tbody>${rows||'<tr><td colspan="4" class="muted">No bills in the plan.</td></tr>'}</tbody></table></div>
    <p class="small muted" style="margin-bottom:0">${items.length} bills and debts, ${paid} matched to a bank line. Paid ones use the real amount from the bank. "Due, day passed" means the day has gone but no bank line matched: upload your latest NatWest file, or set the match word on Budgets.</p>`}
 function planVersionsPanel(){

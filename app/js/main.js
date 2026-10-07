@@ -9,13 +9,13 @@ document.addEventListener('pointerup',()=>{ptrDown=false;setTimeout(maybeRender,
 document.addEventListener('pointercancel',()=>{ptrDown=false},true);
 document.addEventListener('focusout',()=>setTimeout(maybeRender,0));
 function updateDraftBar(){const h=$('#draftHost');if(!h)return;const now=draftBarInner(),had=!!h.firstElementChild;if(!!now===had)return;h.innerHTML=now}
-const TABS=[['today','Today',vToday,'Every day'],['daily','Day to day',vDaily,'Every day'],['cash','Cash and bank',vCash,'Every day'],
+const TABS=[['today','Today',vToday,'Every day'],['forecast','Forecast',vForecast,'Every day'],['daily','Day to day',vDaily,'Every day'],['cash','Cash and bank',vCash,'Every day'],
  ['where','Where it goes',vWhere,'Understand'],['patterns','Patterns',vPatterns,'Understand'],['pva','Plan vs actual',vPva,'Understand'],['whatif','What if',vWhatIf,'Understand'],['networth','Net worth',vNetworth,'Understand'],['retire','Retirement',vRetire,'Understand'],
  ['budgets','Budgets',vBudgets,'Commitments'],['debts','Debts',vDebts,'Commitments'],['goals','Goals and holidays',vGoals,'Commitments'],['tax','Tax',vTax,'Commitments'],['amex','Amex',vAmex,'Commitments'],
  ['improve','Improvements',vImprove,'Help and settings'],['guide','Guide',vGuide,'Help and settings'],['settings','Settings',vSettings,'Help and settings']];
 function render(){
   const groups=[...new Set(TABS.map(t=>t[3]))];
-  $('#nav').innerHTML='<div class="navg">'+groups.map(g=>`<div class="ng"><small>${g}</small><div>${TABS.filter(t=>t[3]===g).map(([k,l])=>`<button role="tab" data-tab="${k}" aria-selected="${tab===k}">${l}</button>`).join('')}</div></div>`).join('')+'</div>';
+  $('#nav').innerHTML='<div class="navg">'+groups.map(g=>`<div class="ng"><small>${g}</small><div>${TABS.filter(t=>t[3]===g).map(([k,l])=>`<button role="tab" data-tab="${k}" aria-selected="${tab===k}">${l}${k==='today'&&reviewCount()?` <span class="nbadge">${reviewCount()}</span>`:''}</button>`).join('')}</div></div>`).join('')+'</div>';
   let html;try{html=TABS.find(x=>x[0]===tab)[2]()}catch(e){console.error(e);html=`<div class="panel"><h2>Something went wrong on this tab</h2><p class="small muted">${esc(e.message)}</p></div>`}
   $('#main').innerHTML=html;try{applyTips()}catch(e){}
   if(view.modal==='commit')$('#main').insertAdjacentHTML('beforeend',commitModal())}
@@ -57,6 +57,9 @@ document.addEventListener('click',e=>{
   else if(a==='setopen'){STATE.cashOpening=parseFloat($('#c_open').value)||0;STATE.cashOpenDate=todayISO();STATE.cash=[];persistAll();toast('Opening cash set to today');render()}
   else if(a==='add'){addToDraft(d.list);render()}
   else if(a==='auditcopy'){const t=AUDIT.slice().reverse().map(e=>`${e.t}\t${e.by}\t${e.act}\t${e.detail}`).join('\n')||'Nothing recorded';const o=$('#auditOut');o.style.display='block';o.value=t;o.select();try{navigator.clipboard.writeText(t);toast('Copied')}catch(err){toast('Select and copy the text below')}}
+  else if(a==='rvok'){const row=b.closest('.rvr'),sel=row&&row.querySelector('select'),lc=document.getElementById('rvLearn');if(approveRow(d.m,d.id,sel?sel.value:null,lc?lc.checked:true)===false)return;invalidate();persistAll();render()}
+  else if(a==='fmon'){view.fm=d.m;render()}
+  else if(a==='rvall'){reviewApproveAll()}
   else if(a==='retbiz'){STATE.assets.push({id:'a_'+uid(),group:'other',owner:'',name:'New business',value:null});persistAll();render()}
   else if(a==='tickall'){tickAllDue(d.m)}
   else if(a&&a.indexOf('fx_')===0){fxApply(a,d,b)}
@@ -113,5 +116,5 @@ document.addEventListener('input',e=>{
   cancelAnimationFrame(view.raf);view.raf=requestAnimationFrame(()=>{scPaint()})});
 $('#themeBtn').addEventListener('click',()=>{const r=document.documentElement;const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;r.dataset.theme=dark?'light':'dark'});
 (function boot(){
-  const had=loadLocal();try{reconcileTicks()}catch(e){}ensureSnapshot();render();if(had)setSync('Loaded from this device','');
+  const had=loadLocal();try{reconcileTicks();fixWeakClass()}catch(e){}ensureSnapshot();render();if(had)setSync('Loaded from this device','');
   connectDb().catch(()=>{})})();
