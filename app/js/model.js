@@ -130,6 +130,7 @@ const isWages=n=>/wage/i.test(n||'');
 /* bring plans and rules saved before the category changes up to date (idempotent) */
 function migratePlan(p){
   let changed=false;const has=id=>p.vars.some(v=>v.id===id);
+  p.debts.forEach(d=>{if(!d.match&&/ikea/i.test(d.name)){d.match='IKANO';changed=true}});
   const YK={'car insurance':'ADMIRAL','home insurance':'HOME INSURANCE','tv licence':'TV LICENCE','garden waste':'GARDEN WASTE','christmas':'XMAS'};
   p.bills.forEach(b=>{if((b.freq||'monthly')!=='monthly'&&!b.match){const k=Object.keys(YK).find(x=>b.name.toLowerCase().startsWith(x));if(k){b.match=YK[k];changed=true}}});
   (p.transfers||[]).forEach(x=>{if(x.rule==='afterpay'){x.rule='day';x.day=x.day||2;changed=true}});
