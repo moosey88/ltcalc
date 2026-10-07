@@ -57,6 +57,9 @@ document.addEventListener('click',e=>{
   else if(a==='setopen'){STATE.cashOpening=parseFloat($('#c_open').value)||0;STATE.cashOpenDate=todayISO();STATE.cash=[];persistAll();toast('Opening cash set to today');render()}
   else if(a==='add'){addToDraft(d.list);render()}
   else if(a==='auditcopy'){const t=AUDIT.slice().reverse().map(e=>`${e.t}\t${e.by}\t${e.act}\t${e.detail}`).join('\n')||'Nothing recorded';const o=$('#auditOut');o.style.display='block';o.value=t;o.select();try{navigator.clipboard.writeText(t);toast('Copied')}catch(err){toast('Select and copy the text below')}}
+  else if(a==='ddchip'){const D=view.dd=view.dd||{};D.chip=d.c;if(d.c==='month')view.m=thisMonthK();if(d.c==='last'){D.chip='month';view.m=addMonthsK(thisMonthK(),-1)}render()}
+  else if(a==='rownote'){view.ne=d.id;render();const i=document.getElementById('ne_in');if(i)i.focus()}
+  else if(a==='rownotesave'){const i=document.getElementById('ne_in'),t=(TX[d.m]||[]).find(x=>x.id===d.id);if(t&&i){const v=i.value.trim();if(v)t.note=v;else delete t.note;audit('Note on a transaction',`${(t.t||'').slice(0,30)}: ${v||'cleared'}`);saveTx(d.m)}view.ne=null;invalidate();persistAll();render()}
   else if(a==='rvok'){const row=b.closest('.rvr'),sel=row&&row.querySelector('select'),lc=document.getElementById('rvLearn');if(approveRow(d.m,d.id,sel?sel.value:null,lc?lc.checked:true)===false)return;invalidate();persistAll();render()}
   else if(a==='fmon'){view.fm=d.m;render()}
   else if(a==='rvall'){reviewApproveAll()}
@@ -91,6 +94,7 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('change',async e=>{
   const el=e.target,d=el.dataset;
+  if(d.dd){const D=view.dd=view.dd||{chip:'month'};D[d.dd]=el.value;if(d.dd==='from'||d.dd==='to')D.chip='custom';render();return}
   if(d.r){const v=parseVal(el);if(d.r==='plan'){setPath(draft(),d.p,v);invalidate()}else{setPath(STATE,d.p,v);afterState(d.p,v);invalidate();persistAll()}updateDraftBar();if(tab==='retire'){const ae=document.activeElement,key=ae&&ae.dataset&&ae.dataset.p;render();if(key){const n=document.querySelector('[data-p="'+key+'"]');if(n)n.focus()}return}softRender();return}
   if(d.cat!==undefined){sortTx(d.cat,d.m,el.value);return}
   if(el.id==='fCompare'){view.compare=el.value;render();return}

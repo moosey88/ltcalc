@@ -194,3 +194,10 @@ body:has(.draftbar){padding-bottom:110px}
 @media(max-width:700px){.draftbar{flex-direction:column;align-items:stretch}.draftbar .row{justify-content:space-between}}
 
 .amxgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}.amc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px}.amc.due{border:2px solid var(--warn)}.amtbig{font-size:1.7rem;font-weight:750;letter-spacing:-.01em;margin:4px 0}.amc small{color:var(--muted);display:block}.amtbig input{font-size:1.4rem;font-weight:700}.lnk{text-decoration:underline;cursor:pointer;color:var(--bank);font-weight:600}
+
+.bar.split{display:flex;background:var(--line)}.bar.split i{display:block;height:100%}.bar.split .d{background:var(--bank)}.bar.split .a{background:#8a4bd6}.bar.split.over{box-shadow:0 0 0 1.5px var(--bad)}.bar.split.ahead{box-shadow:0 0 0 1.5px var(--warn)}
+.amxn{font-size:.74rem;color:#8a4bd6;margin-top:2px}.bleg{display:inline-flex;gap:12px;font-size:.75rem;color:var(--ink2)}.bleg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px}.bleg i.d{background:var(--bank)}.bleg i.a{background:#8a4bd6}
+.pill.amx{background:#efe6fb;color:#6b3aa8}
+.ddf .chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.chipb{border:0;border-radius:99px;padding:5px 13px;background:var(--line);color:var(--ink2);font:inherit;font-weight:600;cursor:pointer}.chipb.on{background:var(--ink);color:var(--bg)}
+.ddf .fb{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin:6px 0 10px}.ddf .fb label{display:flex;flex-direction:column;font-size:.68rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:700;gap:3px}.ddf .fb input,.ddf .fb select{min-width:130px;font-size:.9rem;text-transform:none;letter-spacing:0;font-weight:400}
+.ledg .nt{display:block;font-size:.8rem;color:var(--ink2);font-style:italic}.nbtn{border:0;background:none;color:var(--muted);font:inherit;font-size:.75rem;font-style:normal;cursor:pointer;padding:0 0 0 6px;opacity:.55}.ledg tr:hover .nbtn{opacity:1;text-decoration:underline}.rnrow{display:flex;gap:6px;margin-top:4px}.rnrow input{flex:1;min-width:120px}
