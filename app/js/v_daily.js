@@ -114,8 +114,8 @@ function ledgerBlock(m,rec,rowsV,bud,by,unc,totB,totS,src,isNow,dom,n,P){
    ${src==='app'||isNow?`<div class="panel"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Still to tick (${pend.length})</h3>${dueNow.length?`<button class="btn ghost sm" data-act="tickall" data-m="${m}">Tick all due</button>`:''}</div>
     ${pend.slice(0,12).map(it=>`<div class="row tk" style="justify-content:space-between"><span>${tickBox(it.kind,it.id,m)} ${esc(it.name)}</span><span class="small muted">${ord(it.day)} · ${GBP2(it.amt)}</span></div>`).join('')||'<p class="small muted" style="margin:4px 0 0">Everything is ticked or on the bank file.</p>'}${pend.length>12?`<p class="small muted" style="margin:4px 0 0">${pend.length-12} more in the full list below.</p>`:''}</div>`:''}</div>`;
   return`<div class="c12 dd"><div class="panel"><div class="row" style="justify-content:space-between"><h2>Day by day, ${fmonthLong(m)}</h2><div class="row"><button class="btn ghost sm" data-act="mprev" aria-label="Previous month">‹</button><button class="btn ghost sm" data-act="mnext" aria-label="Next month">›</button></div></div>${src==='sheet'?'<p class="small muted" style="margin-top:0">From your sheet. Budgets are what you planned then.</p>':''}${ledger}</div>${rail}</div>`}
-function uploadPanel(){return`<div class="panel c4 upl"><h2>Upload a statement</h2><div class="fileBox"><select id="impSrc"><option value="nw">NatWest current account</option><option value="amex">Amex card</option></select><input type="file" id="impFile" accept=".csv,text/csv"><p id="impMsg" class="small" style="margin:4px 0 0"></p></div>
-    <p class="small muted" style="margin:6px 0 0">CSV from NatWest or Amex online banking. The same file twice is safe. <b>Amex has two cardholders: only ${esc(amexJointName())}\'s spending is joint and counted. The other cardholder\'s is personal and left out.</b></p></div>`}
+function uploadPanel(){return`<div class="panel c4 upl"><h2>Upload a statement</h2><div class="fileBox"><select id="impSrc"><option value="nw">NatWest current account</option><option value="amex">Amex card</option></select><input type="file" id="impFile" accept=".csv,text/csv,.pdf,application/pdf" multiple><p id="impMsg" class="small" style="margin:4px 0 0"></p></div>
+    <p class="small muted" style="margin:6px 0 0">CSV or PDF statements from NatWest or Amex (pick several at once). PDFs are read on your device and identified automatically. The same file twice is safe. <b>Amex has two cardholders: only ${esc(amexJointName())}\'s spending is joint and counted. The other cardholder\'s is personal and left out.</b></p></div>`}
 /* every budget this month, with progress: used on Today */
 function budgetsPanel(m){
   const bud=budgetsOf(m),{by,unc,src}=catTotalsFor(m),P=planFor(m),xcat=new Set((P.transfers||[]).map(x=>x.catId)),isNow=m===thisMonthK(),n=dim(+m.slice(0,4),monthOf(m)-1),dom=isNow?+todayISO().slice(8):n;
@@ -177,10 +177,16 @@ function importText(text,src){
   if(iD<0||iDesc<0||iV<0)return'Could not find Date, Description and Value or Amount columns. Is this a NatWest or Amex CSV?';
   const parsed=[];rows.slice(1).forEach(r=>{const d=toISO(r[iD]||'');let a=num(r[iV]);if(!d||a==null)return;if(src==='amex')a=-a;parsed.push({d,t:(r[iDesc]||'').trim().replace(/\s+/g,' '),a,b:iB>=0?num(r[iB]):null,who:iW>=0?(amexIsJoint(r[iW]||'')?'A':'S'):undefined})});
   if(!parsed.length)return'No valid rows found.';
+  return importRows(parsed,src)}
+/* shared by CSV and PDF: parsed is [{d,t,a,b,who}] */
+function importRows(parsed,src){
+  /* the same line may arrive from a CSV and a PDF with different wording: match on date, amount and balance */
+  const cnt={};Object.values(TX).flat().filter(t=>t.s===src).forEach(t=>{const k=t.d+'|'+t.a+'|'+(src==='nw'?t.b:(t.who||''));cnt[k]=(cnt[k]||0)+1});
+  parsed=parsed.filter(x=>{const k=x.d+'|'+x.a+'|'+(src==='nw'?x.b:(x.who||''));if(cnt[k]>0){cnt[k]--;x.dupe=true}return true});
   const seen={};parsed.forEach(x=>{const key=x.d+'|'+x.t+'|'+x.a+'|'+x.b;seen[key]=(seen[key]||0)+1;x.id=src+'_'+key+'#'+seen[key]});
   let added=0,skipped=0,merged=0,asked=0;const pay=src==='amex'?'amex':'bank';
   const have=new Set(Object.values(TX).flat().filter(t=>t.s===src).map(t=>t.id));
-  parsed.forEach(x=>{if(have.has(x.id)){skipped++;return}
+  parsed.forEach(x=>{if(have.has(x.id)||x.dupe){skipped++;return}
     const k=x.d.slice(0,7),arr=TX[k]=TX[k]||[];const cf=x.who==='S'&&x.a<0&&!/PAYMENT RECEIVED/i.test(x.t)?{c:'_skip'}:classifyFull(x.t,x.a);let c=cf.c;
     const cands=x.a<0?arr.filter(t=>t.s==='man'&&t.p===pay&&!t.m&&Math.abs(t.a-x.a)<0.005&&dayGap(t.d,x.d)<=3):[];
     let row={id:x.id,d:x.d,t:x.t,a:x.a,b:x.b,c,sc:cf.sc,who:x.who,s:src,p:pay};

@@ -94,7 +94,7 @@ document.addEventListener('change',async e=>{
   if(el.id==='fCat'){view.cat=el.value;render();return}
   if(d.act==='tick'){toggleTick(d.kind,d.id,d.m);return}
   if(d.act==='flagexcl'){const s=new Set(STATE.flagExcl||[]);el.checked?s.add(d.v):s.delete(d.v);STATE.flagExcl=[...s];persistAll();return}
-  if(el.id==='impFile'&&el.files[0]){const msg=$('#impMsg');msg.textContent='Reading…';try{const text=await el.files[0].text();const r=importText(text,$('#impSrc').value);toast('Imported');render();const m2=$('#impMsg');if(m2)m2.textContent=r}catch(err){msg.textContent='Could not read that file: '+err.message}}
+  if(el.id==='impFile'&&el.files[0]){const msg=$('#impMsg');msg.textContent='Reading…';const out=[];try{for(const f of el.files){if(/\.pdf$/i.test(f.name)||f.type==='application/pdf'){try{out.push(await importPdfFile(f))}catch(err){out.push(f.name+': '+err.message)}}else out.push(importText(await f.text(),$('#impSrc').value))}toast('Imported');render();const m2=$('#impMsg');if(m2)m2.innerHTML=out.map(esc).join('<br>')}catch(err){msg.textContent='Could not read that file: '+err.message}}
 });
 document.addEventListener('input',e=>{
   const el=e.target,d=el.dataset;
