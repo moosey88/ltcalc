@@ -30,10 +30,15 @@ function draftBar(){return`<div id="draftHost">${draftBarInner()}</div>`}
 function draftBarInner(){
   if(!editing()||!draftDirty())return'';
   const nm=nextMonthK(),cm=thisMonthK(),start=isStartPlan();
-  const opts=start?`<option value="correct">Correct the starting plan</option><option value="${nm}">From ${fmonthLong(nm)}</option>`:`<option value="${nm}">From ${fmonthLong(nm)} (next month)</option><option value="${cm}">From this month, ${fmonthLong(cm)}</option><option value="correct">Fix a mistake in the current plan</option>`;
-  return`<div class="draftbar"><span><b>You have unsaved plan changes.</b> Past months are never changed.</span><span class="row"><label class="small">Starts <select id="draftFrom">${opts}</select></label><button class="btn" data-act="savedraft">Save plan</button><button class="btn ghost" data-act="discard">Discard</button></span></div>`}
+  const mo=`<option value="month">This month only (${fmonthLong(cm)}), then back to normal</option>`;
+  const opts=start?`<option value="${nm}">From ${fmonthLong(nm)} onwards</option>${mo}<option value="correct">Correct the starting plan (changes every month)</option>`:`<option value="${nm}">From ${fmonthLong(nm)} onwards (next month)</option>${mo}<option value="${cm}">From this month, ${fmonthLong(cm)} onwards</option><option value="correct">Fix a mistake in the current plan</option>`;
+  return`<div class="draftbar"><span><b>You have unsaved plan changes.</b> <span class="small">Nothing changes until you save. Past months never change.</span></span><span class="row"><label class="small">Apply <select id="draftFrom">${opts}</select></label><button class="btn pri" data-act="savedraft">Save plan</button><button class="btn ghost" data-act="discard">Discard</button></span></div>`}
 function saveDraft(){
   const sel=$('#draftFrom'),from=sel?sel.value:nextMonthK();
+  if(from==='month'){const cm=thisMonthK(),nm=nextMonthK(),back=clone(planFor(nm));
+    commitPlan(DRAFT,cm,'This month only',ME.name||'');
+    commitPlan(back,nm,'Back to normal after a one-month change',ME.name||'');
+    DRAFT=null;resetHist();invalidate();persistAll();toast('Saved for '+fmonthLong(cm)+' only. '+fmonthLong(nm)+' goes back to your normal plan.');render();return}
   if(from==='correct'){commitPlan(DRAFT,thisMonthK(),'Corrected',ME.name||'',true)}
   else commitPlan(DRAFT,from,'Plan changed',ME.name||'');
   DRAFT=null;resetHist();invalidate();persistAll();toast('Plan saved'+(from==='correct'?'':' from '+fmonthLong(from)));render()}

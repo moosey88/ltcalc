@@ -185,3 +185,10 @@ details>summary{cursor:pointer}
 .cols3{display:grid;grid-template-columns:repeat(3,1fr);gap:34px;margin-top:22px}@media(max-width:900px){.cols3{grid-template-columns:1fr;gap:22px}}
 .cols3 .lbl{margin-bottom:6px;display:block}.fld{display:flex;align-items:baseline;gap:6px;padding:5px 0}.fld .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62%}.fld .fill{flex:1;border-bottom:1.5px dotted var(--line);transform:translateY(-3px);min-width:10px}.fld .am{font-weight:600}.fld.done{color:var(--muted)}.fld .fdy{color:var(--muted);font-size:.75rem}
 .fdt{display:inline-block;width:9px;height:9px;border-radius:50%;border:2px solid var(--muted);margin-right:6px;flex:none}.fdt.ok{background:var(--good);border-color:var(--good)}.fdt.od{border-color:var(--warn);background:var(--warn-bg,#fdf1d6)}
+
+/* the unsaved-plan bar floats at the bottom so it is always in view */
+.draftbar{position:fixed!important;top:auto!important;bottom:14px;left:50%;transform:translateX(-50%);width:min(940px,calc(100% - 24px));z-index:40;box-shadow:0 10px 30px -8px rgba(0,0,0,.45);border-width:2px;padding:12px 16px;margin:0!important}
+.draftbar .btn.pri{background:var(--ink);color:var(--bg);border-color:var(--ink);padding:8px 20px;font-size:1rem}
+.draftbar select{max-width:250px}
+body:has(.draftbar){padding-bottom:110px}
+@media(max-width:700px){.draftbar{flex-direction:column;align-items:stretch}.draftbar .row{justify-content:space-between}}
