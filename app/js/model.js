@@ -36,8 +36,8 @@ function defaultPlan(){return{
     {id:'v_xmas',name:'Christmas and gifts',budget:0,kind:'want',cardOK:true},
     {id:'v_other',name:'Other',budget:0,kind:'want',cardOK:true}],
   transfers:[
-    {id:'t_annie',name:'Annie spending money',amount:750,rule:'afterpay',day:2,catId:'v_acash'},
-    {id:'t_sander',name:'Sander spending money',amount:500,rule:'afterpay',day:2,catId:'v_scash'}],
+    {id:'t_annie',name:'Annie spending money',amount:750,rule:'day',day:2,catId:'v_acash'},
+    {id:'t_sander',name:'Sander spending money',amount:500,rule:'day',day:2,catId:'v_scash'}],
   savings:{monthly:2000,day:1},
   tax:[{id:'tx_main',name:'Personal tax bill',last:null,adj:100,date:'2027-04-30'}],
   goals:[],
@@ -130,6 +130,7 @@ const isWages=n=>/wage/i.test(n||'');
 /* bring plans and rules saved before the category changes up to date (idempotent) */
 function migratePlan(p){
   let changed=false;const has=id=>p.vars.some(v=>v.id===id);
+  (p.transfers||[]).forEach(x=>{if(x.rule==='afterpay'){x.rule='day';x.day=x.day||2;changed=true}});
   const eat=p.vars.find(v=>v.id==='v_eat');
   if(eat){const b=eat.budget||0;p.vars=p.vars.filter(v=>v.id!=='v_eat');
     if(!has('v_take'))p.vars.push({id:'v_take',name:'Takeaways',budget:Math.round(b/2),kind:'want',cardOK:true});
