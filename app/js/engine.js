@@ -1,7 +1,16 @@
 /* ===== forecast engine: runs day by day from today's real bank balance ===== */
 const monthTx=k=>TX[k]||[];
 const spentIn=(k,catId)=>-sum(monthTx(k).filter(t=>t.c===catId),t=>t.a);   // spend is stored negative
-const amexOwedNow=()=>(STATE.amexOwed||0)+sum(Object.values(TX).flat().filter(t=>t.p==='amex'&&t.who!=='S'&&(t.a<0||(t.c&&isSpendCat(t.c)))&&t.d>(STATE.amexOwedDate||STATE.startedAt||'0')),t=>-t.a);
+/* Amex statements: closed ones due on a date, and the open one still building. Joint cardholder only. */
+const amexRows=()=>Object.values(TX).flat().filter(t=>t.p==='amex'&&t.who!=='S'&&(t.a<0||(t.c&&isSpendCat(t.c))));
+function amexStatementList(asOfISO){
+  const A=curPlan().amex,today=asOfISO||STATE.asOf||todayISO(),ty=+today.slice(0,4),tm=+today.slice(5,7)-1,rows=amexRows(),ov=STATE.amexStmt||{};
+  const closes=[];for(let i=-4;i<=1;i++){const y=ty+Math.floor((tm+i)/12),m=((tm+i)%12+12)%12,d=Math.min(A.closeDay||5,dim(y,m));closes.push(`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`)}
+  const out=[];closes.forEach((close,i)=>{if(i===0)return;const from=addDays(closes[i-1],1),mine=rows.filter(t=>t.d>=from&&t.d<=close),sum_=-sum(mine,t=>t.a),o=ov[close],has=o&&o.total!=null&&o.total!=='';
+    const due=addDays(close,A.dueDays||25),closed=close<=today;
+    out.push({close,from,due,rows:mine.sort((a,b)=>a.d<b.d?-1:1),calc:sum_,total:has?+o.total:Math.max(0,sum_),src:has?(o.src||'typed'):closed?'estimated':'open',state:!closed?'open':due<=today?'paid':'due'})});
+  return out}
+const amexOwedNow=()=>sum(amexStatementList().filter(s=>s.state!=='paid'),s=>s.total);
 function buildGoals(P,st){
   return[...(P.tax||[]).map(t=>({id:t.id,name:t.name,kind:'tax',target:(t.last||0)*((t.adj??100)/100),saved:(st.taxSaved||{})[t.id]||0,date:t.date,monthly:0,spend:true,amex:false,pri:0})),
          ...(P.goals||[]).map(g=>({...g,kind:g.kind||'other',spend:true,saved:(st.goalSaved||{})[g.id]||0,pri:1}))]}
@@ -10,7 +19,8 @@ function simulate(o={}){
   const st=o.state||STATE,asOf=o.asOf||st.asOf,planOf=o.planOf||planFor,horizon=o.horizon||24;
   const s0=parseISO(asOf)+DAY,sd=new Date(s0),end=U(sd.getUTCFullYear(),sd.getUTCMonth()+horizon,sd.getUTCDate()),start=s0;
   const P0=planOf(ym(start)),A0=P0.amex;
-  let bank=(st.bank||0)+sinceBalance(asOf),cycle=o.amexOwed!=null?o.amexOwed:amexOwedNow(),cardSpend=0,feeTotal=0;const stmts=[];
+  let bank=(st.bank||0)+sinceBalance(asOf),cycle=0,cardSpend=0,feeTotal=0;const stmts=[];
+  if(o.amexOwed!=null)cycle=o.amexOwed;else amexStatementList(asOf).forEach(s=>{if(s.state==='open')cycle=s.total;else if(s.state==='due'&&s.total>0.005)stmts.push({close:parseISO(s.close),due:parseISO(s.due),amt:s.total,known:true})});
   const P1=planOf(ym(start));const G0=buildGoals(P1,st);
   const pots={general:st.general||0,yearly:0};G0.forEach(g=>pots[g.id]=g.saved||0);
   const done={},hit={},gsp={},dbal={};(P1.debts||[]).forEach(d=>dbal[d.id]=st.debtBal[d.id]);

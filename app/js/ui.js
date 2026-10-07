@@ -1,7 +1,7 @@
 /* ===== shared UI pieces: editable fields, draft plan, filters ===== */
 const view={win:90,m:thisMonthK(),cut:20,period:'latest',compare:'prev',pat:'12',cat:'all',raf:null,open:{},scen:null,planMode:null,nwOpen:{}};
 let FC=null,FCkey='';
-const fcKey=()=>JSON.stringify([STATE.bank,STATE.asOf,STATE.debtBal,STATE.general,STATE.lumps,STATE.amexOwed,VERSIONS.map(v=>v.at),Object.keys(TX).map(k=>k+TX[k].length)]);
+const fcKey=()=>JSON.stringify([STATE.bank,STATE.asOf,STATE.debtBal,STATE.general,STATE.lumps,STATE.amexOwed,STATE.amexStmt,VERSIONS.map(v=>v.at),Object.keys(TX).map(k=>k+TX[k].length)]);
 function fc(){const k=fcKey();if(FC&&FCkey===k)return FC;FC=simulate();FCkey=k;return FC}
 const invalidate=()=>{FC=null};
 /* plan fields are edited on a draft, then saved from a chosen month on */

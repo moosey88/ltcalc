@@ -8,8 +8,9 @@ function vForecast(){
   const md=S.days.filter(d=>ym(d.t)===m),low=md.length?md.reduce((a,b)=>b.bank<a.bank?b:a,md[0]):null;
   const items=expectedItems(m),st=it=>{if(!isNow)return'plan';const b=bankRowFor(it,m),tk=tickRow(m,it.id);return b?'bank':tk?'tick':it.day<=dom?'over':'due'};
   const dot=s=>`<i class="fdt ${s==='bank'||s==='tick'?'ok':s==='over'?'od':''}"></i>`;
-  const line=it=>{const s=st(it),done=s==='bank'||s==='tick';return`<div class="fld ${done?'done':''}" title="${s==='over'?'Due, and not on the bank yet. Counted as leaving today.':s==='bank'?'On the bank file':s==='tick'?'You ticked it':'Still to come'}">${dot(s)}<span class="nm">${esc(it.name.replace(/\(.*?\)/g,'').trim())}</span><span class="fdy">${ord(it.day)}</span><span class="fill"></span><span class="am">${GBP(it.amt)}</span></div>`};
-  const inL=items.filter(x=>x.kind==='inc'),outL=items.filter(x=>x.kind!=='inc'),bud=budgetsOf(m),{by}=catTotalsFor(m),xcat=new Set((P.transfers||[]).map(x=>x.catId));
+  const line=it=>{const s=it.kind==='amex'?(isNow&&it.day<=dom&&false?'bank':'plan'):st(it),done=s==='bank'||s==='tick';return`<div class="fld ${done?'done':''}" title="${s==='over'?'Due, and not on the bank yet. Counted as leaving today.':s==='bank'?'On the bank file':s==='tick'?'You ticked it':'Still to come'}">${dot(s)}<span class="nm">${esc(it.name.replace(/\(.*?\)/g,'').trim())}</span><span class="fdy">${ord(it.day)}</span><span class="fill"></span><span class="am">${GBP(it.amt)}</span></div>`};
+  const amxL=S.events.filter(e=>e.k==='amex'&&ym(e.t)===m).map(e=>{const s=S.stmts.find(x=>x.due===e.t);return{name:'Amex statement'+(s?' (closed '+fdate(s.close).replace(/ \d{2}$/,'')+')':''),amt:-e.a,day:+new Date(e.t).getUTCDate(),kind:'amex'}});
+  const inL=items.filter(x=>x.kind==='inc'),outL=[...items.filter(x=>x.kind!=='inc'),...amxL],bud=budgetsOf(m),{by}=catTotalsFor(m),xcat=new Set((P.transfers||[]).map(x=>x.catId));
   const vL=allVars().filter(v=>!xcat.has(v.id)&&bud[v.id]>0).map(v=>({n:v.name,b:bud[v.id],s:isNow?(by[v.id]||0):0}));
   const nOver=isNow?outL.filter(x=>st(x)==='over').length:0,overSum=sum(outL.filter(x=>isNow&&st(x)==='over'),x=>x.amt);
   const seg=`<div class="seg" role="tablist">${ms.map(x=>`<button data-act="fmon" data-m="${x.k}" class="${x.k===m?'on':''}">${fmonth(x.k)}</button>`).join('')}</div>`;

@@ -6,7 +6,9 @@ const bkey=b=>(b.match||b.name.replace(/\(.*?\)/g,'').trim()||'').toUpperCase();
 /* bank-specific knowledge: who pays in, which transfers are movements between your own accounts, which payments are debts */
 function bankClass(D,amount){
   if(/PAYMENT RECEIVED|THANK YOU/.test(D))return{c:'_amexpay'};
+  if(/ADMIRAL MOTO/.test(D))return{c:'v_kids'};
   if(amount>0){
+    if(/(NIAMH|ERIN).*(INSUR)|CAR INSUR/.test(D))return{c:'v_kids'};
     if(/APEX BUSINESS COMP/.test(D)&&Math.abs(amount-479.16)<0.01)return{c:'_inc',sc:'i_dirloan'};
     if(/APEX BUSINESS COMP/.test(D))return{c:'_inc',sc:'i_annie'};
     if(/FROM A\/C 67511279/.test(D))return{c:'_inc',sc:'i_sander'};

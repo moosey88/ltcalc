@@ -12,7 +12,7 @@ function adviceList(S){
   const neg=S.days.find(d=>d.bank<0);
   if(neg){const need=-S.lowBank.v+buf,m=ym(neg.t);
     add('neg',"bad",`The bank goes overdrawn on ${fdate(neg.t)}`,`It reaches ${GBP(S.lowBank.v)} on ${fdate(S.lowBank.t)}. To stay above your ${GBP(buf)} buffer you need about ${GBP(need)} more by then. ${sav>=need?`Pausing the ${GBP(sav)} savings transfer in ${fmonthLong(m)} would cover it.`:`Even pausing the ${GBP(sav)} savings transfer is not enough, so trim budgets or move a yearly bill.`} Try it in What if.`,'whatif')}
-  else if(S.lowTrue.v<buf)add('tight','warn',`Cash gets tight on ${fdate(S.lowTrue.t)}`,`After what you owe Amex it falls to ${GBP(S.lowTrue.v)}, under your ${GBP(buf)} buffer. A smaller savings transfer that month would fix it.`,'whatif');
+  else if(S.lowTrue.v<buf)add('tight','bad',`The bank would not cover the Amex and your buffer on ${fdate(S.lowTrue.t)}`,`After setting aside what you owe Amex, cash falls to ${GBP(S.lowTrue.v)}, which is ${GBP(buf-S.lowTrue.v)} under your ${GBP(buf)} buffer. A smaller savings transfer that month would fix it.`,'whatif');
   /* yearly bills: set aside monthly so they never ambush the account */
   P.bills.filter(b=>(b.freq||'monthly')==='yearly'&&b.amount>=75).forEach(b=>{
     const mo=b.month||12,cur=monthOf(now);let ahead=(mo-cur+12)%12;if(ahead===0&&+todayISO().slice(8)>b.day)ahead=12;if(ahead===0)ahead=1;

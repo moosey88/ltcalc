@@ -64,8 +64,10 @@ function parseAmexPdf(pages){
   /* payments received come before the first cardholder total; keep them as joint */
   rows.push(...pend);
   const bad=Object.entries(totals).filter(([w,t])=>Math.abs(-sum(rows.filter(r=>(amexIsJoint(w)?'A':'S')===r.who&&r.a<0&&!/PAYMENT RECEIVED/i.test(r.t)),r=>r.a)-t)>.02&&Object.keys(totals).length===1);
-  return{rows,warn:bad.length?'The lines read do not add up to the statement total, so check this file.':''}}
+  const closeISO=`${endY}-${String(endM).padStart(2,'0')}-${String(+per[3]).padStart(2,'0')}`,jk=Object.keys(totals).find(w=>amexIsJoint(w));
+  return{rows,close:closeISO,jointTotal:jk?totals[jk]:0,warn:bad.length?'The lines read do not add up to the statement total, so check this file.':''}}
 async function importPdfFile(file){
   const pages=await pdfLines(file),kind=pdfKind(pages);if(!kind)throw new Error('That PDF does not look like a NatWest or Amex statement');
   const r=kind==='amex'?parseAmexPdf(pages):kind==='nwtx'?parseNatWestTxPdf(pages):parseNatWestPdf(pages);if(!r.rows.length)throw new Error('No transactions found in that PDF');
-  const msg=importRows(r.rows,kind==='nwtx'?'nw':kind);return`${file.name}: ${kind==='amex'?'Amex':'NatWest'}${kind==='nwtx'?' transactions':''}. ${msg}${r.warn?' '+r.warn:''}`}
+  const msg=importRows(r.rows,kind==='nwtx'?'nw':kind);
+  if(kind==='amex'&&r.close){(STATE.amexStmt=STATE.amexStmt||{})[r.close]={total:Math.round(r.jointTotal*100)/100,src:'pdf'};audit('Amex statement total set',`${fdate(parseISO(r.close))}: ${GBP2(r.jointTotal)} (PDF)`);invalidate();persistAll()}return`${file.name}: ${kind==='amex'?'Amex':'NatWest'}${kind==='nwtx'?' transactions':''}. ${msg}${r.warn?' '+r.warn:''}`}

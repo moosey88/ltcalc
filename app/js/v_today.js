@@ -75,7 +75,7 @@ function vToday(){
    <div class="kpi"><span>Left over before payday</span><b class="${head<0?'neg':'pos'}">${GBP(head)}</b><small>${np?'wages '+fdate(np.t)+'. After every planned bill, your remaining budgets, what you owe Amex and your '+GBP(buf)+' buffer':'add wages in Budgets'}</small></div>
    <div class="kpi" ${lc&&Math.abs(lc.diff)>=1?'style="border-color:var(--warn)"':''}><span>Bank check</span><b class="${lc&&Math.abs(lc.diff)>=1?'warnc':''}">${lc?(Math.abs(lc.diff)<1?'Matches':GBP(lc.diff)):'–'}</b><small>${lc?(Math.abs(lc.diff)<1?'entries add up to the bank':`Bank shows ${GBP2(lc.est+lc.diff)}, expected ${GBP2(lc.est)}. Fix it in Weekly check below.`):'updates when you add a balance'}</small></div>
    ${reviewCount()?`<div class="kpi" style="border-color:var(--warn)"><span>To review</span><b class="warnc">${reviewCount()} line${reviewCount()>1?'s':''}</b><small>new from your last upload. Approve them below.</small></div>`:''}
-   <div class="kpi"><span>Amex</span><b style="padding:6px 0;font-size:1.2rem">${verdictPill(S)}</b><small>${esc(S.why)}</small></div></div>
+   ${amexTile(S)}</div>
   <div class="grid">
    ${uploadPanel()}
    ${reviewPanel()||''}

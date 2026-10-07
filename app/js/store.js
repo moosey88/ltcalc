@@ -54,7 +54,7 @@ async function connectDb(){
     try{fn(JSON.parse(d.json));setSync('Synced','ok');if(!busy())render()}catch(e){}},e=>setSync('Not synced ('+(e&&e.code||'error')+')','bad'));
   apply('hh/plan',v=>{if(Array.isArray(v)&&v.length){VERSIONS=v;migrateAll();lsSet('versions',v)}});
   apply('hh/state',s=>{STATE=Object.assign(defaultState(),s);if(!STATE.rules)STATE.rules=ruleObjs();migrateAll();lsSet('state',STATE)});
-  db.collection('tx').onSnapshot(snap=>{snap.docs.forEach(d=>{try{TX[d.id]=JSON.parse(d.data().json)}catch(e){}});try{reconcileTicks();fixWeakClass()}catch(e){}if(!busy())render()},()=>{});
+  db.collection('tx').onSnapshot(snap=>{snap.docs.forEach(d=>{try{TX[d.id]=JSON.parse(d.data().json)}catch(e){}});try{reconcileTicks();fixWeakClass();fixAdmiral()}catch(e){}if(!busy())render()},()=>{});
   db.collection('audit').onSnapshot(snap=>{const a=[];snap.docs.forEach(d=>{try{a.push(JSON.parse(d.data().json))}catch(e){}});if(a.length){const have=new Set(a.map(x=>x.id));AUDIT.forEach(x=>{if(!have.has(x.id))a.push(x)});AUDIT=a.sort((x,y)=>x.t<y.t?-1:1);lsSet('audit',AUDIT.slice(-1500))}},()=>{});
   db.collection('hist').onSnapshot(snap=>{let n=0;snap.docs.forEach(d=>{try{const o=JSON.parse(d.data().json);const ms=o.months||(o.k?{[o.k]:o}:null);if(ms){ingestHist(ms);n++}}catch(e){}});if(n){resetHist();if(!busy())render()}},()=>{});
   setSync('Connected','ok');return true}

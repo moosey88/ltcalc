@@ -192,3 +192,5 @@ details>summary{cursor:pointer}
 .draftbar select{max-width:250px}
 body:has(.draftbar){padding-bottom:110px}
 @media(max-width:700px){.draftbar{flex-direction:column;align-items:stretch}.draftbar .row{justify-content:space-between}}
+
+.amxgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}.amc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px}.amc.due{border:2px solid var(--warn)}.amtbig{font-size:1.7rem;font-weight:750;letter-spacing:-.01em;margin:4px 0}.amc small{color:var(--muted);display:block}.amtbig input{font-size:1.4rem;font-weight:700}.lnk{text-decoration:underline;cursor:pointer;color:var(--bank);font-weight:600}
