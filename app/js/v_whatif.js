@@ -23,6 +23,13 @@ function vWhatIf(){
     <p style="margin:0">Nothing is saved until you press <b>Make this my plan</b>, and that only applies from the month you choose.</p></div></details></div>
    <div class="wi">
    <div id="scTop" class="scwrap">${pp[0]}</div>
+   <div class="panel" id="scDebtP" style="margin-bottom:12px"><div class="slgrp"><div class="lbl">Pay a debt down faster</div><div class="slcols">
+    <div class="sl"><label for="debtSel">Which debt</label><span></span><select id="debtSel" data-sl="debtSel" style="grid-column:1/-1">${dopt}</select></div>
+    ${slider('extra','Extra each month',sc.extra,0,3000,25,`On top of the normal payment. Check your lender's yearly overpayment limit.`,GBP,0)}
+    ${slider('lump','One-off lump sum',sc.lump,0,150000,500,'',GBP,0)}
+    <div class="sl"><label for="lumpDate">Lump sum date</label><span></span><input type="date" id="lumpDate" data-sl="lumpDate" value="${sc.lumpDate}" style="grid-column:1/-1"></div>
+    </div></div>
+<div id="scDebt">${pp[2]}</div></div>
    <div class="panel wi-l"><div class="slgrp"><div class="lbl">Income per month</div><div class="slcols">${inc}</div></div>
     <div class="slgrp"><div class="lbl">Spending budgets per month</div><div class="slcols">${vars}</div></div>
     ${xf?`<div class="slgrp"><div class="lbl">Transfers to personal accounts</div><div class="slcols">${xf}</div></div>`:''}
@@ -30,14 +37,7 @@ function vWhatIf(){
     <div class="slgrp"><div class="lbl">Savings and card</div><div class="slcols">${slider('sav','Monthly savings transfer',sc.sav,0,5000,50,'',GBP,P.savings.monthly)}
     ${slider('share','Share of card-friendly spend put on Amex',sc.share,0,100,5,'Shopping, general, eating out and home maintenance.',pct,P.amexShare||0)}
     <label class="small" style="display:flex;gap:6px;align-items:flex-start;margin:-4px 0 12px"><input type="checkbox" id="sweep" data-sl="sweepbox" ${sc.sweep?'checked':''}> <span>Also move any surplus above my ${GBP(STATE.buffer||0)} buffer into savings on the last day of each month</span></label></div></div>
-    <div class="slgrp"><div class="lbl">Pay a debt down faster</div><div class="slcols">
-    <div class="sl"><label for="debtSel">Which debt</label><span></span><select id="debtSel" data-sl="debtSel" style="grid-column:1/-1">${dopt}</select></div>
-    ${slider('extra','Extra each month',sc.extra,0,3000,25,`On top of the normal payment. Check your lender's yearly overpayment limit.`,GBP,0)}
-    ${slider('lump','One-off lump sum',sc.lump,0,150000,500,'',GBP,0)}
-    <div class="sl"><label for="lumpDate">Lump sum date</label><span></span><input type="date" id="lumpDate" data-sl="lumpDate" value="${sc.lumpDate}" style="grid-column:1/-1"></div>
-    <div class="sl"><label for="lumpFrom">Paid from</label><span></span><select id="lumpFrom" data-sl="lumpFrom" style="grid-column:1/-1"><option value="savings" ${sc.lumpFrom==='savings'?'selected':''}>Savings first, then bank</option><option value="bank" ${sc.lumpFrom==='bank'?'selected':''}>Bank</option></select></div>
-    <div class="sl"><label for="from">Changes start from</label><span></span><select id="from" data-sl="from" style="grid-column:1/-1">${fopts}</select></div>
-    </div></div>
+    <div class="slgrp"><div class="lbl">When the changes start</div><div class="slcols"><div class="sl"><label for="from">Changes start from</label><span></span><select id="from" data-sl="from" style="grid-column:1/-1">${fopts}</select></div></div></div>
     <div class="row" style="margin-top:8px"><button class="btn" data-act="commitask">Make this my plan</button><button class="btn ghost" data-act="screset">Back to baseline (all)</button></div></div>
    <div class="wi-r" id="scRes">${pp[1]}</div></div></div>`}
 /* plain-English warnings about what a scenario does to the account */
@@ -56,7 +56,7 @@ function scenarioFlags(P,X,sc){
 /* the largest payments in the six weeks before a date, to say what pushed the bank down */
 function bigOut(X,t){const ev=(X.events||[]).filter(e=>e.a<0&&e.t<=t&&e.t>t-42*DAY&&e.k!=='var').sort((a,b)=>a.a-b.a).slice(0,3);
   return ev.length?` Biggest payments before then: ${ev.map(e=>esc(String(e.n))+' '+GBP(-e.a)).join(', ')}.`:''}
-function scPaint(){const p=scParts(),a=document.getElementById('scTop'),b=document.getElementById('scRes');if(a)a.innerHTML=p[0];if(b)b.innerHTML=p[1];try{applyTips()}catch(e){}}
+function scPaint(){const p=scParts(),a=document.getElementById('scTop'),b=document.getElementById('scRes'),c=document.getElementById('scDebt');if(a)a.innerHTML=p[0];if(b)b.innerHTML=p[1];if(c)c.innerHTML=p[2];try{applyTips()}catch(e){}}
 function scParts(){
   const sc=view.scen,P=simulate(),X=simulate({planOf:k=>scPlan(sc,k),lumps:scLumps(sc)});
   const fm=S=>S.months.find(m=>m.k>=sc.from)||S.months[0];
@@ -91,8 +91,8 @@ function scParts(){
   const monthly=`<div class="panel" style="margin-bottom:12px"><h3 style="margin:0 0 4px">Month by month</h3><p class="small muted" style="margin:0 0 6px">Grey bars and dashed lines are your current plan. Coloured is this scenario.</p>${growthChart(rP,rX)}
    <div class="tblwrap" style="margin-top:8px"><table class="wtab"><thead><tr><th>Month</th><th class="n">Money in</th><th class="n">Money out</th><th class="n">To savings</th><th class="n">Left over</th><th class="n">Bank at month end</th><th class="n">Savings</th><th class="n">Debt left</th><th class="n">Net worth change</th></tr></thead><tbody>${rows}${tot}</tbody></table></div>
    <p class="small muted" style="margin:6px 0 0">Net worth change = bank + savings + debts paid off in the month. Debts count only the part that reduces what you owe, not interest.</p></div>`;
-  return[sticky,`${monthly}<div class="note" style="margin:0 0 12px">Amex ${verdictPill(X)} ${esc(X.why)}</div>${debtHtml}
-   ${X.goals.some(g=>g.target>0)?`<h3 style="margin:16px 0 6px">Goals, holidays and tax</h3><div class="compare"><div class="h"></div><div class="h n">Current</div><div class="h n">Scenario</div><div class="h n"></div>${X.goals.filter(g=>g.target>0).map(g=>{const p0=P.goals.find(x=>x.id===g.id),f=x=>x.hit?fdate(x.hit):'not funded';return`<div>${esc(g.name)}</div><div class="n">${f(p0)}</div><div class="n">${f(g)}</div><div class="n">${g.status==='ok'?'<span class="pill good">on time</span>':'<span class="pill bad">late</span>'}</div>`}).join('')}</div>`:''}`]}
+  return[sticky,`${monthly}<div class="note" style="margin:0 0 12px">Amex ${verdictPill(X)} ${esc(X.why)}</div>
+   ${X.goals.some(g=>g.target>0)?`<h3 style="margin:16px 0 6px">Goals, holidays and tax</h3><div class="compare"><div class="h"></div><div class="h n">Current</div><div class="h n">Scenario</div><div class="h n"></div>${X.goals.filter(g=>g.target>0).map(g=>{const p0=P.goals.find(x=>x.id===g.id),f=x=>x.hit?fdate(x.hit):'not funded';return`<div>${esc(g.name)}</div><div class="n">${f(p0)}</div><div class="n">${f(g)}</div><div class="n">${g.status==='ok'?'<span class="pill good">on time</span>':'<span class="pill bad">late</span>'}</div>`}).join('')}</div>`:''}`,debtHtml]}
 /* one row per month: money, balances and the change in net worth */
 function scMonthRows(S,from){
   const idx=Math.max(0,S.months.findIndex(m=>m.k>=from)),sa=sum((STATE.assets||[]).filter(a=>a.group==='savings'),a=>a.value||0),out=[];

@@ -83,7 +83,8 @@ document.addEventListener('click',e=>{
   else if(a==='savedraft')saveDraft();
   else if(a==='discard'){DRAFT=null;render()}
   else if(a==='trycut'){scInit();planFor(nextMonthK()).vars.forEach(v=>{if(v.kind==='want')view.scen.vars[v.id]=Math.round(v.budget*(1-view.cut/100))});go('whatif')}
-  else if(a==='testdebt'){scInit();view.scen.debtSel=d.id;go('whatif')}
+  else if(a==='ertoggle'){view.erOpen=view.erOpen||{};view.erOpen[d.id]=!view.erOpen[d.id];render()}
+  else if(a==='testdebt'){scInit();view.scen.debtSel=d.id;const e=(view.er||{})[d.id];if(e){view.scen.extra=e.extra||0;view.scen.lump=e.lump||0;if(e.date)view.scen.lumpDate=e.date}go('whatif')}
   else if(a==='commitask'){view.modal='commit';render()}
   else if(a==='closemodal'){view.modal=null;render()}
   else if(a==='commit')commitScenario();
@@ -96,6 +97,7 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('change',async e=>{
   const el=e.target,d=el.dataset;
+  if(d.er){const E=(view.er=view.er||{}),e=E[d.id]=E[d.id]||{extra:0,lump:0};e[d.er]=d.er==='date'?el.value:(parseFloat(el.value)||0);render();return}
   if(d.dd){const D=view.dd=view.dd||{chip:'month'};D[d.dd]=el.value;if(d.dd==='from'||d.dd==='to')D.chip='custom';render();return}
   if(d.r){const v=parseVal(el);if(d.r==='plan'){setPath(draft(),d.p,v);invalidate()}else{setPath(STATE,d.p,v);afterState(d.p,v);invalidate();persistAll()}updateDraftBar();if(tab==='retire'){const ae=document.activeElement,key=ae&&ae.dataset&&ae.dataset.p;render();if(key){const n=document.querySelector('[data-p="'+key+'"]');if(n)n.focus()}return}softRender();return}
   if(d.cat!==undefined){sortTx(d.cat,d.m,el.value);return}
