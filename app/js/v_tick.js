@@ -3,7 +3,7 @@ const tickRow=(m,id)=>(TX[m]||[]).find(t=>t.s==='tick'&&t.item===id);
 /* everything the plan expects in a month: money in, bills, debts, personal transfers */
 function expectedItems(m){
   const P=planFor(m),y=+m.slice(0,4),mo=monthOf(m)-1,n=dim(y,mo),out=[];
-  P.income.forEach(i=>out.push({kind:'inc',id:i.id,name:i.name,amt:i.amount,day:Math.min(i.day,n),sign:1,c:'_inc',sc:i.id,varies:!!i.varies}));
+  P.income.forEach(i=>out.push({kind:'inc',id:i.id,name:i.name,cash:cashInFor(m,i.id),amt:Math.max(0,i.amount-cashInFor(m,i.id)),day:Math.min(i.day,n),sign:1,c:'_inc',sc:i.id,varies:!!i.varies}));
   P.bills.forEach(b=>{const fr=b.freq||'monthly';
     const due=fr==='monthly'||(fr==='yearly'&&mo+1===(b.month||12))||(fr==='quarterly'&&((mo+1-(b.month||1))%3+3)%3===0);
     if(due)out.push({kind:'bill',id:b.id,name:b.name,amt:b.amount,day:Math.min(b.day,n),sign:-1,c:'_skip',key:bkey(b),variable:b.variable,yearly:fr!=='monthly'})});
