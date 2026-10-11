@@ -23,6 +23,7 @@ function go(t){tab=t;view.modal=null;render();window.scrollTo(0,0)}
 function afterState(path,v){
   const m=path.match(/^debtBal\.(.+)$/);
   if(m){const id=m[1];const dn=(curPlan().debts.find(x=>x.id===id)||{}).name||id;audit('Debt balance changed',`${dn}: ${v==null?'cleared':GBP2(v)}`);if(v!=null){(STATE.debtLog[id]=STATE.debtLog[id]||[]).push({d:todayISO(),b:v});if(STATE.debtStart[id]==null)STATE.debtStart[id]=v}}
+  if(path==='ru.bal'){ruInit().at=todayISO();audit('Round-up savings balance changed',v==null?'cleared':GBP2(v))}
   const a=path.match(/^assets\.(\d+)\.value$/);if(a){STATE.assets[+a[1]].updated=todayISO();audit('Asset value changed',`${STATE.assets[+a[1]].name}: ${v==null?'cleared':GBP2(v)}`)}}
 function parseVal(el){const t=el.dataset.t;if(t==='bool')return el.checked;if(t==='flag')return el.value==='1';
   if(t==='num'){if(el.value==='')return el.dataset.nul?null:0;return parseFloat(el.value)}return el.value}

@@ -5,12 +5,16 @@ const SEED_ASSETS=()=>[
  ...[1,2,3].map(i=>({id:'a_ps'+i,group:'pension',owner:'Sander',name:'Pension pot '+i,value:null})),
  {id:'a_pbA',group:'savings',owner:'Annie',name:'Premium bonds, Annie',value:null},{id:'a_pbS',group:'savings',owner:'Sander',name:'Premium bonds, Sander',value:null},
  {id:'a_car',group:'vehicle',owner:'',name:"Annie's car",value:null},{id:'a_van',group:'vehicle',owner:'',name:'The van',value:null}];
+/* the round-up savings account: balance you type, plus round-ups that left the bank since, interest shown as an estimate */
+function ruInit(){if(!STATE.ru)STATE.ru={bal:106.15,at:todayISO(),gross:1.24,aer:1.25};return STATE.ru}
+function ruNow(){const r=ruInit(),added=sum(Object.values(TX).flat().filter(t=>t.c==='v_round'&&t.a<0&&t.d>r.at&&t.s!=='tick'),t=>-t.a),bal=(r.bal||0)+added;
+  return{bal,added,yr:bal*(r.aer||0)/100,month:bal*(r.aer||0)/100/12}}
 function nwFigures(){
   if(!STATE.assets||!STATE.assets.length)STATE.assets=SEED_ASSETS();
   const A=STATE.assets,g=gr=>sum(A.filter(a=>a.group===gr),a=>a.value||0);
   const savPots=(STATE.general||0)+sum(Object.values(STATE.goalSaved||{}))+sum(Object.values(STATE.taxSaved||{}));
-  const auto={bank:(STATE.bank||0)+sinceBalance(),cash:cashBalance(),pots:savPots};
-  const home=g('property'),pens=g('pension'),sav=g('savings')+auto.bank+auto.cash+auto.pots,veh=g('vehicle')+g('other');
+  const auto={bank:(STATE.bank||0)+sinceBalance(),cash:cashBalance(),pots:savPots,ru:ruNow().bal};
+  const home=g('property'),pens=g('pension'),sav=g('savings')+auto.bank+auto.cash+auto.pots+auto.ru,veh=g('vehicle')+g('other');
   const P=curPlan(),debts=P.debts.map(d=>({d,bal:STATE.debtBal[d.id]||0})),amex=amexOwedNow();
   const mort=sum(debts.filter(x=>x.d.type==='mortgage'),x=>x.bal),other=sum(debts.filter(x=>x.d.type!=='mortgage'),x=>x.bal)+amex;
   const assets=home+pens+sav+veh,liab=mort+other;
@@ -19,6 +23,8 @@ function ensureSnapshot(force){
   const f=nwFigures(),k=thisMonthK();STATE.nwSnaps=STATE.nwSnaps||[];const ex=STATE.nwSnaps.find(s=>s.k===k);
   if(!ex){STATE.nwSnaps.push({k,v:Math.round(f.net),a:Math.round(f.assets),l:Math.round(f.liab)});STATE.nwSnaps.sort((a,b)=>a.k<b.k?-1:1);return true}
   if(force){ex.v=Math.round(f.net);ex.a=Math.round(f.assets);ex.l=Math.round(f.liab);return true}return false}
+function ruRowInfo(){const r=ruInit(),n=ruNow();
+  return`<span title="Type what the account shows today. Round-ups taken from the bank after that date are added automatically."><label class="small">Balance on ${fdate(parseISO(r.at))} £ ${F('state','ru.bal','num',r.bal,'style="width:90px"')}</label> <label class="small">Gross % ${F('state','ru.gross','num',r.gross,'style="width:60px"')}</label> <label class="small">AER % ${F('state','ru.aer','num',r.aer,'style="width:60px"')}</label></span><br><span class="small muted">${n.added>0?'+ '+GBP2(n.added)+' round-ups since. ':''}Interest about ${GBP2(n.yr)} a year (${GBP2(n.month)} a month), paid by the account.</span>`}
 function vNetworth(){
   const f=nwFigures(),snaps=(STATE.nwSnaps||[]).slice(),A=STATE.assets;
   const series=snaps.map(s=>({t:parseISO(s.k+'-01'),v:s.v}));
@@ -45,7 +51,7 @@ function vNetworth(){
    <div class="panel c7"><h2>What you own</h2><div class="tblwrap"><table><thead><tr><th>Asset</th><th class="n">Value £</th><th>Updated</th><th></th></tr></thead><tbody>
     ${grp('Property')}${rowsFor('property').map(r=>arow(r)).join('')}
     ${grp('Pensions')}${person('Annie')}${person('Sander')}
-    ${grp('Cash and savings')}<tr><td>Bank account</td><td class="n">${GBP(f.auto.bank)}</td><td class="small muted">automatic</td><td></td></tr><tr><td>Household cash</td><td class="n">${GBP(f.auto.cash)}</td><td class="small muted">automatic</td><td></td></tr><tr><td>Savings pots (goals, tax and general)</td><td class="n">${GBP(f.auto.pots)}</td><td class="small muted">automatic</td><td></td></tr>${rowsFor('savings').map(r=>arow(r)).join('')}
+    ${grp('Cash and savings')}<tr><td>Bank account</td><td class="n">${GBP(f.auto.bank)}</td><td class="small muted">automatic</td><td></td></tr><tr><td>Household cash</td><td class="n">${GBP(f.auto.cash)}</td><td class="small muted">automatic</td><td></td></tr><tr><td>Savings pots (goals, tax and general)</td><td class="n">${GBP(f.auto.pots)}</td><td class="small muted">automatic</td><td></td></tr><tr><td>Round-up savings account<br><span class="small muted">the round-ups from card spending go here</span></td><td class="n">${GBP2(f.auto.ru)}</td><td class="small muted">${ruRowInfo()}</td><td></td></tr>${rowsFor('savings').map(r=>arow(r)).join('')}
     ${grp('Vehicles and other')}${[...rowsFor('vehicle'),...rowsFor('other')].map(r=>arow(r)).join('')}</tbody></table></div>
     <div class="row" style="margin-top:8px"><button class="btn ghost sm" data-act="addasset">+ Add an asset</button><span class="small muted">Amber "update?" appears after 6 months, or 12 for the house. State pensions are not counted.</span></div></div>
    <div class="panel c5"><h2>What you owe</h2><div class="tblwrap"><table><thead><tr><th>Liability</th><th class="n">Owed</th></tr></thead><tbody>${f.debts.map(x=>`<tr><td>${esc(x.d.name)}</td><td class="n">${x.bal?GBP(x.bal):'<span class="muted">add on Debts</span>'}</td></tr>`).join('')}<tr><td>Amex balance</td><td class="n">${GBP(f.amex)}</td></tr><tr class="tot"><td>Total owed</td><td class="n">${GBP(f.liab)}</td></tr></tbody></table></div>
