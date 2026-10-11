@@ -28,19 +28,21 @@ async function dbSet(path,obj){
   try{lastAt[path]=Date.now();await dbh.doc(path).set(Object.assign({at:lastAt[path],by:ME.id||''},obj));setSync('Saved · shared','ok')}
   catch(e){setSync(e&&e.code==='invalid_argument'?'Read-only: ask for Contributor access':'Not synced ('+(e&&e.code||'error')+')','bad')}
 }
+/* never write to the shared database until this device has received what is already there: a stale local copy would overwrite newer work */
+const DBSYNC={};const dbSynced=()=>!!(DBSYNC['hh/plan']&&DBSYNC['hh/state']&&DBSYNC.tx);
+function whenSynced(fn,tries){if(dbSynced())return fn();if((tries||0)>40)return;setTimeout(()=>whenSynced(fn,(tries||0)+1),750)}
 function persistAll(){
   lsSet('versions',VERSIONS);lsSet('state',STATE);
   setSync('Saving…','');clearTimeout(timers.all);
-  timers.all=setTimeout(async()=>{
+  timers.all=setTimeout(()=>{
     if(!dbh){setSync('Saved on this device only','bad');return}
-    await dbSet('hh/plan',{json:JSON.stringify(VERSIONS)});
-    await dbSet('hh/state',{json:JSON.stringify(STATE)});
+    whenSynced(async()=>{await dbSet('hh/plan',{json:JSON.stringify(VERSIONS)});await dbSet('hh/state',{json:JSON.stringify(STATE)})})
   },500)}
 function saveTx(k){
   lsSet('tx_'+k,TX[k]||[]);
   if(!dbh)return;
   clearTimeout(timers['tx'+k]);
-  timers['tx'+k]=setTimeout(()=>dbSet('tx/'+k,{json:JSON.stringify(TX[k]||[])}),400)}
+  timers['tx'+k]=setTimeout(()=>whenSynced(()=>dbSet('tx/'+k,{json:JSON.stringify(TX[k]||[])})),400)}
 async function connectDb(){
   let db=null,user=null;
   try{db=await claude.use('db');user=await claude.use('user')}catch(e){}
@@ -49,12 +51,12 @@ async function connectDb(){
   try{if(user){ME.id=await user.id();try{const m=await user.me();ME.name=(m&&m.name)||''}catch(e){}}}catch(e){}
   const busy=()=>{const a=document.activeElement;return a&&/INPUT|SELECT|TEXTAREA/.test(a.tagName)&&a.type!=='range'};
   const apply=(path,fn)=>db.doc(path).onSnapshot(snap=>{
-    if(!snap.exists)return;const d=snap.data();
+    DBSYNC[path]=1;if(!snap.exists)return;const d=snap.data();
     if(d.at&&d.at===lastAt[path]){setSync('Saved · shared','ok');return}
     try{fn(JSON.parse(d.json));setSync('Synced','ok');if(!busy())render()}catch(e){}},e=>setSync('Not synced ('+(e&&e.code||'error')+')','bad'));
   apply('hh/plan',v=>{if(Array.isArray(v)&&v.length){VERSIONS=v;migrateAll();lsSet('versions',v)}});
   apply('hh/state',s=>{STATE=Object.assign(defaultState(),s);if(!STATE.rules)STATE.rules=ruleObjs();migrateAll();try{splitIkea()}catch(e){}lsSet('state',STATE)});
-  db.collection('tx').onSnapshot(snap=>{snap.docs.forEach(d=>{try{TX[d.id]=JSON.parse(d.data().json)}catch(e){}});try{splitIkea();reconcileTicks();fixWeakClass();fixAdmiral();mergeTypedCredits()}catch(e){}if(!busy())render()},()=>{});
+  db.collection('tx').onSnapshot(snap=>{DBSYNC.tx=1;snap.docs.forEach(d=>{try{TX[d.id]=JSON.parse(d.data().json)}catch(e){}});try{splitIkea();reconcileTicks();fixWeakClass();fixAdmiral();mergeTypedCredits()}catch(e){}if(!busy())render()},()=>{});
   db.collection('audit').onSnapshot(snap=>{const a=[];snap.docs.forEach(d=>{try{a.push(JSON.parse(d.data().json))}catch(e){}});if(a.length){const have=new Set(a.map(x=>x.id));AUDIT.forEach(x=>{if(!have.has(x.id))a.push(x)});AUDIT=a.sort((x,y)=>x.t<y.t?-1:1);lsSet('audit',AUDIT.slice(-1500))}},()=>{});
   db.collection('hist').onSnapshot(snap=>{let n=0;snap.docs.forEach(d=>{try{const o=JSON.parse(d.data().json);const ms=o.months||(o.k?{[o.k]:o}:null);if(ms){ingestHist(ms);n++}}catch(e){}});if(n){resetHist();if(!busy())render()}},()=>{});
   setSync('Connected','ok');return true}
