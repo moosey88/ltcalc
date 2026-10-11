@@ -201,3 +201,6 @@ body:has(.draftbar){padding-bottom:110px}
 .ddf .chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.chipb{border:0;border-radius:99px;padding:5px 13px;background:var(--line);color:var(--ink2);font:inherit;font-weight:600;cursor:pointer}.chipb.on{background:var(--ink);color:var(--bg)}
 .ddf .fb{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin:6px 0 10px}.ddf .fb label{display:flex;flex-direction:column;font-size:.68rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:700;gap:3px}.ddf .fb input,.ddf .fb select{min-width:130px;font-size:.9rem;text-transform:none;letter-spacing:0;font-weight:400}
 .ledg .nt{display:block;font-size:.8rem;color:var(--ink2);font-style:italic}.nbtn{border:0;background:none;color:var(--muted);font:inherit;font-size:.75rem;font-style:normal;cursor:pointer;padding:0 0 0 6px;opacity:.55}.ledg tr:hover .nbtn{opacity:1;text-decoration:underline}.rnrow{display:flex;gap:6px;margin-top:4px}.rnrow input{flex:1;min-width:120px}
+
+.bar i.pd{background:#6aa6f0}
+.ruedit{display:flex;gap:12px;flex-wrap:wrap;background:var(--bank-bg);border-radius:8px;padding:8px 10px}.ruedit label{font-size:.76rem}.ruedit input{display:block;margin-top:2px}

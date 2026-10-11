@@ -1,4 +1,7 @@
 /* ===== Debts, Goals and holidays, Tax, Amex ===== */
+/* how much of a debt is paid off, as a small bar with a percentage */
+const paidOff=id=>{const st=STATE.debtStart[id],b=STATE.debtBal[id];return st>0&&b!=null?Math.min(100,Math.max(0,(1-b/st)*100)):null};
+const paidBar=(id,w)=>{const p=paidOff(id);return p==null?'<span class="small muted">set the starting balance</span>':`<span title="Paid off: ${pct(p)} of ${GBP2(STATE.debtStart[id])}. Still owed ${GBP2(STATE.debtBal[id])}." style="white-space:nowrap"><span class="bar" style="display:inline-block;vertical-align:middle;height:8px;width:${w||90}px"><i class="pd" style="width:${p}%"></i></span> <span class="small muted">${pct(p)}</span></span>`};
 function vDebts(){
   const p=draft(),S=fc();
   const live=p.debts.map((d,i)=>({d,i,bal:STATE.debtBal[d.id],a:amort(STATE.debtBal[d.id],d.apr,d.pay,d.extra,0,-1)}));
@@ -17,12 +20,16 @@ function vDebts(){
      <div class="row" style="margin-top:8px;gap:8px 14px"><label class="small">Monthly payment £ ${F('plan',`debts.${i}.pay`,'num',d.pay,'style="width:90px"')}</label><label class="small">Interest rate % ${F('plan',`debts.${i}.apr`,'num',d.apr,'style="width:70px" placeholder="?"',true)}</label><label class="small" title="Ask your lender. Leave at 0 if there is none">Early repayment charge % ${F('plan',`debts.${i}.erc`,'num',d.erc||0,'style="width:70px"')}</label><label class="small" title="The word on your bank statement for this payment, so the app can recognise it. For Ikea it is IKANO.">Bank statement says ${F('plan',`debts.${i}.match`,'str',d.match||'','style="width:110px" placeholder="e.g. IKANO"')}</label></div>
      ${bal>0?(()=>{const fee=bal*((d.erc||0)/100),intl=a&&a.int!=null?a.int:null;return`<div class="note" style="margin-top:8px"><b>Pay it all off today:</b> ${GBP(bal+fee)}${fee>0?` (${GBP(bal)} plus a ${GBP(fee)} charge)`:' with no charge entered'}. ${intl!=null?`That saves ${GBP(intl)} of interest${fee>0?`, so you are ${intl-fee>=0?GBP(intl-fee)+' better off':GBP(fee-intl)+' worse off'} after the charge`:''}.`:'Add the rate and payment to see the interest saved.'}</div>`})():''}
      ${log.length>1?`<div class="small muted" style="margin-top:6px">History: ${log.slice(-4).map(x=>fdate(parseISO(x.d))+' '+GBP(x.b)).join(' · ')}</div>`:''}</div>`}).join('');
+  const endOf=x=>x.a&&x.a.n!=null?fmonthT(addMonthsT(parseISO(STATE.asOf),x.a.n)):'–';
+  const grpTot=g=>{const L=live.filter(x=>x.d.grp===g);return`<tr class="tot"><td>${esc(g)} total</td><td class="n">${GBP2(sum(L,x=>STATE.debtStart[x.d.id]||0))}</td><td class="n">${GBP2(sum(L,x=>x.bal||0))}</td><td></td><td class="n">${GBP2(sum(L,x=>(x.d.pay||0)+(x.d.extra||0)))}</td><td></td></tr>`};
+  const sumRows=live.map((x,j)=>{const nx=live[j+1],last=x.d.grp&&(!nx||nx.d.grp!==x.d.grp);return`<tr><td>${esc(x.d.name)}</td><td class="n">${STATE.debtStart[x.d.id]!=null?GBP2(STATE.debtStart[x.d.id]):'–'}</td><td class="n">${x.bal!=null?GBP2(x.bal):'–'}</td><td>${paidBar(x.d.id)}</td><td class="n">${GBP2((x.d.pay||0)+(x.d.extra||0))}</td><td class="small muted">${endOf(x)}</td></tr>${last&&live.filter(y=>y.d.grp===x.d.grp).length>1?grpTot(x.d.grp):''}`}).join('');
+  const overview=`<div class="panel c12"><h2>Where each debt stands <span class="muted small">paid off so far</span></h2><div class="tblwrap"><table><thead><tr><th>Debt</th><th class="n">Limit or start £</th><th class="n">Owed £</th><th>Paid off</th><th class="n">Monthly £</th><th>Clears</th></tr></thead><tbody>${sumRows}</tbody></table></div></div>`;
   return draftBar()+intro('Everything you owe in one place. Type the balance from your latest statement whenever you check it: each update is kept as history, and the end date and interest recalculate.')+`
   <div class="kpis"><div class="kpi"><span>Total owed</span><b>${GBP(totBal)}</b><small>across ${live.filter(x=>x.bal>0).length} debts with balances</small></div><div class="kpi"><span>Paid out each month</span><b>${GBP(totPay)}</b><small>mortgage, loans and tax plan</small></div>
    <div class="kpi"><span>Fully debt free</span><b>${last!=null?fmonthT(addMonthsT(parseISO(STATE.asOf),last)):'–'}</b><small>${last!=null?ys(last)+' from now':'add balances and rates'}</small></div>
    <div class="kpi"><span>Costs you most</span><b style="font-size:1.25rem">${aprs[0]?esc(aprs[0].d.name):'–'}</b><small>${aprs[0]?aprs[0].d.apr+'% interest. Extra cash saves the most here first.':'add interest rates to rank them'}</small></div></div>
-  <div class="grid">${cards}
-   <div class="panel c12"><h2>Edit debts</h2><div class="tblwrap"><table><thead><tr><th>Debt</th><th>Type</th><th class="n">Starting balance £</th><th class="n">Interest %</th><th class="n">Monthly payment £</th><th class="n">Extra each month £</th><th class="n">Pay day</th><th>Bank statement says</th><th></th></tr></thead><tbody>
+  <div class="grid">${overview}${cards}
+   <div class="panel c12"><h2>Edit debts</h2><div class="tblwrap"><table><thead><tr><th>Debt</th><th>Type</th><th class="n">Limit or starting balance £</th><th class="n">Interest %</th><th class="n">Monthly payment £</th><th class="n">Extra each month £</th><th class="n">Pay day</th><th>Bank statement says</th><th></th></tr></thead><tbody>
    ${p.debts.map((d,i)=>`<tr><td>${F('plan',`debts.${i}.name`,'str',d.name)}</td><td>${SEL('plan',`debts.${i}.type`,d.type,[['mortgage','Mortgage'],['loan','Loan'],['tax','Tax']])}</td><td class="n">${F('state',`debtStart.${d.id}`,'num',STATE.debtStart[d.id],'',true)}</td><td class="n">${F('plan',`debts.${i}.apr`,'num',d.apr,'style="width:70px"',true)}</td><td class="n">${F('plan',`debts.${i}.pay`,'num',d.pay)}</td><td class="n">${F('plan',`debts.${i}.extra`,'num',d.extra)}</td><td class="n">${F('plan',`debts.${i}.day`,'num',d.day,'min="1" max="31" style="width:60px"')}</td><td>${F('plan',`debts.${i}.match`,'str',d.match||'','style="width:100px" placeholder="e.g. IKANO"')}</td><td>${delBtn('plan','debts',i)}</td></tr>`).join('')}</tbody></table></div>
    <div class="row" style="margin-top:8px"><button class="btn ghost sm" data-act="add" data-list="debts">+ Add debt</button><span class="small muted">Balances and starting balances save straight away. Payments, rates and pay days are part of the plan, so they save with the Save plan button.</span></div>
    ${(STATE.lumps||[]).length?`<div class="lbl" style="margin:14px 0 4px">Planned lump sums</div>${STATE.lumps.map((l,i)=>`<div class="item"><span>${esc((p.debts.find(d=>d.id===l.debt)||{}).name||'debt')} on ${fdate(parseISO(l.date))}, from ${l.from==='savings'?'savings':'bank'}</span><span class="row"><b>${GBP(l.amount)}</b>${delBtn('state','lumps',i)}</span></div>`).join('')}`:''}</div></div>`}
@@ -72,3 +79,16 @@ function vAmex(){
     <label>Statement closes on day ${F('plan','amex.closeDay','num',A.closeDay,'min="1" max="28" style="width:64px"')}</label><label>Payment due ${F('plan','amex.dueDays','num',A.dueDays,'min="0" max="60" style="width:64px"')} days after</label>
     <label>Points per £1 ${F('plan','amex.rate','num',A.rate,'step="0.1" style="width:64px"')}</label><label>1 Avios is worth (pence) ${F('plan','amex.pv','num',A.pv,'step="0.1" style="width:64px"')}</label></div>
     <p class="small muted">Your example: spend 6 Aug to 5 Sep was due on 30 Sep, which is 25 days after the statement closed, so 25 is the default.</p></div></div>`}
+
+/* one-off: Ikea was one loan, it is two. Moves balances, ticks and matched bank lines; removes the old Savings Builder asset (the round-up account replaces it) */
+function splitIkea(){let any=false;const ik=id=>Math.abs(id-71)<Math.abs(id-62.5)?'d_ikea2':'d_ikea1';
+  if(!STATE.ikeaSplit){STATE.ikeaSplit=1;any=true;
+    if(STATE.debtBal.d_ikea1==null){STATE.debtBal.d_ikea1=222.95;STATE.debtStart.d_ikea1=284.95;STATE.debtBal.d_ikea2=1549;STATE.debtStart.d_ikea2=1700}
+    ['debtBal','debtStart','debtLog'].forEach(k=>{if(STATE[k]&&STATE[k].d_ikea!==undefined)delete STATE[k].d_ikea});
+    if(STATE.assets)STATE.assets=STATE.assets.filter(a=>!(a.group==='savings'&&/savings builder/i.test(a.name||'')))}
+  Object.keys(TX).forEach(m=>{let ch=false;const arr=TX[m]||[];
+    arr.slice().forEach(t=>{if(t.item!=='d_ikea')return;ch=true;
+      if(t.s==='tick'){const a=Math.abs(t.a);if(a>100){arr.splice(arr.indexOf(t),1);[['d_ikea1',62.5],['d_ikea2',71]].forEach(([id,v])=>arr.push({...t,id:'tk_'+m+'_'+id,item:id,a:-v,planned:v}))}else{t.item=ik(a);t.id='tk_'+m+'_'+t.item}}
+      else t.item=ik(Math.abs(t.a))});
+    if(ch){saveTx(m);any=true}});
+  if(any){invalidate();persistAll()}return any}

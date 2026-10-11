@@ -19,7 +19,7 @@ function defaultPlan(){return{
     {id:'d_mort',name:'Mortgage (Halifax)',type:'mortgage',pay:1818.69,day:1,apr:3.78,extra:0,match:'halifax',note:'Rate inferred from your spreadsheet (about 3.78%) - check it'},
     {id:'d_tax',name:'HMRC tax on shares (not vested yet)',type:'tax',pay:1000,day:1,apr:0,extra:0,match:'hmrc',note:'About £40,000 still owed, to be confirmed'},
     {id:'d_mbna',name:'MBNA loan (Annie car)',type:'loan',pay:479.16,day:1,apr:null,extra:0,match:'mbna',note:'Annie is paid a directors loan of the same amount by APEX each month'},
-    {id:'d_ikea',name:'Ikea repayment',type:'loan',pay:0,day:1,apr:0,extra:0}],
+    {id:'d_ikea1',name:'Ikea loan 1',type:'loan',pay:62.5,day:1,apr:0,extra:0,match:'IKANO',grp:'Ikea repayment'},{id:'d_ikea2',name:'Ikea loan 2',type:'loan',pay:71,day:1,apr:0,extra:0,match:'IKANO',grp:'Ikea repayment'}],
   vars:[
     {id:'v_shop',name:'Shopping',budget:650,kind:'need',cardOK:true,subs:[{id:'main',name:'Main shop'},{id:'topup',name:'Top-up shops'},{id:'entertain',name:'Entertaining'}]},
     {id:'v_home',name:'Home maintenance',budget:100,kind:'need',cardOK:true},
@@ -131,6 +131,8 @@ const isWages=n=>/wage/i.test(n||'');
 function migratePlan(p){
   let changed=false;const has=id=>p.vars.some(v=>v.id===id);
   p.debts.forEach(d=>{if(!d.match&&/ikea/i.test(d.name)){d.match='IKANO';changed=true}});
+  {const i=p.debts.findIndex(d=>d.id==='d_ikea');if(i>=0){const o=p.debts[i],mk=(id,n,pay)=>({id,name:n,type:'loan',pay,day:o.day||1,apr:0,extra:0,erc:o.erc||0,match:'IKANO',grp:'Ikea repayment'});
+    p.debts.splice(i,1,mk('d_ikea1','Ikea loan 1',62.5),mk('d_ikea2','Ikea loan 2',71));changed=true}}
   const YK={'car insurance':'ADMIRAL','home insurance':'HOME INSURANCE','tv licence':'TV LICENCE','garden waste':'GARDEN WASTE','christmas':'XMAS'};
   p.bills.forEach(b=>{if((b.freq||'monthly')!=='monthly'&&!b.match){const k=Object.keys(YK).find(x=>b.name.toLowerCase().startsWith(x));if(k){b.match=YK[k];changed=true}}});
   (p.transfers||[]).forEach(x=>{if(x.rule==='afterpay'){x.rule='day';x.day=x.day||2;changed=true}});

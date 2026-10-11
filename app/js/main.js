@@ -43,6 +43,7 @@ document.addEventListener('click',e=>{
   if(a==='win'){view.win=+d.w;render()}
   else if(a==='period'){view.period=d.v;render()}
   else if(a==='toggle'){view.open[d.v]=!view.open[d.v];render()}
+  else if(a==='rutoggle'){view.ruOpen=!view.ruOpen;render()}
   else if(a==='nwtoggle'){view.nwOpen[d.v]=view.nwOpen[d.v]===false;render()}
   else if(a==='mprev'||a==='mnext'){view.m=addMonthsK(view.m,a==='mnext'?1:-1);render()}
   else if(a==='setbal'){const v=parseFloat($('#quickBal').value);if(!isNaN(v)){applyBalance(v,todayISO(),'typed');persistAll();render()}}
@@ -121,5 +122,5 @@ document.addEventListener('input',e=>{
   cancelAnimationFrame(view.raf);view.raf=requestAnimationFrame(()=>{scPaint()})});
 $('#themeBtn').addEventListener('click',()=>{const r=document.documentElement;const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;r.dataset.theme=dark?'light':'dark'});
 (function boot(){
-  const had=loadLocal();try{reconcileTicks();fixWeakClass();fixAdmiral();mergeTypedCredits()}catch(e){}ensureSnapshot();render();if(had)setSync('Loaded from this device','');
+  const had=loadLocal();try{splitIkea();reconcileTicks();fixWeakClass();fixAdmiral();mergeTypedCredits()}catch(e){}ensureSnapshot();render();if(had)setSync('Loaded from this device','');
   connectDb().catch(()=>{})})();

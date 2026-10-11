@@ -7,7 +7,7 @@ function expectedItems(m){
   P.bills.forEach(b=>{const fr=b.freq||'monthly';
     const due=fr==='monthly'||(fr==='yearly'&&mo+1===(b.month||12))||(fr==='quarterly'&&((mo+1-(b.month||1))%3+3)%3===0);
     if(due)out.push({kind:'bill',id:b.id,name:b.name,amt:b.amount,day:Math.min(b.day,n),sign:-1,c:'_skip',key:bkey(b),variable:b.variable,yearly:fr!=='monthly'})});
-  P.debts.filter(d=>(d.pay||0)>0).forEach(d=>out.push({kind:'debt',id:d.id,name:d.name,amt:d.pay+(d.extra||0),day:Math.min(d.day,n),sign:-1,c:'_skip',key:(d.match||d.name.split(' ')[0]).toUpperCase()}));
+  P.debts.filter(d=>(d.pay||0)>0).forEach(d=>out.push({kind:'debt',id:d.id,name:d.name,amt:d.pay+(d.extra||0),day:Math.min(d.day,n),sign:-1,c:'_skip',key:(d.match||d.name.split(' ')[0]).toUpperCase(),grp:d.grp}));
   (P.transfers||[]).forEach(x=>out.push({kind:'xfer',id:x.id,name:x.name,amt:x.amount,day:Math.min(x.day||2,n),sign:-1,c:x.catId}));
   if(P.savings&&P.savings.monthly>0)out.push({kind:'sav',id:'sav',name:'Transfer to savings (Premium Bonds and pots)',amt:P.savings.monthly,day:Math.min(P.savings.day||1,n),sign:-1,c:'_skip'});
   return out.sort((a,b)=>a.day-b.day)}
@@ -20,7 +20,7 @@ function bankRowFor(it,m){
     return c.sort((a,b)=>rel(a)-rel(b))[0]||null}
   if(it.kind==='sav')return rows.find(t=>t.a<0&&/NS&I|PREMIUM BOND|TO A\/C (67716245|67652417)/.test((t.t||'').toUpperCase()))||null;
   if(it.kind==='xfer')return rows.find(t=>t.c===it.c&&t.a<0&&Math.abs(-t.a-it.amt)<=it.amt*.3+1)||null;
-  return it.key?rows.find(t=>t.a<0&&keyHit(t.t,it.key)&&Math.abs(-t.a-it.amt)<=it.amt*.3+1)||null:null}
+  return it.key?rows.filter(t=>t.a<0&&keyHit(t.t,it.key)&&Math.abs(-t.a-it.amt)<=it.amt*.3+1&&(!t.item||t.item===it.id)).sort((a,b)=>Math.abs(-a.a-it.amt)-Math.abs(-b.a-it.amt))[0]||null:null}
 /* every bank line that makes up this item (a payment can arrive in two or more lines) */
 function bankRowsFor(it,m){const b=bankRowFor(it,m);if(!b)return[];const all=(TX[m]||[]).filter(t=>t.s!=='tick'&&t.s!=='man'&&t.item===it.id&&t.ticked&&t.a*it.sign>0);return all.length>1?all:[b]}
 function tickDate(m,it){const t=todayISO();return t.slice(0,7)===m?t:m+'-'+String(it.day).padStart(2,'0')}
