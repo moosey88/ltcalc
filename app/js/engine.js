@@ -22,7 +22,7 @@ function simulate(o={}){
   let bank=(st.bank||0)+sinceBalance(asOf),cycle=0,cardSpend=0,feeTotal=0;const stmts=[];
   if(o.amexOwed!=null)cycle=o.amexOwed;else amexStatementList(asOf).forEach(s=>{if(s.state==='open')cycle=s.total;else if(s.state==='due'&&s.total>0.005)stmts.push({close:parseISO(s.close),due:parseISO(s.due),amt:s.total,known:true})});
   const P1=planOf(ym(start));const G0=buildGoals(P1,st);
-  const pots={general:st.general||0,yearly:0};G0.forEach(g=>pots[g.id]=g.saved||0);
+  const pots={general:st.general||0,yearly:0,ru:(typeof ruNow==='function'?ruNow().bal:0)};G0.forEach(g=>pots[g.id]=g.saved||0);
   const done={},hit={},gsp={},dbal={};(P1.debts||[]).forEach(d=>dbal[d.id]=st.debtBal[d.id]);
   // dates of savings transfers and of personal transfers
   const sdays=[];for(let d=start;d<=end;d+=DAY){const dt=new Date(d);if(dt.getUTCDate()===Math.min(P1.savings.day,dim(dt.getUTCFullYear(),dt.getUTCMonth())))sdays.push(d)}
@@ -65,7 +65,7 @@ function simulate(o={}){
     const share=Math.min(1,Math.max(0,(P.amexShare||0)/100)),curM=(k===ym(start));
     const daysLeft=curM?Math.max(1,n-new Date(start).getUTCDate()+1):n;
     const xcat=new Set((P.transfers||[]).map(x=>x.catId));
-    P.vars.forEach(v=>{if(xcat.has(v.id))return;const rem=curM?Math.max(0,v.budget-spentIn(k,v.id)):v.budget;const a=rem/daysLeft;if(a<=0)return;const cp=v.cardOK?a*share:0;cycle+=cp;cardSpend+=cp;bank-=a-cp;M.vars+=a});
+    P.vars.forEach(v=>{if(xcat.has(v.id))return;const rem=curM?Math.max(0,v.budget-spentIn(k,v.id)):v.budget;const a=rem/daysLeft;if(a<=0)return;const cp=v.cardOK?a*share:0;cycle+=cp;cardSpend+=cp;bank-=a-cp;M.vars+=a;if(v.id==='v_round')pots.ru+=a});
     (xfer[t]||[]).forEach(x=>{if(!tickRow(k,x.id)){bank-=x.amount;events.push({t,k:'xfer',n:x.name,a:-x.amount})}M.xfer+=x.amount});
     (P.oneoffs||[]).forEach(oo=>{if(oo.date!==ds)return;M.one+=oo.amount;events.push({t,k:'one',n:oo.name,a:-oo.amount,pay:oo.pay});
       if(oo.pay==='amex'){cycle+=oo.amount;cardSpend+=oo.amount}else if(oo.pay==='savings'){const tk=Math.min(pots.general,oo.amount);pots.general-=tk;bank-=oo.amount-tk}else bank-=oo.amount});
