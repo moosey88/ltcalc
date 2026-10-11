@@ -1,6 +1,6 @@
 /* ===== data model: plan versions (change from a month onwards), state, categories ===== */
 function defaultPlan(){return{
-  income:[{id:'i_annie',name:'Annie salary (APEX)',amount:8333,day:1},{id:'i_dirloan',name:'Annie directors loan from APEX (covers MBNA)',amount:479.16,day:1},{id:'i_sander',name:'Sander (from his own account)',amount:1500,day:29,varies:true},{id:'i_niamh',name:'Niamh: phone contribution',amount:15,day:1}],
+  income:[{id:'i_annie',name:'Annie salary (APEX)',amount:8333,day:1},{id:'i_dirloan',name:'Annie directors loan from APEX (covers MBNA)',amount:479.16,day:1},{id:'i_sander',name:'Sander Salary (Handyman)',amount:1500,day:29,varies:true},{id:'i_niamh',name:'Niamh: phone contribution',amount:15,day:1}],
   bills:[
     {id:'b_ctax',name:'Council tax',amount:260,day:1,kind:'need',freq:'monthly',match:'waverley'},
     {id:'b_gas',name:'Gas & electric (Octopus)',amount:282,day:1,kind:'need',freq:'monthly',variable:true,match:'octopus'},
@@ -131,6 +131,7 @@ const isWages=n=>/wage/i.test(n||'');
 function migratePlan(p){
   let changed=false;const has=id=>p.vars.some(v=>v.id===id);
   p.debts.forEach(d=>{if(!d.match&&/ikea/i.test(d.name)){d.match='IKANO';changed=true}});
+  {const s=p.income.find(i=>i.id==='i_sander');if(s&&(s.name==='Sander wages'||s.name==='Sander (from his own account)')){s.name='Sander Salary (Handyman)';changed=true}}
   {const i=p.debts.findIndex(d=>d.id==='d_ikea');if(i>=0){const o=p.debts[i],mk=(id,n,pay)=>({id,name:n,type:'loan',pay,day:o.day||1,apr:0,extra:0,erc:o.erc||0,match:'IKANO',grp:'Ikea repayment'});
     p.debts.splice(i,1,mk('d_ikea1','Ikea loan 1',62.5),mk('d_ikea2','Ikea loan 2',71));changed=true}}
   const YK={'car insurance':'ADMIRAL','home insurance':'HOME INSURANCE','tv licence':'TV LICENCE','garden waste':'GARDEN WASTE','christmas':'XMAS'};
@@ -152,7 +153,6 @@ function migratePlan(p){
     const DO={d_mort:'Mortgage',d_tax:'Tax bill repayment',d_mbna:'MBNA loan (Annie car)'};
     p.debts.forEach(d=>{const n=D.debts.find(x=>x.id===d.id);if(n&&DO[d.id]===d.name){const keep=d.pay;Object.assign(d,n);if(d.id==='d_mort')d.pay=keep||n.pay}});
     const a=p.income.find(i=>i.id==='i_annie');if(a&&a.name==='Annie wages'){a.name='Annie salary (APEX)';a.day=1}
-    const s=p.income.find(i=>i.id==='i_sander');if(s&&s.name==='Sander wages')s.name='Sander (from his own account)';
     if(!p.income.some(i=>i.id==='i_dirloan'))p.income.splice(1,0,D.income[1])}
   return changed}
 /* income actually received, by month and stream (STATE.incAct[month][id]); falls back to the planned amount */

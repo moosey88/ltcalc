@@ -83,6 +83,11 @@ document.addEventListener('click',e=>{
   else if(a==='savedraft')saveDraft();
   else if(a==='discard'){DRAFT=null;render()}
   else if(a==='trycut'){scInit();planFor(nextMonthK()).vars.forEach(v=>{if(v.kind==='want')view.scen.vars[v.id]=Math.round(v.budget*(1-view.cut/100))});go('whatif')}
+  else if(a==='cashintoggle'){view.cashIn=!view.cashIn;render()}
+  else if(a==='cashinadd'){const v=parseFloat($('#ci_a').value),dt=$('#ci_d').value;if(!(v>0)||!dt){toast('Type the amount and date');return}
+    const inc=(planFor(d.m).income.find(x=>x.id===d.id)||{}).name||'income';(STATE.cash=STATE.cash||[]).push({id:'c_'+uid(),d:dt,type:'in',a:v,who:'Sander',note:$('#ci_n').value.trim()||'Cash from Sander',inc:d.id});
+    audit('Cash received',`${GBP2(v)} towards ${inc} on ${dt}`);invalidate();persistAll();toast('Added to your cash pot');render()}
+  else if(a==='cashindel'){const e=(STATE.cash||[]).find(x=>x.id===d.id);if(e){audit('Cash received removed',`${GBP2(e.a)} on ${e.d}`);STATE.cash=STATE.cash.filter(x=>x.id!==d.id);invalidate();persistAll();render()}}
   else if(a==='ertoggle'){view.erOpen=view.erOpen||{};view.erOpen[d.id]=!view.erOpen[d.id];render()}
   else if(a==='testdebt'){scInit();view.scen.debtSel=d.id;const e=(view.er||{})[d.id];if(e){view.scen.extra=e.extra||0;view.scen.lump=e.lump||0;if(e.date)view.scen.lumpDate=e.date}go('whatif')}
   else if(a==='commitask'){view.modal='commit';render()}
