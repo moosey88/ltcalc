@@ -83,6 +83,7 @@ document.addEventListener('click',e=>{
   else if(a==='savedraft')saveDraft();
   else if(a==='discard'){DRAFT=null;DRAFTBASE=null;render()}
   else if(a==='trycut'){scInit();planFor(nextMonthK()).vars.forEach(v=>{if(v.kind==='want')view.scen.vars[v.id]=Math.round(v.budget*(1-view.cut/100))});go('whatif')}
+  else if(a==='xreffix'){xrefFix(d.id,d.m,d.to)}
   else if(a==='fixline'){view.fixShow=view.fixShow||{today:1,mix:1};view.fixShow[d.id]=view.fixShow[d.id]?0:1;const F=fixSetup(),el=document.getElementById('fixDyn');if(F&&el)el.innerHTML=fixDyn(F);else render()}
   else if(a==='fixload'){const F=fixSetup();if(F){view.fixV=fixPreset(F,d.id);view.fixShow=view.fixShow||{today:1,mix:1};view.fixShow.mix=1;view.fixShow[d.id.toLowerCase()]=1;render()}}
   else if(a==='fixreset'){const F=fixSetup();if(F){view.fixV=fixDefault(F);render()}}
@@ -107,6 +108,7 @@ document.addEventListener('click',e=>{
 document.addEventListener('change',async e=>{
   const el=e.target,d=el.dataset;
   if(d.fx)return;
+  if(el.id==='e_note'){try{const p=(STATE.payMem||{})[merchKey(el.value.trim())];const s=document.getElementById('e_pay');if(p&&s)s.value=p}catch(e){}return}
   if(d.pcat){const t=(TX[d.m]||[]).find(x=>x.id===d.pcat);if(t){const c=el.value.split(':')[0],sc=el.value.split(':')[1];audit('Re-categorised in patterns',`${GBP2(Math.abs(t.a))} "${(t.t||'').slice(0,40)}" to ${c==='_skip'?'Bill, debt or transfer':(catName({vars:allVars()},c)||c)}`);t.c=c;t.sc=sc||undefined;t.how='typed';t.why='You chose this category';delete t.rv;saveTx(d.m);invalidate();toast('Category changed');render()}return}
   if(d.er){const E=(view.er=view.er||{}),e=E[d.id]=E[d.id]||{extra:0,lump:0};e[d.er]=d.er==='date'?el.value:(parseFloat(el.value)||0);render();return}
   if(d.dd){const D=view.dd=view.dd||{chip:'month'};D[d.dd]=el.value;if(d.dd==='from'||d.dd==='to')D.chip='custom';render();return}

@@ -204,3 +204,6 @@ body:has(.draftbar){padding-bottom:110px}
 
 .bar i.pd{background:#6aa6f0}
 .ruedit{display:flex;gap:12px;flex-wrap:wrap;background:var(--bank-bg);border-radius:8px;padding:8px 10px}.ruedit label{font-size:.76rem}.ruedit input{display:block;margin-top:2px}
+
+.bar.split{height:7px;border-radius:4px}.bar.split .d,.bleg i.d{background:#6aa6f0}.pill.deb{background:#e4efff;color:#2c63b3}.pill.cash{background:#fff2d6;color:#9a6a00}
+.xr{font-size:.74rem;white-space:nowrap}.xr.ok{color:var(--good)}.xr.wt{color:var(--warn)}.xr.bad{color:var(--bad)}.xr.cash{color:var(--muted)}

@@ -95,7 +95,7 @@ function vDaily(){
    <div class="panel c12"><h2>Add spending</h2>
     <div class="entry"><label>Date<input type="date" id="e_date" value="${todayISO()}"></label><label>Amount £<input type="number" step="0.01" min="0" id="e_amt" placeholder="0.00"></label>
      <label>Type<select id="e_type"><option value="spend">Spending</option><option value="refund">Refund (money back)</option></select></label><label>Category<select id="e_cat"><option value="">Choose…</option>${catOptions('','',activeVars().filter(v=>!xcat.has(v.id)))}<option value="_unplanned">Unplanned bill</option></select></label>
-     <label>Paid with<select id="e_pay"><option value="bank">Bank card</option><option value="amex">Amex</option><option value="cash">Household cash</option></select></label>
+     <label>Paid with<select id="e_pay"><option value="bank">Debit card</option><option value="amex">Amex</option><option value="cash">Household cash</option></select></label>
      <label>Note<input type="text" id="e_note" placeholder="optional"></label><button class="btn" data-act="addtx">Add</button></div>
     <p class="small muted" style="margin-bottom:0">Choose Refund when a shop pays money back: it comes into the bank and reduces that category's spending, and is not counted as income. Spending is joint, so there is no "who". If you also upload the NatWest file, the matching entry is merged so nothing is counted twice.</p></div>
    ${unsortedPanel(m,false)}
@@ -121,13 +121,34 @@ function ddRange(m){const D=view.dd,t=todayISO(),eom=k=>k+'-'+String(dim(+k.slic
   if(D.chip==='today')return[t,t];if(D.chip==='week'){const dow=(new Date(parseISO(t)).getUTCDay()+6)%7,s=addDays(t,-dow);return[s,addDays(s,6)]}
   if(D.chip==='all')return['0000-01-01','9999-12-31'];if(D.chip==='custom')return[D.from||'0000-01-01',D.to||'9999-12-31'];return[m+'-01',eom(m)]}
 const rowNote=t=>(t.note&&t.note!==t.t?t.note:'')||((STATE.notes||{})[t.id]||{}).text||'';
+/* is this line backed by a real statement line? (bank file for Debit, Amex statement for Amex) */
+function xrefCtx(){const all=Object.values(TX).flat(),cov=s=>all.filter(r=>r.s===s).reduce((a,r)=>r.d>a?r.d:a,'');return{all,covNW:cov('nw'),covAMX:cov('amex')}}
+function xrefInfo(t,X){
+  if(t.s==='tick')return null;
+  if(t.p==='cash')return{k:'cash',txt:'Cash, nothing to check against'};
+  if(t.s==='nw')return{k:'ok',txt:t.how==='typed'?'✓ matched to your entry':'✓ on the NatWest file'};
+  if(t.s==='amex')return{k:'ok',txt:t.how==='typed'?'✓ matched to your entry':'✓ on the Amex statement'};
+  if(t.s!=='man')return null;
+  const pay=t.p==='amex'?'amex':'bank',opp=pay==='amex'?'nw':'amex',r=X.all.find(z=>z.s===opp&&(z.a<0)===(t.a<0)&&Math.abs(z.a-t.a)<.005&&z.how!=='typed'&&dayGap(z.d,t.d)<=4);
+  if(r)return{k:'bad',txt:`⚠ the ${opp==='amex'?'Amex statement':'bank file'} has this, not the ${pay==='amex'?'Amex':'Debit'}`,fix:{id:t.id,m:t.d.slice(0,7),to:opp==='amex'?'amex':'bank',label:'Change to '+(opp==='amex'?'Amex':'Debit')}};
+  const cov=pay==='amex'?X.covAMX:X.covNW;
+  if(cov&&t.d<cov&&dayGap(cov,t.d)>=5)return{k:'bad',txt:`⚠ not on the ${pay==='amex'?'Amex statement':'bank file'} (it goes to ${fdate(parseISO(cov))})`};
+  return{k:'wt',txt:'○ not on a statement yet'}}
+/* a typed line was paid the other way: switch it and join it to the statement line that has it */
+function xrefFix(id,m,to){
+  const arr=TX[m]||[],t=arr.find(x=>x.id===id);if(!t)return;const opp=to==='amex'?'amex':'nw',X=xrefCtx();
+  const r=X.all.find(z=>z.s===opp&&(z.a<0)===(t.a<0)&&Math.abs(z.a-t.a)<.005&&z.how!=='typed'&&dayGap(z.d,t.d)<=4);
+  audit('Changed how it was paid',`${GBP2(Math.abs(t.a))} "${(t.t||'').slice(0,30)}" to ${to==='amex'?'Amex':'Debit'}`);
+  if(r){r.note=t.t;if(t.c){r.c=t.c;r.sc=t.sc}r.how='typed';r.why='Matched your entry: '+(t.t||'typed').slice(0,28);arr.splice(arr.indexOf(t),1);const rm=r.d.slice(0,7);saveTx(m);if(rm!==m)saveTx(rm);else saveTx(m)}
+  else{t.p=to==='amex'?'amex':'bank';saveTx(m)}
+  invalidate();persistAll();toast('Matched to the statement');render()}
 function ledgerBlock(m,rec,rowsV,bud,by,unc,totB,totS,src,isNow,dom,n,P){
-  const D=view.dd=view.dd||{chip:'month'},[from,to]=ddRange(m),q=(D.q||'').trim().toLowerCase();
+  const D=view.dd=view.dd||{chip:'month'},[from,to]=ddRange(m),q=(D.q||'').trim().toLowerCase(),XC=xrefCtx();
   let base=D.chip==='month'?rec.rows:Object.values(TX).flat();
-  const rows=base.filter(t=>t.d>=from&&t.d<=to&&(!D.cat||(D.cat==='_unsorted'?!t.c:t.c===D.cat))&&(!D.pay||(D.pay==='amex')===(t.p==='amex'||t.s==='amex'))&&(!q||((t.t||'')+' '+rowNote(t)+' '+rvLabel(t)).toLowerCase().includes(q))).sort((x,y)=>x.d<y.d?1:x.d>y.d?-1:0);
+  const rows=base.filter(t=>t.d>=from&&t.d<=to&&(!D.cat||(D.cat==='_unsorted'?!t.c:t.c===D.cat))&&(!D.pay||(D.pay==='amex')===(t.p==='amex'||t.s==='amex'))&&(!D.chk||((xrefInfo(t,XC)||{}).k===D.chk))&&(!q||((t.t||'')+' '+rowNote(t)+' '+rvLabel(t)).toLowerCase().includes(q))).sort((x,y)=>x.d<y.d?1:x.d>y.d?-1:0);
   const days={};rows.forEach(t=>(days[t.d]=days[t.d]||[]).push(t));
   const pend=expectedItems(m).filter(it=>!tickRow(m,it.id)&&!bankRowFor(it,m)),dueNow=pend.filter(it=>it.day<=(isNow?dom:99)),amx=catAmexFor(m);
-  const row=t=>{const nt=rowNote(t),ed=view.ne===t.id;return`<tr><td class="ld">${esc(cleanD(t.t||'(no note)').replace(/^(PAID|RECEIVED): /,'').toLowerCase().replace(/\b[a-z]/g,c=>c.toUpperCase()).slice(0,60))}${t.a>0&&t.c&&isSpendCat(t.c)?' <span class="pill good">refund</span>':''}${t.s==='tick'?' <span class="pill good">ticked</span>':t.s==='man'?' <span class="pill info">typed</span>':t.ticked?' <span class="pill good">bank ✓</span>':''}${t.p==='amex'||t.s==='amex'?` <span class="pill amx">${esc(amexDueText(t))}</span>`:''}
+  const row=t=>{const nt=rowNote(t),ed=view.ne===t.id;return`<tr><td class="ld">${esc(cleanD(t.t||'(no note)').replace(/^(PAID|RECEIVED): /,'').toLowerCase().replace(/\b[a-z]/g,c=>c.toUpperCase()).slice(0,60))}${t.a>0&&t.c&&isSpendCat(t.c)?' <span class="pill good">refund</span>':''}${t.s==='tick'?' <span class="pill good">ticked</span>':t.ticked?' <span class="pill good">bank ✓</span>':''}${t.s!=='tick'&&t.a<0||t.p==='cash'?(t.p==='cash'?' <span class="pill cash">Cash</span>':t.p==='amex'||t.s==='amex'?' <span class="pill amx">Amex</span>':' <span class="pill deb">Debit</span>'):''}${t.p==='amex'||t.s==='amex'?` <span class="small muted">${esc(amexDueText(t))}</span>`:''}${(()=>{const x=xrefInfo(t,XC);return x&&t.a<0||x&&x.k==='bad'?` <span class="xr ${x.k}" title="${x.k==='ok'?'Checked against a real statement line':x.k==='wt'?'Waiting for the next statement upload':x.k==='bad'?'Does not match the statement':''}">${esc(x.txt)}</span>${x.fix?` <button class="btn ghost sm" data-act="xreffix" data-id="${esc(x.fix.id)}" data-m="${x.fix.m}" data-to="${x.fix.to}">${esc(x.fix.label)}</button>`:''}`:''})()}
     ${ed?`<span class="rnrow"><input type="text" id="ne_in" value="${esc(nt)}" placeholder="Add a note" data-nid="${esc(t.id)}" data-m="${t.d.slice(0,7)}"><button class="btn sm" data-act="rownotesave" data-id="${esc(t.id)}" data-m="${t.d.slice(0,7)}">Save</button></span>`:`<span class="nt">${nt?esc(nt):''}<button class="nbtn" data-act="rownote" data-id="${esc(t.id)}" title="${nt?'Change the note':'Add a note'}">${nt?'✎':'+ note'}</button></span>`}</td><td class="muted small">${esc(catLabel(t))}</td><td class="n ${t.a>0?'pos':''}">${t.a>0?'+':'−'}${GBP2(Math.abs(t.a))}</td><td class="n">${(t.s==='man'||t.s==='tick')?`<button class="btn ghost sm" data-act="deltx" data-m="${t.d.slice(0,7)}" data-id="${esc(t.id)}" aria-label="Remove">✕</button>`:''}</td></tr>`};
   const ledger=!rows.length?`<p class="muted">Nothing matches.</p>`:Object.keys(days).sort().reverse().map(dt=>`<div class="dayh">${fdate(parseISO(dt))}</div><table class="ledg"><tbody>${days[dt].map(row).join('')}</tbody></table>`).join('');
   const chip=(k,l)=>`<button class="chipb ${D.chip===k?'on':''}" data-act="ddchip" data-c="${k}">${l}</button>`;
@@ -136,7 +157,7 @@ function ledgerBlock(m,rec,rowsV,bud,by,unc,totB,totS,src,isNow,dom,n,P){
    <div class="fb"><label>From<input type="date" data-dd="from" value="${D.chip==='custom'?(D.from||''):from>'0001'?from:''}"></label><label>To<input type="date" data-dd="to" value="${D.chip==='custom'?(D.to||''):to<'9998'?to:''}"></label>
    <label>Search<input type="text" data-dd="q" placeholder="shop or note" value="${esc(D.q||'')}"></label>
    <label>Category<select data-dd="cat"><option value="">All</option>${cats.map(v=>`<option value="${v.id}" ${D.cat===v.id?'selected':''}>${esc(v.name)}</option>`).join('')}<option value="_unsorted" ${D.cat==='_unsorted'?'selected':''}>Unsorted</option></select></label>
-   <label>Paid with<select data-dd="pay"><option value="">Bank or Amex</option><option value="amex" ${D.pay==='amex'?'selected':''}>Amex</option><option value="bank" ${D.pay==='bank'?'selected':''}>Bank</option></select></label><span class="small muted" style="padding-bottom:8px">${rows.length} line${rows.length===1?'':'s'}</span></div></div>`;
+   <label>Paid with<select data-dd="pay"><option value="">Debit or Amex</option><option value="amex" ${D.pay==='amex'?'selected':''}>Amex</option><option value="bank" ${D.pay==='bank'?'selected':''}>Debit</option></select></label><label>Checked<select data-dd="chk"><option value="">All</option><option value="ok" ${D.chk==='ok'?'selected':''}>✓ matched</option><option value="wt" ${D.chk==='wt'?'selected':''}>○ waiting for a statement</option><option value="bad" ${D.chk==='bad'?'selected':''}>⚠ does not match</option></select></label><span class="small muted" style="padding-bottom:8px">${rows.length} line${rows.length===1?'':'s'}</span></div></div>`;
   const rail=`<div class="rail"><div class="panel"><h3 style="margin:0 0 6px">Budgets, ${fmonthLong(m)}</h3><div class="bleg"><span><i class="d"></i>Bank card</span><span><i class="a"></i>Amex</span></div>${rowsV.map(v=>{const b=bud[v.id],a=by[v.id]||0,pace=b*dom/n,am=amx[v.id]||0;return`<div class="rb"><div class="row" style="justify-content:space-between"><span>${esc(v.name)}${rndTag(v.id)}</span><span class="small ${a>b&&b?'neg':'muted'}">${GBP(a)}${b?' / '+GBP(b):''}</span></div>${budBar(a,b,am,pace)}${am>0.005?`<div class="amxn">${GBP2(am)} on the Amex</div>`:''}</div>`}).join('')}
     ${unc>0?`<div class="rb"><div class="row" style="justify-content:space-between"><span><b>Unsorted</b></span><span class="small neg">${GBP(unc)}</span></div></div>`:''}
     <div class="row rtot" style="justify-content:space-between"><b>Total</b><b class="${totS>totB?'neg':''}">${GBP(totS)} / ${GBP(totB)}</b></div>${isNow?`<p class="small muted" style="margin:4px 0 0">Day ${dom} of ${n}: pace ${GBP(totB*dom/n)}</p>`:''}</div>
@@ -183,6 +204,7 @@ function addTx(){
   const k=d.slice(0,7);const id='m_'+uid();
   (TX[k]=TX[k]||[]).push({id,d,t:refund?('Refund: '+(note||'')).trim():note,a:refund?amt:-amt,refund:refund||undefined,c:c==='_unplanned'?'':c,sc:sc||undefined,s:'man',p,unplanned:c==='_unplanned'||undefined});
   if(c==='_unplanned'){STATE.notes[id]={kind:'oneoff',text:note||'Unplanned bill'}}
+  try{const mk=merchKey(note||'');if(mk&&c!=='_unplanned'){(STATE.payMem=STATE.payMem||{})[mk]=p}}catch(e){}
   audit(refund?'Added refund':'Added transaction',`${GBP2(amt)} ${note||''} on ${d}, ${c==='_unplanned'?'unplanned bill':(catName({vars:allVars()},c)||c)}, paid by ${p}`);
   view.m=k;saveTx(k);invalidate();persistAll();toast('Added');render()}
 function sortTx(id,k,cv){
