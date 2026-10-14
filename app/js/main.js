@@ -83,6 +83,8 @@ document.addEventListener('click',e=>{
   else if(a==='savedraft')saveDraft();
   else if(a==='discard'){DRAFT=null;render()}
   else if(a==='trycut'){scInit();planFor(nextMonthK()).vars.forEach(v=>{if(v.kind==='want')view.scen.vars[v.id]=Math.round(v.budget*(1-view.cut/100))});go('whatif')}
+  else if(a==='fixtog'){view.fixOn=view.fixOn||{sweep:true,xfer:true,amex:true};view.fixOn[d.id]=!view.fixOn[d.id];render()}
+  else if(a==='fixopen'){view.fixOpen=view.fixOpen===false;render()}
   else if(a==='cashintoggle'){view.cashIn=!view.cashIn;render()}
   else if(a==='cashinadd'){const v=parseFloat($('#ci_a').value),dt=$('#ci_d').value;if(!(v>0)||!dt){toast('Type the amount and date');return}
     const inc=(planFor(d.m).income.find(x=>x.id===d.id)||{}).name||'income';(STATE.cash=STATE.cash||[]).push({id:'c_'+uid(),d:dt,type:'in',a:v,who:'Sander',note:$('#ci_n').value.trim()||'Cash from Sander',inc:d.id});
