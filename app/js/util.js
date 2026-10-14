@@ -39,3 +39,30 @@ function ord(n){const s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[
 const DESC_PREFIX=/^(DEBIT CARD TRANSACTION|CARD TRANSACTION|DIRECT DEBIT|STANDING ORDER|ONLINE TRANSACTION|MOBILE\/ONLINE TRANSACTION|AUTOMATED CREDIT|AUTOMATED DEBIT|BILL PAYMENT|TRANSFER|DEBIT|CREDIT)\s+/;
 const cleanD=D=>String(D||'').toUpperCase().replace(DESC_PREFIX,'');
 const keyHit=(text,key)=>{key=String(key||'').toUpperCase().trim();if(!key)return false;const t=cleanD(text);if(key.length>=7)return t.includes(key);return new RegExp('(^|[^A-Z0-9])'+key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'($|[^A-Z0-9])').test(t)};
+
+/* three-way merge of plain JSON, so two people editing on two devices do not overwrite each other.
+   b = what both started from, m = my copy, t = their (newer) copy. What I changed wins; what only they changed is kept.
+   Lists of objects merge by their id (or `from` for plan versions). */
+const jEq=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+const mKey=x=>x&&typeof x==='object'&&!Array.isArray(x)?(x.id!=null?'i'+x.id:x.from!=null?'f'+x.from:null):null;
+function merge3(b,m,t){
+  if(jEq(m,b))return t;if(jEq(t,b))return m;if(jEq(m,t))return m;
+  const isO=x=>x&&typeof x==='object'&&!Array.isArray(x);
+  if(isO(m)&&isO(t)){const bb=isO(b)?b:{},out={};
+    new Set([...Object.keys(m),...Object.keys(t)]).forEach(k=>{const inM=k in m,inT=k in t,inB=k in bb;
+      if(inM&&inT)out[k]=merge3(bb[k],m[k],t[k]);
+      else if(inM){if(!inB||!jEq(m[k],bb[k]))out[k]=m[k]}   /* they deleted it: keep mine only if I changed it */
+      else if(!inB||!jEq(t[k],bb[k]))out[k]=t[k]});          /* I deleted it: keep theirs only if they added it or changed it... */
+    /* a key I deleted that they left unchanged is dropped (not in m, t equal to base) */
+    return out}
+  if(Array.isArray(m)&&Array.isArray(t)){const ba=Array.isArray(b)?b:[];
+    if(m.every(x=>mKey(x)!=null)&&t.every(x=>mKey(x)!=null)&&ba.every(x=>mKey(x)!=null)){
+      const bm=new Map(ba.map(x=>[mKey(x),x])),mm=new Map(m.map(x=>[mKey(x),x])),tm=new Map(t.map(x=>[mKey(x),x])),keys=[...tm.keys()];
+      mm.forEach((_,k)=>{if(!tm.has(k))keys.push(k)});const out=[];
+      keys.forEach(k=>{const inB=bm.has(k),inM=mm.has(k),inT=tm.has(k);
+        if(inM&&inT)out.push(merge3(bm.get(k),mm.get(k),tm.get(k)));
+        else if(inM){if(!inB||!jEq(mm.get(k),bm.get(k)))out.push(mm.get(k))}   /* they deleted it */
+        else if(inT){if(!inB||!jEq(tm.get(k),bm.get(k)))out.push(tm.get(k))}}); /* I deleted it */
+      return out}
+    return m}
+  return m}

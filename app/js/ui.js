@@ -5,7 +5,8 @@ const fcKey=()=>JSON.stringify([STATE.bank,STATE.asOf,STATE.debtBal,STATE.genera
 function fc(){const k=fcKey();if(FC&&FCkey===k)return FC;FC=simulate();FCkey=k;return FC}
 const invalidate=()=>{FC=null};
 /* plan fields are edited on a draft, then saved from a chosen month on */
-function draft(){if(!DRAFT)DRAFT=clone(planFor(nextMonthK()));return DRAFT}
+let DRAFTBASE=null;
+function draft(){if(!DRAFT){DRAFT=clone(planFor(nextMonthK()));DRAFTBASE=clone(DRAFT)}return DRAFT}
 const editing=()=>DRAFT!==null;
 function draftDirty(){return DRAFT&&JSON.stringify(DRAFT)!==JSON.stringify(planFor(nextMonthK()))}
 function F(root,path,type,val,extra='',nul=false){
@@ -33,15 +34,18 @@ function draftBarInner(){
   const mo=`<option value="month">This month only (${fmonthLong(cm)}), then back to normal</option>`;
   const opts=start?`<option value="${nm}">From ${fmonthLong(nm)} onwards</option>${mo}<option value="correct">Correct the starting plan (changes every month)</option>`:`<option value="${nm}">From ${fmonthLong(nm)} onwards (next month)</option>${mo}<option value="${cm}">From this month, ${fmonthLong(cm)} onwards</option><option value="correct">Fix a mistake in the current plan</option>`;
   return`<div class="draftbar"><span><b>You have unsaved plan changes.</b> <span class="small">Nothing changes until you save. Past months never change.</span></span><span class="row"><label class="small">Apply <select id="draftFrom">${opts}</select></label><button class="btn pri" data-act="savedraft">Save plan</button><button class="btn ghost" data-act="discard">Discard</button></span></div>`}
-function saveDraft(){
+async function saveDraft(){
   const sel=$('#draftFrom'),from=sel?sel.value:nextMonthK();
+  await refreshPlan();
+  /* anything the other person changed in the meantime is kept: only what this draft changed is applied on top of the newest plan */
+  if(DRAFTBASE&&from!=='month'){const latest=planFor(from==='correct'?thisMonthK():from),merged=merge3(DRAFTBASE,DRAFT,latest);if(!jEq(merged,DRAFT)){DRAFT=merged;toast('Merged with changes saved by someone else')}}
   if(from==='month'){const cm=thisMonthK(),nm=nextMonthK(),back=clone(planFor(nm));
     commitPlan(DRAFT,cm,'This month only',ME.name||'');
     commitPlan(back,nm,'Back to normal after a one-month change',ME.name||'');
-    DRAFT=null;resetHist();invalidate();persistAll();toast('Saved for '+fmonthLong(cm)+' only. '+fmonthLong(nm)+' goes back to your normal plan.');render();return}
+    DRAFT=null;DRAFTBASE=null;resetHist();invalidate();persistAll();toast('Saved for '+fmonthLong(cm)+' only. '+fmonthLong(nm)+' goes back to your normal plan.');render();return}
   if(from==='correct'){commitPlan(DRAFT,thisMonthK(),'Corrected',ME.name||'',true)}
   else commitPlan(DRAFT,from,'Plan changed',ME.name||'');
-  DRAFT=null;resetHist();invalidate();persistAll();toast('Plan saved'+(from==='correct'?'':' from '+fmonthLong(from)));render()}
+  DRAFT=null;DRAFTBASE=null;resetHist();invalidate();persistAll();toast('Plan saved'+(from==='correct'?'':' from '+fmonthLong(from)));render()}
 /* plain lists of changes between two plans, for the "make this my plan" box */
 function changesBetween(a,b){const out=[];
   b.vars.forEach(v=>{const o=a.vars.find(x=>x.id===v.id);if(o&&o.budget!==v.budget)out.push(`${v.name}: ${GBP(o.budget)} → ${GBP(v.budget)} a month`)});

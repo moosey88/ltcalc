@@ -81,7 +81,7 @@ document.addEventListener('click',e=>{
   else if(a==='addasset'){STATE.assets.push({id:'a_'+uid(),group:'other',owner:'',name:'New asset',value:null});persistAll();render()}
   else if(a==='del'){if(d.root==='state'){STATE[d.list].splice(+d.i,1);persistAll()}else draft()[d.list].splice(+d.i,1);render()}
   else if(a==='savedraft')saveDraft();
-  else if(a==='discard'){DRAFT=null;render()}
+  else if(a==='discard'){DRAFT=null;DRAFTBASE=null;render()}
   else if(a==='trycut'){scInit();planFor(nextMonthK()).vars.forEach(v=>{if(v.kind==='want')view.scen.vars[v.id]=Math.round(v.budget*(1-view.cut/100))});go('whatif')}
   else if(a==='fixline'){view.fixShow=view.fixShow||{today:1,mix:1};view.fixShow[d.id]=view.fixShow[d.id]?0:1;const F=fixSetup(),el=document.getElementById('fixDyn');if(F&&el)el.innerHTML=fixDyn(F);else render()}
   else if(a==='fixload'){const F=fixSetup();if(F){view.fixV=fixPreset(F,d.id);view.fixShow=view.fixShow||{today:1,mix:1};view.fixShow.mix=1;view.fixShow[d.id.toLowerCase()]=1;render()}}

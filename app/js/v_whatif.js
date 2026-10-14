@@ -153,7 +153,7 @@ function commitModal(){
   return`<div class="modal"><div><h2>Make this my plan</h2><p class="small ink2">You changed these on What if:</p>${ch.length?`<div class="list">${ch.map(c=>`<div class="item"><span>${esc(c)}</span></div>`).join('')}</div>`:`<p class="muted">You haven't changed anything yet.</p>`}
    <div class="note" style="margin:12px 0"><b>Starts from ${fmonthLong(sc.from)}.</b> Every month before it keeps the plan it had, and so do the comparisons made against it.</div>
    <div class="row"><button class="btn" data-act="commit" ${ch.length?'':'disabled'}>Apply from ${fmonth(sc.from)}</button><button class="btn ghost" data-act="closemodal">Cancel</button></div></div></div>`}
-function commitScenario(){
-  const sc=view.scen,np=scenarioToPlan();commitPlan(np,sc.from,'From What if',ME.name||'');
+async function commitScenario(){
+  await refreshPlan();const sc=view.scen,np=scenarioToPlan();commitPlan(np,sc.from,'From What if',ME.name||'');
   if(sc.lump>0)(STATE.lumps=STATE.lumps||[]).push({id:uid(),debt:sc.debtSel,amount:sc.lump,date:sc.lumpDate,from:sc.lumpFrom});
   view.modal=null;view.scen=null;resetHist();invalidate();persistAll();toast('Plan saved from '+fmonthLong(sc.from));tab='today';render()}

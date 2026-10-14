@@ -1,5 +1,5 @@
 /* ===== persistence: this device always, shared database when published ===== */
-let dbh=null,ME={id:'',name:''},WRITER=true,lastAt={},timers={},AUDIT=[];
+let dbh=null,ME={id:'',name:''},WRITER=true,lastAt={},timers={},AUDIT=[],BASE={};
 const LSK='hc3_';
 const lsGet=k=>{try{return JSON.parse(localStorage.getItem(LSK+k))}catch(e){return null}};
 const lsSet=(k,v)=>{try{localStorage.setItem(LSK+k,JSON.stringify(v))}catch(e){}};
@@ -23,6 +23,15 @@ function loadLocal(){
   if(window.HISTORY&&window.HISTORY.months)ingestHist(window.HISTORY.months);
   return any}
 function ingestHist(months){for(const k in months)HIST[k]=months[k]}
+/* before writing a shared document, read what is there now and merge my changes into it, so nobody's work is overwritten */
+async function dbMerged(path,local){
+  if(!dbh)return local;
+  try{const s=await dbh.doc(path).get();
+    if(s&&s.exists){const d=s.data();if(d&&d.json){const remote=JSON.parse(d.json),m=BASE[path]!==undefined?merge3(BASE[path],local,remote):local;BASE[path]=clone(m);return m}}}catch(e){}
+  BASE[path]=clone(local);return local}
+/* pull the newest shared plan in before saving, in case another device saved since this one last heard */
+async function refreshPlan(){
+  if(!dbh)return;try{const s=await dbh.doc('hh/plan').get();if(s&&s.exists){const r=JSON.parse(s.data().json);if(Array.isArray(r)&&r.length){VERSIONS=BASE['hh/plan']!==undefined?merge3(BASE['hh/plan'],VERSIONS,r):r;BASE['hh/plan']=clone(r);try{migrateAll()}catch(e){}invalidate()}}}catch(e){}}
 async function dbSet(path,obj){
   if(!dbh)return;
   try{lastAt[path]=Date.now();await dbh.doc(path).set(Object.assign({at:lastAt[path],by:ME.id||''},obj));setSync('Saved · shared','ok')}
@@ -36,13 +45,17 @@ function persistAll(){
   setSync('Saving…','');clearTimeout(timers.all);
   timers.all=setTimeout(()=>{
     if(!dbh){setSync('Saved on this device only','bad');return}
-    whenSynced(async()=>{await dbSet('hh/plan',{json:JSON.stringify(VERSIONS)});await dbSet('hh/state',{json:JSON.stringify(STATE)})})
+    whenSynced(async()=>{
+      let merged=false;const mv=await dbMerged('hh/plan',VERSIONS);if(!jEq(mv,VERSIONS)){merged=true;VERSIONS=mv;try{migrateAll()}catch(e){}lsSet('versions',VERSIONS);invalidate()}
+      await dbSet('hh/plan',{json:JSON.stringify(VERSIONS)});
+      const ms=await dbMerged('hh/state',STATE);if(!jEq(ms,STATE)){merged=true;STATE=Object.assign(defaultState(),ms);lsSet('state',STATE);invalidate()}
+      await dbSet('hh/state',{json:JSON.stringify(STATE)});const ae=document.activeElement;if(merged&&!(ae&&/INPUT|SELECT|TEXTAREA/.test(ae.tagName)))render()})
   },500)}
 function saveTx(k){
   lsSet('tx_'+k,TX[k]||[]);
   if(!dbh)return;
   clearTimeout(timers['tx'+k]);
-  timers['tx'+k]=setTimeout(()=>whenSynced(()=>dbSet('tx/'+k,{json:JSON.stringify(TX[k]||[])})),400)}
+  timers['tx'+k]=setTimeout(()=>whenSynced(async()=>{const m=await dbMerged('tx/'+k,TX[k]||[]);if(!jEq(m,TX[k]||[])){TX[k]=m;lsSet('tx_'+k,m);invalidate()}await dbSet('tx/'+k,{json:JSON.stringify(TX[k]||[])})}),400)}
 async function connectDb(){
   let db=null,user=null;
   try{db=await claude.use('db');user=await claude.use('user')}catch(e){}
@@ -53,10 +66,10 @@ async function connectDb(){
   const apply=(path,fn)=>db.doc(path).onSnapshot(snap=>{
     DBSYNC[path]=1;if(!snap.exists)return;const d=snap.data();
     if(d.at&&d.at===lastAt[path]){setSync('Saved · shared','ok');return}
-    try{fn(JSON.parse(d.json));setSync('Synced','ok');if(!busy())render()}catch(e){}},e=>setSync('Not synced ('+(e&&e.code||'error')+')','bad'));
+    try{const j=JSON.parse(d.json);BASE[path]=clone(j);fn(j);setSync('Synced','ok');if(!busy())render()}catch(e){}},e=>setSync('Not synced ('+(e&&e.code||'error')+')','bad'));
   apply('hh/plan',v=>{if(Array.isArray(v)&&v.length){VERSIONS=v;migrateAll();lsSet('versions',v)}});
   apply('hh/state',s=>{STATE=Object.assign(defaultState(),s);if(!STATE.rules)STATE.rules=ruleObjs();migrateAll();try{splitIkea()}catch(e){}lsSet('state',STATE)});
-  db.collection('tx').onSnapshot(snap=>{DBSYNC.tx=1;snap.docs.forEach(d=>{try{TX[d.id]=JSON.parse(d.data().json)}catch(e){}});try{splitIkea();reconcileTicks();fixWeakClass();fixAdmiral();mergeTypedCredits()}catch(e){}if(!busy())render()},()=>{});
+  db.collection('tx').onSnapshot(snap=>{DBSYNC.tx=1;snap.docs.forEach(d=>{try{TX[d.id]=JSON.parse(d.data().json);BASE['tx/'+d.id]=clone(TX[d.id])}catch(e){}});try{splitIkea();reconcileTicks();fixWeakClass();fixAdmiral();mergeTypedCredits()}catch(e){}if(!busy())render()},()=>{});
   db.collection('audit').onSnapshot(snap=>{const a=[];snap.docs.forEach(d=>{try{a.push(JSON.parse(d.data().json))}catch(e){}});if(a.length){const have=new Set(a.map(x=>x.id));AUDIT.forEach(x=>{if(!have.has(x.id))a.push(x)});AUDIT=a.sort((x,y)=>x.t<y.t?-1:1);lsSet('audit',AUDIT.slice(-1500))}},()=>{});
   db.collection('hist').onSnapshot(snap=>{let n=0;snap.docs.forEach(d=>{try{const o=JSON.parse(d.data().json);const ms=o.months||(o.k?{[o.k]:o}:null);if(ms){ingestHist(ms);n++}}catch(e){}});if(n){resetHist();if(!busy())render()}},()=>{});
   setSync('Connected','ok');return true}
