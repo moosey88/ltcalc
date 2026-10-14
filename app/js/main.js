@@ -83,7 +83,9 @@ document.addEventListener('click',e=>{
   else if(a==='savedraft')saveDraft();
   else if(a==='discard'){DRAFT=null;render()}
   else if(a==='trycut'){scInit();planFor(nextMonthK()).vars.forEach(v=>{if(v.kind==='want')view.scen.vars[v.id]=Math.round(v.budget*(1-view.cut/100))});go('whatif')}
-  else if(a==='fixtog'){view.fixOn=view.fixOn||{sweep:true,xfer:true,amex:true};view.fixOn[d.id]=!view.fixOn[d.id];render()}
+  else if(a==='fixline'){view.fixShow=view.fixShow||{today:1,mix:1};view.fixShow[d.id]=view.fixShow[d.id]?0:1;const F=fixSetup(),el=document.getElementById('fixDyn');if(F&&el)el.innerHTML=fixDyn(F);else render()}
+  else if(a==='fixload'){const F=fixSetup();if(F){view.fixV=fixPreset(F,d.id);view.fixShow=view.fixShow||{today:1,mix:1};view.fixShow.mix=1;view.fixShow[d.id.toLowerCase()]=1;render()}}
+  else if(a==='fixreset'){const F=fixSetup();if(F){view.fixV=fixDefault(F);render()}}
   else if(a==='fixopen'){view.fixOpen=view.fixOpen===false;render()}
   else if(a==='cashintoggle'){view.cashIn=!view.cashIn;render()}
   else if(a==='cashinadd'){const v=parseFloat($('#ci_a').value),dt=$('#ci_d').value;if(!(v>0)||!dt){toast('Type the amount and date');return}
@@ -104,6 +106,7 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('change',async e=>{
   const el=e.target,d=el.dataset;
+  if(d.fx)return;
   if(d.pcat){const t=(TX[d.m]||[]).find(x=>x.id===d.pcat);if(t){const c=el.value.split(':')[0],sc=el.value.split(':')[1];audit('Re-categorised in patterns',`${GBP2(Math.abs(t.a))} "${(t.t||'').slice(0,40)}" to ${c==='_skip'?'Bill, debt or transfer':(catName({vars:allVars()},c)||c)}`);t.c=c;t.sc=sc||undefined;t.how='typed';t.why='You chose this category';delete t.rv;saveTx(d.m);invalidate();toast('Category changed');render()}return}
   if(d.er){const E=(view.er=view.er||{}),e=E[d.id]=E[d.id]||{extra:0,lump:0};e[d.er]=d.er==='date'?el.value:(parseFloat(el.value)||0);render();return}
   if(d.dd){const D=view.dd=view.dd||{chip:'month'};D[d.dd]=el.value;if(d.dd==='from'||d.dd==='to')D.chip='custom';render();return}
@@ -117,6 +120,7 @@ document.addEventListener('change',async e=>{
 });
 document.addEventListener('input',e=>{
   const el=e.target,d=el.dataset;
+  if(d.fx){fixInput(el);return}
   if(d.out){const o=document.getElementById(d.out);if(o)o.textContent=pct(+el.value);return}
   if(d.tickamt){setTickAmt(d.m,d.tickamt,parseFloat(el.value));return}
   const id=d.sl||d.sn;if(!id)return;
