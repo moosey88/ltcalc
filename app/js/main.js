@@ -102,6 +102,7 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('change',async e=>{
   const el=e.target,d=el.dataset;
+  if(d.pcat){const t=(TX[d.m]||[]).find(x=>x.id===d.pcat);if(t){const c=el.value.split(':')[0],sc=el.value.split(':')[1];audit('Re-categorised in patterns',`${GBP2(Math.abs(t.a))} "${(t.t||'').slice(0,40)}" to ${c==='_skip'?'Bill, debt or transfer':(catName({vars:allVars()},c)||c)}`);t.c=c;t.sc=sc||undefined;t.how='typed';t.why='You chose this category';delete t.rv;saveTx(d.m);invalidate();toast('Category changed');render()}return}
   if(d.er){const E=(view.er=view.er||{}),e=E[d.id]=E[d.id]||{extra:0,lump:0};e[d.er]=d.er==='date'?el.value:(parseFloat(el.value)||0);render();return}
   if(d.dd){const D=view.dd=view.dd||{chip:'month'};D[d.dd]=el.value;if(d.dd==='from'||d.dd==='to')D.chip='custom';render();return}
   if(d.r){const v=parseVal(el);if(d.r==='plan'){setPath(draft(),d.p,v);invalidate()}else{setPath(STATE,d.p,v);afterState(d.p,v);invalidate();persistAll()}updateDraftBar();if(tab==='retire'){const ae=document.activeElement,key=ae&&ae.dataset&&ae.dataset.p;render();if(key){const n=document.querySelector('[data-p="'+key+'"]');if(n)n.focus()}return}softRender();return}
