@@ -1,0 +1,68 @@
+/* ===== shared helpers ===== */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const GBP=(v,sign)=>{if(v==null||isNaN(v))return'–';const s=Math.abs(v).toLocaleString('en-GB',{maximumFractionDigits:0});return(v<-0.5?'−':(sign===true&&v>0.5?'+':''))+'£'+s};
+const GBP2=v=>{if(v==null||isNaN(v))return'–';return(v<0?'−':'')+'£'+Math.abs(v).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})};
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const DAY=864e5, U=(y,m,d)=>Date.UTC(y,m,d);
+const parseISO=s=>{const[a,b,c]=s.split('-').map(Number);return U(a,b-1,c)};
+const iso=t=>new Date(t).toISOString().slice(0,10);
+const ym=t=>iso(t).slice(0,7);
+const dim=(y,m)=>new Date(Date.UTC(y,m+1,0)).getUTCDate();
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONL=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const fdate=t=>{if(t==null)return'–';const d=new Date(t);return d.getUTCDate()+' '+MON[d.getUTCMonth()]+' '+String(d.getUTCFullYear()).slice(2)};
+const fdateS=t=>{if(t==null)return'–';const d=new Date(t);return d.getUTCDate()+' '+MON[d.getUTCMonth()]};
+const fmonthT=t=>{const d=new Date(t);return MON[d.getUTCMonth()]+' '+d.getUTCFullYear()};
+const fmonth=k=>{const[y,m]=k.split('-').map(Number);return MON[m-1]+' '+String(y).slice(2)};
+const fmonthLong=k=>{const[y,m]=k.split('-').map(Number);return MONL[m-1]+' '+y};
+const uid=()=>Math.random().toString(36).slice(2,8);
+const todayISO=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const addDays=(s,n)=>iso(parseISO(s)+n*DAY);
+const clone=o=>JSON.parse(JSON.stringify(o));
+const monthsBetween=(a,b)=>{const x=new Date(a),y=new Date(b);return(y.getUTCFullYear()-x.getUTCFullYear())*12+y.getUTCMonth()-x.getUTCMonth()};
+const addMonthsT=(t,n)=>{const d=new Date(t);return U(d.getUTCFullYear(),d.getUTCMonth()+n,1)};
+const addMonthsK=(k,n)=>{const[y,m]=k.split('-').map(Number);const d=new Date(Date.UTC(y,m-1+n,1));return d.toISOString().slice(0,7)};
+const monthOf=k=>+k.slice(5);
+const thisMonthK=()=>todayISO().slice(0,7);
+const ys=n=>n==null?'never at this payment':((Math.floor(n/12)?Math.floor(n/12)+' yr ':'')+(n%12?n%12+' mo':'')).trim()||'0 mo';
+const sum=(a,f)=>a.reduce((s,x)=>s+(f?f(x):x),0);
+const avg=a=>a.length?sum(a)/a.length:0;
+const median=a=>{if(!a.length)return 0;const s=[...a].sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2};
+const pct=v=>Math.round(v)+'%';
+const KIND={need:['Need','var(--need)'],want:['Want','var(--want)'],debt:['Debt','var(--debt)'],save:['Saving','var(--save)']};
+function niceStep(raw){const mag=Math.pow(10,Math.floor(Math.log10(raw))),f=raw/mag;return(f<1.5?1:f<3?2:f<7?5:10)*mag}
+function toast(msg){let t=$('#toast');if(!t){t=document.createElement('div');t.id='toast';t.className='toast';document.body.appendChild(t)}t.textContent=msg;t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',3200)}
+
+function ord(n){const s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0])}
+
+/* matching a payee keyword against a bank description: ignore the transaction type at the start, and match whole words so "car" never matches "card" */
+const DESC_PREFIX=/^(DEBIT CARD TRANSACTION|CARD TRANSACTION|DIRECT DEBIT|STANDING ORDER|ONLINE TRANSACTION|MOBILE\/ONLINE TRANSACTION|AUTOMATED CREDIT|AUTOMATED DEBIT|BILL PAYMENT|TRANSFER|DEBIT|CREDIT)\s+/;
+const cleanD=D=>String(D||'').toUpperCase().replace(DESC_PREFIX,'');
+const keyHit=(text,key)=>{key=String(key||'').toUpperCase().trim();if(!key)return false;const t=cleanD(text);if(key.length>=7)return t.includes(key);return new RegExp('(^|[^A-Z0-9])'+key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'($|[^A-Z0-9])').test(t)};
+
+/* three-way merge of plain JSON, so two people editing on two devices do not overwrite each other.
+   b = what both started from, m = my copy, t = their (newer) copy. What I changed wins; what only they changed is kept.
+   Lists of objects merge by their id (or `from` for plan versions). */
+const jEq=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+const mKey=x=>x&&typeof x==='object'&&!Array.isArray(x)?(x.id!=null?'i'+x.id:x.from!=null?'f'+x.from:null):null;
+function merge3(b,m,t){
+  if(jEq(m,b))return t;if(jEq(t,b))return m;if(jEq(m,t))return m;
+  const isO=x=>x&&typeof x==='object'&&!Array.isArray(x);
+  if(isO(m)&&isO(t)){const bb=isO(b)?b:{},out={};
+    new Set([...Object.keys(m),...Object.keys(t)]).forEach(k=>{const inM=k in m,inT=k in t,inB=k in bb;
+      if(inM&&inT)out[k]=merge3(bb[k],m[k],t[k]);
+      else if(inM){if(!inB||!jEq(m[k],bb[k]))out[k]=m[k]}   /* they deleted it: keep mine only if I changed it */
+      else if(!inB||!jEq(t[k],bb[k]))out[k]=t[k]});          /* I deleted it: keep theirs only if they added it or changed it... */
+    /* a key I deleted that they left unchanged is dropped (not in m, t equal to base) */
+    return out}
+  if(Array.isArray(m)&&Array.isArray(t)){const ba=Array.isArray(b)?b:[];
+    if(m.every(x=>mKey(x)!=null)&&t.every(x=>mKey(x)!=null)&&ba.every(x=>mKey(x)!=null)){
+      const bm=new Map(ba.map(x=>[mKey(x),x])),mm=new Map(m.map(x=>[mKey(x),x])),tm=new Map(t.map(x=>[mKey(x),x])),keys=[...tm.keys()];
+      mm.forEach((_,k)=>{if(!tm.has(k))keys.push(k)});const out=[];
+      keys.forEach(k=>{const inB=bm.has(k),inM=mm.has(k),inT=tm.has(k);
+        if(inM&&inT)out.push(merge3(bm.get(k),mm.get(k),tm.get(k)));
+        else if(inM){if(!inB||!jEq(mm.get(k),bm.get(k)))out.push(mm.get(k))}   /* they deleted it */
+        else if(inT){if(!inB||!jEq(tm.get(k),bm.get(k)))out.push(tm.get(k))}}); /* I deleted it */
+      return out}
+    return m}
+  return m}
