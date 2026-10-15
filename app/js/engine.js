@@ -29,7 +29,7 @@ function simulate(o={}){
   const sset=new Set(sdays),xfer={};
   {let t=U(sd.getUTCFullYear(),sd.getUTCMonth(),1);while(t<=end){const dt=new Date(t),y=dt.getUTCFullYear(),m=dt.getUTCMonth(),P=planOf(ym(t));
     (P.transfers||[]).forEach(x=>{const dd=x.rule==='day'?U(y,m,Math.min(x.day||2,dim(y,m))):Math.min(payDateOf(P,y,m)+2*DAY,U(y,m,dim(y,m)));if(dd>=start&&dd<=end)(xfer[dd]=xfer[dd]||[]).push(x)});t=U(y,m+1,1)}}
-  const days=[],months={},events=[];let lowBank={v:1e12,t:0},lowTrue={v:1e12,t:0};
+  const days=[],months={},events=[];let lowBank={v:1e12,t:0},lowTrue={v:1e12,t:0},lowAll={v:1e12,t:0};const winEnd=start+(o.window||365)*DAY; /* headline lows only look 12 months ahead: a distant, unplanned future should not drive the warnings */
   const lumps=[...(st.lumps||[]),...(o.lumps||[])];
   for(let t=start;t<=end;t+=DAY){
     const dt=new Date(t),y=dt.getUTCFullYear(),m=dt.getUTCMonth(),d=dt.getUTCDate(),n=dim(y,m),k=ym(t),ds=iso(t),P=planOf(k),A=P.amex;
@@ -83,7 +83,7 @@ function simulate(o={}){
     let owed=cycle+pend;
     if(P.savings&&P.savings.sweep&&d===n){const sw=Math.max(0,bank-owed-(st.buffer||0));if(sw>0.005){bank-=sw;pots.general+=sw;M.sav+=sw;M.sweep=(M.sweep||0)+sw;events.push({t,k:'save',n:'Surplus moved to savings',a:-sw})}}
     const tru=bank-owed,savT=Object.values(pots).reduce((a,b)=>a+b,0);
-    if(bank<lowBank.v)lowBank={v:bank,t};if(tru<lowTrue.v)lowTrue={v:tru,t};
+    if(bank<lowAll.v)lowAll={v:bank,t};if(t<=winEnd){if(bank<lowBank.v)lowBank={v:bank,t};if(tru<lowTrue.v)lowTrue={v:tru,t}}
     days.push({t,bank,owed,tru,sav:savT});M.debtLeft=Object.values(dbal).reduce((p,v)=>p+(v||0),0);M.endBank=bank;M.endTrue=tru;M.endSav=savT;
   }
   const Gend=buildGoals(planOf(ym(end)),st);
@@ -94,7 +94,7 @@ function simulate(o={}){
   if(cardSpend>0||cycle>0||stmts.length){verdict='good';why='Every Amex statement is covered by cash you will hold on the due date.';
     if(lowBank.v<0){verdict='bad';why='The bank balance drops below zero on '+fdate(lowBank.t)+'. A card payment could not be made in full.'}
     else if(lowTrue.v<buf){verdict='warn';why='After setting aside what you owe Amex, cash falls to '+GBP(lowTrue.v)+' on '+fdate(lowTrue.t)+', below your '+GBP(buf)+' buffer.'}}
-  return{days,months:Object.values(months),events,goals,lowBank,lowTrue,stmts,verdict,why,cardSpend,feeTotal,start,end,nMonths:Math.max(1,horizon),float:cardSpend>0?Math.round(30.4/2+A0.dueDays):0,pots}}
+  return{days,months:Object.values(months),events,goals,lowBank,lowTrue,lowAll,stmts,verdict,why,cardSpend,feeTotal,start,end,nMonths:Math.max(1,horizon),float:cardSpend>0?Math.round(30.4/2+A0.dueDays):0,pots}}
 /* ---- plan-only totals for a month (no actuals) ---- */
 function planMonth(k,P){
   P=P||planFor(k);const y=+k.slice(0,4),m=monthOf(k)-1;
@@ -127,3 +127,6 @@ function scenarioPlanOf(sc,fromK){
     p.savings.monthly=sc.sav;p.savings.sweep=!!sc.sweep;p.amexShare=sc.share;
     const d=p.debts.find(x=>x.id===sc.debtSel);if(d)d.extra=(d.extra||0)+sc.extra;
     return cache[k]=p}}
+
+/* the first day inside the 12-month headline window that the bank is below zero */
+const negIn=S=>S.days.find(d=>d.bank<0&&d.t<=S.days[0].t+365*DAY);

@@ -9,7 +9,7 @@ function bigBillsAhead(S,days=120,min=150){
 function adviceList(S){
   const P=curPlan(),buf=STATE.buffer||0,out=[],now=thisMonthK(),T=trackingData(),sav=P.savings.monthly||0;
   const add=(key,sev,title,body,go)=>{if(!dismissed('adv|'+key))out.push({key,sev,title,body,go})};
-  const neg=S.days.find(d=>d.bank<0);
+  const neg=negIn(S);
   if(neg){const need=-S.lowBank.v+buf,m=ym(neg.t);
     add('neg',"bad",`The bank goes overdrawn on ${fdate(neg.t)}`,`It reaches ${GBP(S.lowBank.v)} on ${fdate(S.lowBank.t)}. To stay above your ${GBP(buf)} buffer you need about ${GBP(need)} more by then. ${sav>=need?`Pausing the ${GBP(sav)} savings transfer in ${fmonthLong(m)} would cover it.`:`Even pausing the ${GBP(sav)} savings transfer is not enough, so trim budgets or move a yearly bill.`} Try it in What if.`,'whatif')}
   else if(S.lowTrue.v<buf)add('tight','bad',`The bank would not cover the Amex and your buffer on ${fdate(S.lowTrue.t)}`,`After setting aside what you owe Amex, cash falls to ${GBP(S.lowTrue.v)}, which is ${GBP(buf-S.lowTrue.v)} under your ${GBP(buf)} buffer. A smaller savings transfer that month would fix it.`,'whatif');

@@ -43,7 +43,7 @@ function vWhatIf(){
 /* plain-English warnings about what a scenario does to the account */
 function scenarioFlags(P,X,sc){
   const out=[],buf=STATE.buffer||0,fl=(sev,t)=>out.push({sev,t});
-  const neg=X.days.find(d=>d.bank<0),negBase=P.days.find(d=>d.bank<0);
+  const neg=negIn(X),negBase=negIn(P);
   if(neg)fl('bad',`The bank goes overdrawn on ${fdate(neg.t)} and the lowest it reaches is ${GBP(X.lowBank.v)} on ${fdate(X.lowBank.t)}.${negBase?'':' Your current plan never goes below zero.'} Bills and the mortgage could bounce.${bigOut(X,neg.t)}`);
   else if(X.lowTrue.v<buf)fl('warn',`Cash drops to ${GBP(X.lowTrue.v)} on ${fdate(X.lowTrue.t)}, below your ${GBP(buf)} safety buffer.`);
   const lm=X.months.slice(0,12).filter(m=>m.k>=sc.from).map(m=>({k:m.k,left:m.inc-(m.bills+m.yearly+m.debt+m.lump+m.vars+m.xfer+m.one+(m.sav-(m.sweep||0))+m.fee)})).filter(m=>m.left<-0.5);
@@ -75,7 +75,7 @@ function scParts(){
     else debtHtml=`<div class="note" style="margin-top:12px">Add the balance and interest rate for ${esc(d.name)} on the Debts tab to see how much sooner it ends and how much interest you save.</div>`}
   const flags=scenarioFlags(P,X,sc),fp={bad:'bad',warn:'warn',info:'info'},fl={bad:'Problem',warn:'Watch',info:'Note'};
   const rP=scMonthRows(P,sc.from),rX=scMonthRows(X,sc.from),bank0=(STATE.bank||0)+sinceBalance();
-  const negX=X.days.find(d=>d.bank<0),negP=P.days.find(d=>d.bank<0),nw=R=>sum(R,r=>r.nw);
+  const negX=negIn(X),negP=negIn(P),nw=R=>sum(R,r=>r.nw);
   const k=(label,v,sub,cls)=>`<div class="wk"><small>${label}</small><b class="${cls||''}">${v}</b><i>${sub}</i></div>`;
   const kpis=`<div class="wks">${k('Left over, '+fmonth(sc.from),GBP(scn.left),'plan '+GBP(base.left,true)+(scn.yearly?' · without yearly bills '+GBP(scn.left+scn.yearly,true):''),scn.left<0?'neg':'')}${k('First overdrawn',negX?fdate(negX.t):'never','plan: '+(negP?fdate(negP.t):'never'),negX?'neg':'pos')}${k('Bank in 12 mo',GBP(at(X,364).bank),'plan '+GBP(at(P,364).bank),at(X,364).bank<0?'neg':'')}${k('Net worth 12 mo',GBP(nw(rX),true),'plan '+GBP(nw(rP),true),nw(rX)<0?'neg':'')}</div>`;
   const zoom=view.scZoom||180,zb=[[90,'3 mo'],[180,'6 mo'],[270,'9 mo'],[365,'12 mo']].map(([z,l])=>`<button class="btn ${zoom===z?'':'ghost'} sm" data-act="sczoom" data-z="${z}">${l}</button>`).join('');
