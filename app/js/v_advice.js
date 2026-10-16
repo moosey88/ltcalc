@@ -10,8 +10,8 @@ function adviceList(S){
   const P=curPlan(),buf=STATE.buffer||0,out=[],now=thisMonthK(),T=trackingData(),sav=P.savings.monthly||0;
   const add=(key,sev,title,body,go)=>{if(!dismissed('adv|'+key))out.push({key,sev,title,body,go})};
   const neg=negIn(S);
-  if(neg){const need=-S.lowBank.v+buf,m=ym(neg.t);
-    add('neg',"bad",`The bank goes overdrawn on ${fdate(neg.t)}`,`It reaches ${GBP(S.lowBank.v)} on ${fdate(S.lowBank.t)}. To stay above your ${GBP(buf)} buffer you need about ${GBP(need)} more by then. ${sav>=need?`Pausing the ${GBP(sav)} savings transfer in ${fmonthLong(m)} would cover it.`:`Even pausing the ${GBP(sav)} savings transfer is not enough, so trim budgets or move a yearly bill.`} Try it in What if.`,'whatif')}
+  if(neg){const need=Math.max(0,-Math.min(S.lowBank.v,neg.bank)+buf),m=ym(neg.t),gap=monthGap(S);
+    add('neg',"bad",`The bank goes overdrawn on ${fdate(neg.t)}`,`${S.lowBank.v<0?`In the next 3 months it reaches ${GBP(S.lowBank.v)} on ${fdate(S.lowBank.t)}.`:`It goes below zero further ahead.`} ${gap!=null&&gap<-50?`A normal month from ${fmonth(addMonthsK(thisMonthK(),1))} runs ${GBP(-gap)} short, so it keeps happening until the plan changes.`:''} To stay above your ${GBP(buf)} buffer you need about ${GBP(need)} more by then. ${sav>=need?`Pausing the ${GBP(sav)} savings transfer in ${fmonthLong(m)} would cover it.`:`Even pausing the ${GBP(sav)} savings transfer is not enough, so trim budgets or move a yearly bill.`} Try it in What if.`,'whatif')}
   else if(S.lowTrue.v<buf)add('tight','bad',`The bank would not cover the Amex and your buffer on ${fdate(S.lowTrue.t)}`,`After setting aside what you owe Amex, cash falls to ${GBP(S.lowTrue.v)}, which is ${GBP(buf-S.lowTrue.v)} under your ${GBP(buf)} buffer. A smaller savings transfer that month would fix it.`,'whatif');
   /* yearly bills: set aside monthly so they never ambush the account */
   P.bills.filter(b=>(b.freq||'monthly')==='yearly'&&b.amount>=75).forEach(b=>{

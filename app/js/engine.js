@@ -29,7 +29,7 @@ function simulate(o={}){
   const sset=new Set(sdays),xfer={};
   {let t=U(sd.getUTCFullYear(),sd.getUTCMonth(),1);while(t<=end){const dt=new Date(t),y=dt.getUTCFullYear(),m=dt.getUTCMonth(),P=planOf(ym(t));
     (P.transfers||[]).forEach(x=>{const dd=x.rule==='day'?U(y,m,Math.min(x.day||2,dim(y,m))):Math.min(payDateOf(P,y,m)+2*DAY,U(y,m,dim(y,m)));if(dd>=start&&dd<=end)(xfer[dd]=xfer[dd]||[]).push(x)});t=U(y,m+1,1)}}
-  const days=[],months={},events=[];let lowBank={v:1e12,t:0},lowTrue={v:1e12,t:0},lowAll={v:1e12,t:0};const winEnd=start+(o.window||365)*DAY; /* headline lows only look 12 months ahead: a distant, unplanned future should not drive the warnings */
+  const days=[],months={},events=[];let lowBank={v:1e12,t:0},lowTrue={v:1e12,t:0},lowAll={v:1e12,t:0};const winEnd=start+(o.window||92)*DAY; /* the headline 'lowest point' only looks 3 months ahead: a distant, unplanned future should not drive the warnings */
   const lumps=[...(st.lumps||[]),...(o.lumps||[])];
   for(let t=start;t<=end;t+=DAY){
     const dt=new Date(t),y=dt.getUTCFullYear(),m=dt.getUTCMonth(),d=dt.getUTCDate(),n=dim(y,m),k=ym(t),ds=iso(t),P=planOf(k),A=P.amex;
@@ -130,3 +130,6 @@ function scenarioPlanOf(sc,fromK){
 
 /* the first day inside the 12-month headline window that the bank is below zero */
 const negIn=S=>S.days.find(d=>d.bank<0&&d.t<=S.days[0].t+365*DAY);
+
+/* how much a normal future month runs short (negative) or over, from the first full month after this one */
+const monthGap=S=>{const k=addMonthsK(thisMonthK(),1),m=S.months.find(x=>x.k===k);return m?Math.round(m.inc-(m.bills+m.yearly+m.debt+m.vars+m.xfer+m.one+m.fee+(m.sav-(m.sweep||0)))):null};
