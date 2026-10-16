@@ -82,7 +82,8 @@ const curPlan=()=>planFor(thisMonthK());
 const nextMonthK=()=>addMonthsK(thisMonthK(),1);
 const isStartPlan=()=>VERSIONS.length===1&&VERSIONS[0].by==='start';
 /* money ticked off or typed in since the last bank balance was taken */
-const sinceBalance=(asOf)=>sum(Object.values(TX).flat().filter(t=>(t.s==='tick'||t.s==='man')&&t.p==='bank'&&t.d>(asOf||STATE.asOf||'0')),t=>t.a);
+/* money that moved after the typed or file balance: your ticks and entries, plus lines from an uploaded file that has no balance of its own (the online export) */
+const sinceBalance=(asOf)=>sum(Object.values(TX).flat().filter(t=>(t.s==='tick'||t.s==='man'||t.s==='nw')&&t.p==='bank'&&t.d>(asOf||STATE.asOf||'0')),t=>t.a);
 function commitPlan(plan,from,note,by,correct){
   try{audit(correct?'Corrected plan':'Saved plan',`from ${from}${note?': '+note:''}`)}catch(e){}
   if(correct){const v=versionFor(from);v.plan=clone(plan);if(note)v.note=note;return}
