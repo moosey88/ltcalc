@@ -207,3 +207,11 @@ body:has(.draftbar){padding-bottom:110px}
 
 .bar.split{height:7px;border-radius:4px}.bar.split .d,.bleg i.d{background:#6aa6f0}.pill.deb{background:#e4efff;color:#2c63b3}.pill.cash{background:#fff2d6;color:#9a6a00}
 .xr{font-size:.74rem;white-space:nowrap}.xr.ok{color:var(--good)}.xr.wt{color:var(--warn)}.xr.bad{color:var(--bad)}.xr.cash{color:var(--muted)}
+
+/* budget bars: one pill; the filled part is itself a pill, with straight joins between Debit | Cash | Amex */
+.bar.split{display:block;height:7px;border-radius:4px;background:var(--line);overflow:visible;box-shadow:none}
+.bar.split .fill{display:flex;height:100%;border-radius:4px;overflow:hidden}
+.bar.split .fill i{display:block;height:100%;border-radius:0;flex:none}
+.bar.split .d,.bleg i.d{background:#6aa6f0}.bar.split .k,.bleg i.k{background:#f0a93b}.bar.split .a{background:#8a4bd6}
+.bar.split.over{box-shadow:0 0 0 1.5px var(--bad)}.bar.split.ahead{box-shadow:0 0 0 1.5px var(--warn)}
+.cshn{font-size:.74rem;color:#9a6a00;margin-top:2px}

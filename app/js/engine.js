@@ -23,7 +23,7 @@ function simulate(o={}){
   if(o.amexOwed!=null)cycle=o.amexOwed;else amexStatementList(asOf).forEach(s=>{if(s.state==='open')cycle=s.total;else if(s.state==='due'&&s.total>0.005)stmts.push({close:parseISO(s.close),due:parseISO(s.due),amt:s.total,known:true})});
   const P1=planOf(ym(start));const G0=buildGoals(P1,st);
   const pots={general:st.general||0,yearly:0,ru:(typeof ruNow==='function'?ruNow().bal:0)};G0.forEach(g=>pots[g.id]=g.saved||0);
-  const done={},hit={},gsp={},dbal={};(P1.debts||[]).forEach(d=>dbal[d.id]=st.debtBal[d.id]);
+  const done={},hit={},gsp={},dbal={};(P1.debts||[]).forEach(d=>dbal[d.id]=debtTotalFrom(d,st.debtBal[d.id]));
   // dates of savings transfers and of personal transfers
   const sdays=[];for(let d=start;d<=end;d+=DAY){const dt=new Date(d);if(dt.getUTCDate()===Math.min(P1.savings.day,dim(dt.getUTCFullYear(),dt.getUTCMonth())))sdays.push(d)}
   const sset=new Set(sdays),xfer={};
@@ -53,8 +53,8 @@ function simulate(o={}){
         if(fr==='monthly'){M.bills+=amt;if(!tickRow(k,b.id))events.push({t,k:'bill',n:b.name,a:-amt,variable:!!b.variable})}else{M.yearly+=amt;events.push({t,k:'yearly',n:b.name,a:-amt})}}});
     // spread-over-the-year set aside, on the savings day
     if(sset.has(t)){const sp=sum(P.bills.filter(b=>(b.freq||'monthly')!=='monthly'&&b.spread),b=>b.amount/(b.freq==='quarterly'?3:12));if(sp>0){bank-=sp;pots.yearly+=sp;M.ySet+=sp}}
-    P.debts.forEach(x=>{if(!(x.id in dbal))dbal[x.id]=st.debtBal[x.id];const tot=(x.pay||0)+(x.extra||0)+(o.extraDebt&&o.extraDebt.id===x.id?o.extraDebt.amt:0);if(!on(x.day)||tot<=0)return;let pay=tot;const b=dbal[x.id];
-      if(b!=null){if(b<=0.005)return;const it=b*(x.apr||0)/1200,owe=b+it;pay=Math.min(tot,owe);dbal[x.id]=owe-pay;if(dbal[x.id]<=0.005)dbal[x.id]=0}
+    P.debts.forEach(x=>{if(!(x.id in dbal))dbal[x.id]=debtTotalFrom(x,st.debtBal[x.id]);const tot=(x.pay||0)+(x.extra||0)+(o.extraDebt&&o.extraDebt.id===x.id?o.extraDebt.amt:0);if(!on(x.day)||tot<=0)return;let pay=tot;const b=dbal[x.id];
+      if(b!=null){if(b<=0.005)return;const it=x.flat?0:b*(x.apr||0)/1200,owe=b+it;pay=Math.min(tot,owe);dbal[x.id]=owe-pay;if(dbal[x.id]<=0.005)dbal[x.id]=0}
       if(!tickRow(k,x.id)){bank-=pay;events.push({t,k:'debt',n:x.name,a:-pay})}M.debt+=pay});
     lumps.forEach(l=>{if(l.date!==ds)return;const nm=(P.debts.find(x=>x.id===l.debt)||{}).name||'debt';let amt=l.amount;const b=dbal[l.debt];if(b!=null)amt=Math.min(amt,b);if(amt<=0)return;
       if(b!=null)dbal[l.debt]=Math.max(0,b-amt);

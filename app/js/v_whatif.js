@@ -66,7 +66,7 @@ function scParts(){
   const d=planFor(nextMonthK()).debts.find(x=>x.id===sc.debtSel);let debtHtml='';
   if(d&&(sc.extra>0||sc.lump>0)){
     const bal=STATE.debtBal[d.id],lm=Math.max(0,monthsBetween(parseISO(STATE.asOf),parseISO(sc.lumpDate)));
-    const a0=amort(bal,d.apr,d.pay,d.extra,0,-1),a1=amort(bal,d.apr,d.pay,(d.extra||0)+sc.extra,sc.lump,lm),erc=d.erc>0?sc.lump*d.erc/100:0,totIn=sc.lump+erc+sc.extra*((a1&&a1.n)||0);
+    const a0=amort(debtTotalFrom(d,bal),debtAprEff(d),d.pay,d.extra,0,-1),a1=amort(debtTotalFrom(d,bal),debtAprEff(d),d.pay,(d.extra||0)+sc.extra,sc.lump,lm),erc=d.erc>0?sc.lump*d.erc/100:0,totIn=sc.lump+erc+sc.extra*((a1&&a1.n)||0);
     if(a0&&a1&&a0.n!=null&&a1.n!=null){const N=Math.min(480,Math.max(a0.n,a1.n)+2),ser=[],t0=addMonthsT(parseISO(STATE.asOf),0);
       for(let i=0;i<=N;i++)ser.push({t:addMonthsT(t0,i),p:a0.ser[i]??0,s:a1.ser[i]??0});
       debtHtml=`<h3 style="margin:16px 0 6px">${esc(d.name)}: what the extra does</h3><div class="kpis" style="margin-bottom:8px"><div class="kpi"><span>Debt free</span><b style="font-size:1.25rem">${fmonthT(addMonthsT(parseISO(STATE.asOf),a1.n))}</b><small>${ys(a0.n-a1.n)} sooner than ${fmonthT(addMonthsT(parseISO(STATE.asOf),a0.n))}</small></div>

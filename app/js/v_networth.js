@@ -17,7 +17,7 @@ function nwFigures(){
   const savPots=(STATE.general||0)+sum(Object.values(STATE.goalSaved||{}))+sum(Object.values(STATE.taxSaved||{}));
   const auto={bank:(STATE.bank||0)+sinceBalance(),cash:cashBalance(),pots:savPots,ru:ruNow().bal};
   const home=g('property'),pens=g('pension'),sav=g('savings')+auto.bank+auto.cash+auto.pots+auto.ru,veh=g('vehicle')+g('other');
-  const P=curPlan(),debts=P.debts.map(d=>({d,bal:STATE.debtBal[d.id]||0})),amex=amexOwedNow();
+  const P=curPlan(),debts=P.debts.map(d=>({d,bal:debtTotal(d)||0})),amex=amexOwedNow();
   const mort=sum(debts.filter(x=>x.d.type==='mortgage'),x=>x.bal),other=sum(debts.filter(x=>x.d.type!=='mortgage'),x=>x.bal)+amex;
   const assets=home+pens+sav+veh,liab=mort+other;
   return{auto,home,pens,sav,veh,debts,amex,mort,other,assets,liab,net:assets-liab,noPens:assets-pens-liab,reach:assets-pens-home-other,equity:home-mort}}

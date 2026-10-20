@@ -108,7 +108,7 @@ function yearPanel(S){return`<div class="panel c12"><div class="row" style="just
 function debtEffects(amt){
   const P=curPlan(),rows=[];let missing=true;
   P.debts.forEach(d=>{const bal=STATE.debtBal[d.id];if(!(bal>0))return;missing=false;
-    const a0=amort(bal,d.apr,d.pay,d.extra,0,-1),a1=amort(bal,d.apr,d.pay,d.extra,amt,0);
+    const a0=amort(debtTotalFrom(d,bal),debtAprEff(d),d.pay,d.extra,0,-1),a1=amort(debtTotalFrom(d,bal),debtAprEff(d),d.pay,d.extra,amt,0);
     if(a0&&a1)rows.push({d,bal,a0,a1})});
   return{rows,missing,amt}}
 function debtEffectTable(R){

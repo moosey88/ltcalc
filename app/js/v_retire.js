@@ -4,7 +4,7 @@ function retParams(){
   STATE.ret=Object.assign({},RET_DEF,STATE.ret||{});const R=STATE.ret,P=curPlan(),f=nwFigures(),nk=nextMonthK();
   let nonDebt=0;for(let i=0;i<12;i++){const m=planMonth(addMonthsK(nk,i),planFor(addMonthsK(nk,i)));nonDebt+=m.bills+m.yearly+m.vars+m.xfer+m.one}
   const A=STATE.assets||[],pen=o=>sum(A.filter(a=>a.group==='pension'&&(a.owner===o||(o==='Annie'&&!a.owner))),a=>a.value||0);
-  const debts=P.debts.filter(d=>(d.pay||0)>0&&(STATE.debtBal[d.id]||0)>0).map(d=>{const a=amort(STATE.debtBal[d.id],d.apr,d.pay,d.extra,0,-1);return{name:d.name,pay:(d.pay||0)+(d.extra||0),n:a&&a.n!=null?a.n:600}});
+  const debts=P.debts.filter(d=>(d.pay||0)>0&&(STATE.debtBal[d.id]||0)>0).map(d=>{const a=amort(debtTotal(d),debtAprEff(d),d.pay,d.extra,0,-1);return{name:d.name,pay:(d.pay||0)+(d.extra||0),n:a&&a.n!=null?a.n:600}});
   const unpaid=P.debts.filter(d=>!(d.pay>0)&&(STATE.debtBal[d.id]||0)>0).map(d=>({name:d.name,bal:STATE.debtBal[d.id]}));
   const biz=A.filter(a=>a.group==='other'||/ltd|handyman|business/i.test(a.name)).map(a=>{const s=R.biz[a.id]||{};return{id:a.id,name:a.name,value:a.value||0,mode:s.mode||((a.value>0&&!/shares/i.test(a.name))?'sell':'ignore'),income:s.income||0,tax:s.tax!=null?s.tax:(s.mode==='income'?20:18)}});
   return{...R,spendM:R.spend!=null?R.spend:Math.round(nonDebt/12/10)*10,saveM:R.save!=null?R.save:(P.savings.monthly||0),liq0:f.sav,penA0:pen('Annie'),penS0:pen('Sander'),debts,unpaid,biz,nonDebtM:nonDebt/12,home:f.home}}

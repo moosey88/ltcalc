@@ -83,6 +83,10 @@ const nextMonthK=()=>addMonthsK(thisMonthK(),1);
 const isStartPlan=()=>VERSIONS.length===1&&VERSIONS[0].by==='start';
 /* money ticked off or typed in since the last bank balance was taken */
 /* money that moved after the typed or file balance: your ticks and entries, plus lines from an uploaded file that has no balance of its own (the online export) */
+/* a debt whose interest is added up front (like an HMRC time-to-pay plan): the rate is added to the balance once, and the monthly payment then clears that total with no further interest */
+const debtTotalFrom=(d,b)=>d.flat&&b>0?Math.round(b*(1+(d.apr||0)/100)*100)/100:b;
+const debtTotal=d=>debtTotalFrom(d,STATE.debtBal[d.id]);
+const debtAprEff=d=>d.flat?0:d.apr;
 const sinceBalance=(asOf)=>sum(Object.values(TX).flat().filter(t=>(t.s==='tick'||t.s==='man'||t.s==='nw')&&t.p==='bank'&&t.d>(asOf||STATE.asOf||'0')),t=>t.a);
 function commitPlan(plan,from,note,by,correct){
   try{audit(correct?'Corrected plan':'Saved plan',`from ${from}${note?': '+note:''}`)}catch(e){}
@@ -135,6 +139,7 @@ function migratePlan(p){
   {const s=p.income.find(i=>i.id==='i_sander');if(s&&(s.name==='Sander wages'||s.name==='Sander (from his own account)')){s.name='Sander Salary (Handyman)';changed=true}}
   {const i=p.debts.findIndex(d=>d.id==='d_ikea');if(i>=0){const o=p.debts[i],mk=(id,n,pay)=>({id,name:n,type:'loan',pay,day:o.day||1,apr:0,extra:0,erc:o.erc||0,match:'IKANO',grp:'Ikea repayment'});
     p.debts.splice(i,1,mk('d_ikea1','Ikea loan 1',62.5),mk('d_ikea2','Ikea loan 2',71));changed=true}}
+  p.debts.forEach(d=>{if(d.id==='d_tax'&&d.flat==null){d.flat=true;changed=true}});
   const YK={'car insurance':'ADMIRAL','home insurance':'HOME INSURANCE','tv licence':'TV LICENCE','garden waste':'GARDEN WASTE','christmas':'XMAS'};
   p.bills.forEach(b=>{if((b.freq||'monthly')!=='monthly'&&!b.match){const k=Object.keys(YK).find(x=>b.name.toLowerCase().startsWith(x));if(k){b.match=YK[k];changed=true}}});
   (p.transfers||[]).forEach(x=>{if(x.rule==='afterpay'){x.rule='day';x.day=x.day||2;changed=true}});
