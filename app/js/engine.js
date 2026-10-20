@@ -131,5 +131,5 @@ function scenarioPlanOf(sc,fromK){
 /* the first day inside the 12-month headline window that the bank is below zero */
 const negIn=S=>S.days.find(d=>d.bank<0&&d.t<=S.days[0].t+365*DAY);
 
-/* how much a normal future month runs short (negative) or over, from the first full month after this one */
-const monthGap=S=>{const k=addMonthsK(thisMonthK(),1),m=S.months.find(x=>x.k===k);return m?Math.round(m.inc-(m.bills+m.yearly+m.debt+m.vars+m.xfer+m.one+m.fee+(m.sav-(m.sweep||0)))):null};
+/* how much a normal future month runs short (negative) or over, leaving out yearly bills and one-offs */
+const monthGap=S=>{const k=addMonthsK(thisMonthK(),1),m=S.months.find(x=>x.k===k);return m?Math.round(m.inc-(m.bills+m.debt+m.vars+m.xfer+m.fee+(m.sav-(m.sweep||0)))):null};
