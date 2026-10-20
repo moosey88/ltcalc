@@ -84,6 +84,7 @@ document.addEventListener('click',e=>{
   else if(a==='discard'){DRAFT=null;DRAFTBASE=null;render()}
   else if(a==='trycut'){scInit();planFor(nextMonthK()).vars.forEach(v=>{if(v.kind==='want')view.scen.vars[v.id]=Math.round(v.budget*(1-view.cut/100))});go('whatif')}
   else if(a==='xreffix'){xrefFix(d.id,d.m,d.to)}
+  else if(a==='debtrank'){view.debtRank=d.id;const t=document.getElementById('debtEff');if(t)t.innerHTML=debtEffectTable(debtEffects(view.debtAmt??1000));else render()}
   else if(a==='fixline'){view.fixShow=view.fixShow||{today:1,mix:1};view.fixShow[d.id]=view.fixShow[d.id]?0:1;const F=fixSetup(),el=document.getElementById('fixDyn');if(F&&el)el.innerHTML=fixDyn(F);else render()}
   else if(a==='fixload'){const F=fixSetup();if(F){view.fixV=fixPreset(F,d.id);view.fixShow=view.fixShow||{today:1,mix:1};view.fixShow.mix=1;view.fixShow[d.id.toLowerCase()]=1;render()}}
   else if(a==='fixreset'){const F=fixSetup();if(F){view.fixV=fixDefault(F);render()}}

@@ -72,7 +72,7 @@ function vToday(){
   const lc=liveCheck();
   const comingAll=S.events.filter(e=>e.t<=S.start+90*DAY&&((e.k==='bill'&&(e.variable||-e.a>=200))||((e.k==='debt'||e.k==='xfer')&&-e.a>=200)||e.k==='yearly'||e.k==='one'||e.k==='goal'||e.k==='lump'||(e.k==='amex'&&-e.a>=200)));
   const pace=T.budget*T.dom/T.n,under=pace-T.spent;
-  const debtRows=debtEffects(Math.min(view.debtAmt??1000,Math.max(0,head)||1000));
+  const debtRows=debtEffects(view.debtAmt??1000);
   return banners()+intro('Where you stand today, built from your real bank balance, your bills and what you have spent so far.')+`
   <div class="kpis">
    <div class="kpi"><span>In the bank</span><b>${STATE.bank==null?'–':GBP(STATE.bank+sinceBalance())}</b><small>${STATE.bank==null?'add a balance':Math.abs(sinceBalance())>=0.005?`${GBP2(STATE.bank)} at ${fdate(parseISO(STATE.asOf))}, ${sinceBalance()>0?'plus':'less'} ${GBP2(Math.abs(sinceBalance()))} ticked or typed since`:'as of '+fdate(parseISO(STATE.asOf))}</small></div>
@@ -87,8 +87,8 @@ function vToday(){
    ${anomalyPanel(reviewCount()?'c12':'c8')}
    ${advicePanel()}
    ${budgetsPanel(T.k)}
-   <div class="panel c12"><h2>Left over: what could it do for your debts?</h2><div class="grid"><div class="c4">
-     ${slider('debtAmt','Put towards debt',Math.min(view.debtAmt??1000,Math.max(1000,Math.round(Math.max(0,head)/50)*50)),0,Math.max(1000,Math.round(Math.max(0,head)/50)*50),50,`Out of your ${GBP(Math.max(0,head))} left over.`)}
+   <div class="panel c12"><h2>Where should a lump sum go?</h2><div class="grid"><div class="c4">
+     ${slider('debtAmt','Extra lump sum',view.debtAmt??1000,0,30000,100,`Type or drag any amount: left-over cash, savings or a windfall. This month's left over is ${GBP(Math.max(0,head))}.`)}
      ${debtRows.missing?'<div class="note">Add your balances and interest rates on the Debts tab. Until then this has nothing to work with.</div>':''}</div>
     <div class="c8" id="debtEff">${debtEffectTable(debtRows)}</div></div></div>
    <div class="panel c12"><h2>Coming up: big and variable bills</h2><p class="small muted" style="margin-top:0">Bills over £200, any marked variable, yearly bills and one-offs, over the next 90 days.</p>
@@ -107,14 +107,22 @@ function trackingPanel(S,T){const pace=T.budget*T.dom/T.n,under=pace-T.spent;ret
 function yearPanel(S){return`<div class="panel c12"><div class="row" style="justify-content:space-between"><h2>The next 12 months</h2><button class="btn ghost sm" data-act="toggle" data-v="year">${view.open.year?'Hide':'Show'}</button></div>${view.open.year?annualBlock(S):'<p class="small muted" style="margin:0">Month by month: what comes in, what goes out, and where the bank and savings end up.</p>'}</div>`}
 function debtEffects(amt){
   const P=curPlan(),rows=[];let missing=true;
-  P.debts.forEach(d=>{const bal=STATE.debtBal[d.id];if(!(bal>0))return;missing=false;
-    const a0=amort(debtTotalFrom(d,bal),debtAprEff(d),d.pay,d.extra,0,-1),a1=amort(debtTotalFrom(d,bal),debtAprEff(d),d.pay,d.extra,amt,0);
-    if(a0&&a1)rows.push({d,bal,a0,a1})});
+  P.debts.forEach(d=>{const bal=STATE.debtBal[d.id];if(!(bal>0))return;missing=false;const owed=debtTotalFrom(d,bal),pay=(d.pay||0)+(d.extra||0);
+    const a0=amort(owed,debtAprEff(d),d.pay,d.extra,0,-1),a1=amort(owed,debtAprEff(d),d.pay,d.extra,amt,0);
+    if(a0&&a1){const saved=(a0.int!=null&&a1.int!=null)?a0.int-a1.int:null,cleared=amt>=owed-0.005;rows.push({d,bal,owed,pay,a0,a1,saved,sooner:(a0.n!=null&&a1.n!=null)?a0.n-a1.n:null,cleared,freed:cleared?pay:0,rateKnown:d.apr!=null||!!d.flat})}});
   return{rows,missing,amt}}
+/* where a lump sum does the most: by interest saved, or by the monthly payment it frees */
 function debtEffectTable(R){
   if(!R.rows.length)return'<p class="muted small" style="margin:0">Nothing to show yet.</p>';
-  return`<div class="tblwrap"><table><thead><tr><th>If ${GBP(R.amt)} goes on…</th><th class="n">Rate</th><th class="n">Ends sooner by</th><th class="n">Interest saved</th></tr></thead><tbody>${R.rows.sort((a,b)=>(b.d.apr||0)-(a.d.apr||0)).map(r=>{const sooner=(r.a0.n!=null&&r.a1.n!=null)?r.a0.n-r.a1.n:null,saved=(r.a0.int!=null&&r.a1.int!=null)?r.a0.int-r.a1.int:null;
-    return`<tr><td>${esc(r.d.name)}</td><td class="n">${r.d.apr==null?'?':r.d.apr+'%'}</td><td class="n">${sooner==null?'–':ys(sooner)}</td><td class="n pos">${saved==null?'–':GBP(saved)}</td></tr>`}).join('')}</tbody></table></div><p class="small ink2" style="margin-bottom:0">[Likely] Money on the highest rate saves the most interest per pound. A lump sum on a large mortgage saves interest over many years but barely moves its end date. A 0% debt saves no interest at all.</p>`}
+  const rk=view.debtRank||'int',rows=R.rows.slice().sort(rk==='cash'?(a,b)=>b.freed-a.freed||(b.saved||0)-(a.saved||0):(a,b)=>(b.saved||0)-(a.saved||0)||b.freed-a.freed);
+  const bi=R.rows.filter(r=>r.saved>0.5).sort((a,b)=>b.saved-a.saved)[0],bc=R.rows.filter(r=>r.freed>0).sort((a,b)=>b.freed-a.freed||a.owed-b.owed)[0],small=R.rows.filter(r=>!r.cleared&&r.pay>0).sort((a,b)=>a.owed-b.owed)[0];
+  const mix=(()=>{let left=R.amt;const pick=[];R.rows.filter(r=>r.pay>0&&r.owed>0).sort((a,b)=>b.pay/b.owed-a.pay/a.owed).forEach(r=>{if(r.owed<=left+0.005){pick.push(r);left-=r.owed}});return pick})();
+  const lines=[bi?`<b>Most interest saved:</b> ${esc(bi.d.name)}, ${GBP(bi.saved)} (about ${GBP(bi.saved/R.amt*1000)} for every £1,000).`:'',
+    bc?`<b>Biggest cashflow impact:</b> ${esc(bc.d.name)} is cleared and frees ${GBP2(bc.freed)} a month (${GBP2(bc.freed*12)} a year).`:(small?`<b>Cashflow:</b> ${GBP(R.amt)} clears no debt, so your monthly payments stay the same. The smallest to clear is ${esc(small.d.name)} at ${GBP(small.owed)}, which would free ${GBP2(small.pay)} a month.`:''),mix.length>1?`<b>Best mix for cashflow:</b> clear ${mix.map(r=>esc(r.d.name)).join(' and ')} (${GBP(sum(mix,r=>r.owed))} together) to free ${GBP2(sum(mix,r=>r.pay))} a month.`:''].filter(Boolean).join('<br>');
+  const chip=(k,l)=>`<button class="chip ${rk===k?'on':''}" data-act="debtrank" data-id="${k}">${rk===k?'✓ ':''}${l}</button>`;
+  return`${lines?`<div class="note" style="margin:0 0 8px">${lines}</div>`:''}<div class="row" style="gap:6px;margin-bottom:6px"><span class="small muted">Rank by</span>${chip('int','Interest saved')}${chip('cash','Monthly cash freed')}</div>
+   <div class="tblwrap"><table><thead><tr><th>If ${GBP(R.amt)} goes on…</th><th class="n">Rate</th><th class="n">Interest saved</th><th class="n">Ends sooner by</th><th class="n">Cash freed a month</th></tr></thead><tbody>${rows.map((r,i)=>`<tr${i===0?' style="background:var(--bank-bg)"':''}><td>${i===0?'<b>1.</b> ':(i+1)+'. '}${esc(r.d.name)}${r.cleared?' <span class="pill good">cleared</span>':''}</td><td class="n">${r.d.flat?r.d.apr+'% up front':r.d.apr==null?'<span class="pill warn" title="Add the interest rate on the Debts tab to see what this saves">add rate</span>':r.d.apr+'%'}</td><td class="n pos">${r.saved==null||!r.rateKnown?'–':GBP(r.saved)}</td><td class="n">${r.cleared?'cleared':r.sooner==null?'–':ys(r.sooner)}</td><td class="n">${r.freed>0?GBP2(r.freed):'–'}</td></tr>`).join('')}</tbody></table></div>
+   <p class="small ink2" style="margin-bottom:0">Interest saved assumes the lump goes in now and your monthly payments stay the same, so the debt ends sooner. Check for any early-repayment charge first. A higher rate saves more per pound each year, but a long debt like the mortgage saves a bigger total because the money works for longer.</p>`}
 function annualBlock(S){
   const ms=S.months.slice(0,13).map(m=>({...m,out:m.bills+m.yearly+m.debt+m.lump+m.vars+m.xfer+m.one+m.sav+m.fee}));const yr=ms.slice(0,12);const tot=k=>sum(yr,m=>m[k]||0);
   const due=S.goals.filter(g=>parseISO(g.date)<=S.start+365*DAY),dueNeed=sum(due,g=>Math.max(0,g.target-g.saved)),tx=sum(due.filter(g=>g.kind==='tax'),g=>g.target);
