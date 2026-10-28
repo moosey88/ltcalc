@@ -244,6 +244,16 @@ function importText(text,src){
   if(!parsed.length)return'No valid rows found.';
   return importRows(parsed,src)}
 /* shared by CSV and PDF: parsed is [{d,t,a,b,who}] */
+/* the same bank line can arrive twice: once from a file with no balance column, once from a file with it. Keep the balance copy and the best category. */
+const HOW_RANK={typed:5,check:4,rule:3,known:3,bill:3,refund:3,builtin:2,none:0};
+function healTwins(){let n=0;Object.keys(TX).forEach(k=>{const arr=TX[k]||[],g={};
+  arr.filter(t=>t.s==='nw'&&t.p==='bank').forEach(t=>(g[t.d+'|'+t.a]=g[t.d+'|'+t.a]||[]).push(t));
+  let ch=false;Object.values(g).forEach(L=>{const nb=L.filter(t=>t.b==null),wb=L.filter(t=>t.b!=null);
+    for(let i=0;i<Math.min(nb.length,wb.length);i++){const o=nb[i],keep=wb[i],pick=(HOW_RANK[o.how]||0)>=(HOW_RANK[keep.how]||0)?o:keep;
+      if(pick===o){['c','sc','how','why','rv'].forEach(f=>{if(o[f]===undefined)delete keep[f];else keep[f]=o[f]})}
+      if(o.note&&!keep.note)keep.note=o.note;
+      arr.splice(arr.indexOf(o),1);n++;ch=true}});
+  if(ch)saveTx(k)});return n}
 function importRows(parsed,src){
   /* the same line may arrive from a CSV and a PDF with different wording: match on date, amount and balance */
   const cnt={};Object.values(TX).flat().filter(t=>t.s===src).forEach(t=>{const k=t.d+'|'+t.a+'|'+(src==='nw'?t.b:(t.who||''));cnt[k]=(cnt[k]||0)+1});
@@ -262,8 +272,10 @@ function importRows(parsed,src){
     arr.push(row);added++;
     if(c==='_cashout'||c==='_cashin'){const typ=c==='_cashout'?'out':'deposit',amt=Math.abs(x.a);
       if(!(STATE.cash||[]).some(e=>e.type===typ&&Math.abs(e.a-amt)<0.005&&dayGap(e.d,x.d)<=3))(STATE.cash=STATE.cash||[]).push({id:'c_'+uid(),d:x.d,type:typ,a:amt,who:'',note:'From the bank file',auto:true})}});
+  const twins=src==='nw'?healTwins():0;
   Object.keys(parsed.reduce((o,x)=>(o[x.d.slice(0,7)]=1,o),{})).forEach(k=>saveTx(k));
   let msg=`Added ${added} new lines (${merged} matched to entries you typed, ${skipped} already there${asked?`, ${asked} need your say-so`:''}).`;
+  if(twins)msg+=` Merged ${twins} bank line${twins>1?'s':''} that were in twice (same day and amount, once without a balance).`;
   if(src==='amex'){const oth=parsed.filter(x=>x.who==='S'&&x.a<0&&!/PAYMENT RECEIVED/i.test(x.t)),jt=parsed.filter(x=>x.who==='A'&&x.a<0);
     msg+=parsed.some(x=>x.who!==undefined)?` Counted ${jt.length} ${esc(amexJointName())} (joint) card lines, ${GBP2(-sum(jt,x=>x.a))}. Left out ${oth.length} lines from the other cardholder, ${GBP2(-sum(oth,x=>x.a))}, because that spending is personal.${!jt.length?' No lines matched "'+esc(amexJointName())+'", so check the cardholder name in Settings.':''}`:' This file has no Cardmember column, so every line was counted as joint. Download the version that lists the cardmember.'}
   const rc=reconcileTicks();
