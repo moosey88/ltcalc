@@ -115,6 +115,7 @@ document.addEventListener('change',async e=>{
   if(d.dd){const D=view.dd=view.dd||{chip:'month'};D[d.dd]=el.value;if(d.dd==='from'||d.dd==='to')D.chip='custom';render();return}
   if(d.r){const v=parseVal(el);if(d.r==='plan'){setPath(draft(),d.p,v);invalidate()}else{setPath(STATE,d.p,v);afterState(d.p,v);invalidate();persistAll()}updateDraftBar();if(tab==='retire'){const ae=document.activeElement,key=ae&&ae.dataset&&ae.dataset.p;render();if(key){const n=document.querySelector('[data-p="'+key+'"]');if(n)n.focus()}return}softRender();return}
   if(d.cat!==undefined){sortTx(d.cat,d.m,el.value);return}
+  if(d.rc!==undefined){recatTx(d.rc,d.m,el.value);return}
   if(el.id==='fCompare'){view.compare=el.value;render();return}
   if(el.id==='fCat'){view.cat=el.value;render();return}
   if(d.act==='tick'){toggleTick(d.kind,d.id,d.m);return}
