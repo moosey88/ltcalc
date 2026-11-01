@@ -266,14 +266,17 @@ function importText(text,src){
 /* shared by CSV and PDF: parsed is [{d,t,a,b,who}] */
 /* the same bank line can arrive twice: once from a file with no balance column, once from a file with it. Keep the balance copy and the best category. */
 const HOW_RANK={typed:5,check:4,rule:3,known:3,bill:3,refund:3,builtin:2,none:0};
-function healTwins(){let n=0;Object.keys(TX).forEach(k=>{const arr=TX[k]||[],g={};
-  arr.filter(t=>t.s==='nw'&&t.p==='bank').forEach(t=>(g[t.d+'|'+t.a]=g[t.d+'|'+t.a]||[]).push(t));
-  let ch=false;Object.values(g).forEach(L=>{const nb=L.filter(t=>t.b==null),wb=L.filter(t=>t.b!=null);
-    for(let i=0;i<Math.min(nb.length,wb.length);i++){const o=nb[i],keep=wb[i],pick=(HOW_RANK[o.how]||0)>=(HOW_RANK[keep.how]||0)?o:keep;
-      if(pick===o){['c','sc','how','why','rv'].forEach(f=>{if(o[f]===undefined)delete keep[f];else keep[f]=o[f]})}
-      if(o.note&&!keep.note)keep.note=o.note;
-      arr.splice(arr.indexOf(o),1);n++;ch=true}});
-  if(ch)saveTx(k)});return n}
+function healTwins(){let n=0;const near=(a,b)=>Math.abs(parseISO(a)-parseISO(b))<=2*DAY,touched=new Set();
+  /* same amount, one line without a balance and one with: the same payment, as long as they are within two days of each other */
+  const all=[];Object.keys(TX).forEach(k=>(TX[k]||[]).forEach(t=>{if(t.s==='nw'&&t.p==='bank')all.push({k,t})}));
+  const byAmt={};all.forEach(x=>(byAmt[x.t.a]=byAmt[x.t.a]||[]).push(x));
+  Object.values(byAmt).forEach(L=>{const nb=L.filter(x=>x.t.b==null),wb=L.filter(x=>x.t.b!=null);
+    nb.forEach(o=>{let best=null,bg=9e9;wb.forEach(w=>{if(w.used||!near(o.t.d,w.t.d))return;const g=Math.abs(parseISO(o.t.d)-parseISO(w.t.d));if(g<bg){bg=g;best=w}});
+      if(!best)return;best.used=1;const keep=best.t,old=o.t,pick=(HOW_RANK[old.how]||0)>=(HOW_RANK[keep.how]||0)?old:keep;
+      if(pick===old){['c','sc','how','why','rv'].forEach(f=>{if(old[f]===undefined)delete keep[f];else keep[f]=old[f]})}
+      if(old.note&&!keep.note)keep.note=old.note;
+      TX[o.k].splice(TX[o.k].indexOf(old),1);touched.add(o.k);touched.add(best.k);n++})});
+  touched.forEach(k=>saveTx(k));return n}
 function importRows(parsed,src){
   /* the same line may arrive from a CSV and a PDF with different wording: match on date, amount and balance */
   const cnt={};Object.values(TX).flat().filter(t=>t.s===src).forEach(t=>{const k=t.d+'|'+t.a+'|'+(src==='nw'?t.b:(t.who||''));cnt[k]=(cnt[k]||0)+1});
