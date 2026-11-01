@@ -1,5 +1,13 @@
 /* ===== Tick-off: mark income and bills as done without typing a transaction, then check them against the bank file ===== */
 const tickRow=(m,id)=>(TX[m]||[]).find(t=>t.s==='tick'&&t.item===id);
+/* spending money paid in the last three days of a month counts towards the next month's allowance */
+const allowMonth=d=>{const y=+d.slice(0,4),mo=+d.slice(5,7)-1;return +d.slice(8)>=dim(y,mo)-2?addMonthsK(d.slice(0,7),1):d.slice(0,7)};
+function allowanceRows(m,catId){const pm=addMonthsK(m,-1);return[...(TX[m]||[]),...(TX[pm]||[])].filter(t=>t.s==='nw'&&t.c===catId&&t.a<0&&allowMonth(t.d)===m)}
+function xferRemaining(m,x){const S=-sum(allowanceRows(m,x.catId),t=>t.a);return S>0.5&&S<x.amount-1?x.amount-S:x.amount}
+/* where a spending-money payment sits against that month's allowance: what is paid so far and how much of this line is over */
+function allowInfo(t){if(t.s!=='nw'||!(t.a<0)||!t.c)return null;const am=allowMonth(t.d),x=((planFor(am)||{}).transfers||[]).find(z=>z.catId===t.c);if(!x)return null;
+  const L=allowanceRows(am,t.c).sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:a.id<b.id?-1:1);let run=0,hit=null;for(const r of L){run+=-r.a;if(r===t||r.id===t.id){hit=run;break}}
+  if(hit==null)return null;const over=hit-x.amount;return{name:x.name,plan:x.amount,run:hit,over:over>1?over:0,extra:over>1?Math.min(-t.a,over):0,am}}
 /* everything the plan expects in a month: money in, bills, debts, personal transfers */
 function expectedItems(m){
   const P=planFor(m),y=+m.slice(0,4),mo=monthOf(m)-1,n=dim(y,mo),out=[];
@@ -8,7 +16,7 @@ function expectedItems(m){
     const due=fr==='monthly'||(fr==='yearly'&&mo+1===(b.month||12))||(fr==='quarterly'&&((mo+1-(b.month||1))%3+3)%3===0);
     if(due)out.push({kind:'bill',id:b.id,name:b.name,amt:b.amount,day:Math.min(b.day,n),sign:-1,c:'_skip',key:bkey(b),variable:b.variable,yearly:fr!=='monthly'})});
   P.debts.filter(d=>(d.pay||0)>0).forEach(d=>out.push({kind:'debt',id:d.id,name:d.name,amt:d.pay+(d.extra||0),day:Math.min(d.day,n),sign:-1,c:'_skip',key:(d.match||d.name.split(' ')[0]).toUpperCase(),grp:d.grp}));
-  (P.transfers||[]).forEach(x=>out.push({kind:'xfer',id:x.id,name:x.name,amt:x.amount,day:Math.min(x.day||2,n),sign:-1,c:x.catId}));
+  (P.transfers||[]).forEach(x=>out.push({kind:'xfer',id:x.id,name:x.name,amt:xferRemaining(m,x),plan:x.amount,day:Math.min(x.day||2,n),sign:-1,c:x.catId}));
   if(P.savings&&P.savings.monthly>0)out.push({kind:'sav',id:'sav',name:'Transfer to savings (Premium Bonds and pots)',amt:P.savings.monthly,day:Math.min(P.savings.day||1,n),sign:-1,c:'_skip'});
   return out.sort((a,b)=>a.day-b.day)}
 /* the real bank/Amex line behind an item, if one has been uploaded */
@@ -19,6 +27,7 @@ function bankRowFor(it,m){
     const c=rows.filter(t=>ok(t)&&t.sc===it.id&&(it.varies||rel(t)<=.5)).concat(rows.filter(t=>ok(t)&&t.sc!==it.id&&rel(t)<=.05));
     return c.sort((a,b)=>rel(a)-rel(b))[0]||null}
   if(it.kind==='sav')return rows.find(t=>t.a<0&&/NS&I|PREMIUM BOND|TO A\/C (67716245|67652417)/.test((t.t||'').toUpperCase()))||null;
+  if(it.kind==='xfer'){const R=allowanceRows(m,it.c),S=-sum(R,x=>x.a);if(it.plan!=null&&S>=it.plan-1)return R.slice().sort((a,b)=>a.a-b.a)[0]}
   if(it.kind==='xfer')return rows.find(t=>t.c===it.c&&t.a<0&&Math.abs(-t.a-it.amt)<=it.amt*.3+1)||null;
   return it.key?rows.filter(t=>t.a<0&&keyHit(t.t,it.key)&&Math.abs(-t.a-it.amt)<=it.amt*.3+1&&(!t.item||t.item===it.id)).sort((a,b)=>Math.abs(-a.a-it.amt)-Math.abs(-b.a-it.amt))[0]||null:null}
 /* every bank line that makes up this item (a payment can arrive in two or more lines) */

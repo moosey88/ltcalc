@@ -70,7 +70,7 @@ function simulate(o={}){
     const daysLeft=curM?Math.max(1,n-new Date(start).getUTCDate()+1):n;
     const xcat=new Set((P.transfers||[]).map(x=>x.catId));
     P.vars.forEach(v=>{if(xcat.has(v.id))return;const rem=curM?Math.max(0,v.budget-spentIn(k,v.id)):v.budget;const a=rem/daysLeft;if(a<=0)return;const cp=v.cardOK?a*share:0;cycle+=cp;cardSpend+=cp;bank-=a-cp;M.vars+=a;if(v.id==='v_round')pots.ru+=a});
-    (xfer[t]||[]).forEach(x=>{if(!tickRow(k,x.id)){bank-=x.amount;events.push({t,k:'xfer',n:x.name,a:-x.amount})}M.xfer+=x.amount});
+    (xfer[t]||[]).forEach(x=>{const rem=typeof xferRemaining==='function'&&!o.state?xferRemaining(k,x):x.amount;if(!tickRow(k,x.id)){bank-=rem;events.push({t,k:'xfer',n:x.name,a:-rem})}M.xfer+=x.amount});
     (P.oneoffs||[]).forEach(oo=>{if(oo.date!==ds)return;M.one+=oo.amount;events.push({t,k:'one',n:oo.name,a:-oo.amount,pay:oo.pay});
       if(oo.pay==='amex'){cycle+=oo.amount;cardSpend+=oo.amount}else if(oo.pay==='savings'){const tk=Math.min(pots.general,oo.amount);pots.general-=tk;bank-=oo.amount-tk}else bank-=oo.amount});
     const G=buildGoals(P,{...st,goalSaved:{},taxSaved:{}});

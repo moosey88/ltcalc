@@ -3,15 +3,18 @@ const RV_SURE=new Set(['known','rule','bill','typed']);
 const rvLabel=t=>t.c==='_skip'?'Bill, debt or transfer':t.c==='_inc'?'Money in':t.c==='_amexpay'?'Amex payment':t.c==='_cashout'||t.c==='_cashin'?'Cash':t.c?(subName(t.c,t.sc)?subName(t.c,t.sc):((allVars().find(v=>v.id===t.c)||{}).name||t.c)):'Not sorted';
 function reviewRows(){const out=[];Object.keys(TX).sort().reverse().forEach(m=>(TX[m]||[]).slice().sort((a,b)=>a.d<b.d?1:-1).forEach(t=>{if(t.rv==='p')out.push({t,m})}));return out}
 const reviewCount=()=>reviewRows().length;
-const rvLook=t=>!RV_SURE.has(t.how)||t.c===''||t.c==null;
+const rvLook=t=>{const a=allowInfo(t);if(a&&(t.how==='check'||t.how==='known'))return a.over>0;return!RV_SURE.has(t.how)||t.c===''||t.c==null};
+const rvWhy=t=>{const a=allowInfo(t);if(a&&(t.how==='check'||t.how==='known'))return a.over>0?`${GBP2(a.extra)} of this is over ${a.name} (${GBP(a.plan)}) for ${fmonthLong(a.am)}. An extra, or a mistake?`:`Part of ${a.name}: ${GBP2(a.run)} of ${GBP(a.plan)} for ${fmonthLong(a.am)} so far`;return t.why||''};
+const rvExtra=t=>/An extra, or a mistake\?/.test(rvWhy(t));
 const rvName=t=>{const s=cleanD(t.t).toLowerCase().replace(/\b[a-z]/g,c=>c.toUpperCase());return s.length>38?s.slice(0,37)+'…':s};
 function learnRule(t,c,sc){const kw=merchKey(cleanD(t.t)).toUpperCase();if(c&&kw&&kw!=='OTHER'&&t.s!=='man'&&kw.length>2&&!STATE.rules.find(r=>r.k===kw))STATE.rules.push({k:kw,c,s:sc})}
 function reviewRow(r){const t=r.t,look=rvLook(t),sel=t.c?t.c+(t.sc?':'+t.sc:''):'';
-  const opts=`<option value="">Choose…</option>${catOptions(t.c&&t.c[0]!=='_'?t.c:'',t.sc)}<option value="_skip" ${t.c==='_skip'?'selected':''}>Bill, debt or transfer</option><option value="_inc" ${t.c==='_inc'?'selected':''}>Money in (income)</option>`;
+  const xo=(curPlan().transfers||[]).filter(x=>x.catId).map(x=>`<option value="${x.catId}" ${t.c===x.catId?'selected':''}>${esc(x.name)}</option>`).join(''),isX=(curPlan().transfers||[]).some(x=>x.catId===t.c);
+  const opts=`<option value="">Choose…</option>${catOptions(t.c&&t.c[0]!=='_'&&!isX?t.c:'',t.sc)}${xo}<option value="_skip" ${t.c==='_skip'?'selected':''}>Bill, debt or transfer</option><option value="_inc" ${t.c==='_inc'?'selected':''}>Money in (income)</option>`;
   const flagc=!t.c?'var(--bad)':look?'var(--warn)':'var(--good)';
   return`<div class="rvr ${look?(!t.c?'bad':'warn'):'ok'}"><span class="dt">${fdate(parseISO(t.d))}</span><span class="nm">${look?'<b>':''}${esc(rvName(t))}${look?'</b>':''}</span>
-   <span class="cat">${look?`<select>${opts}</select>`:esc(rvLabel(t))}</span><span class="why"><i class="flag" style="background:${flagc}"></i>${esc(t.why||'')}</span>
-   <span class="am ${t.a>0?'pos':''}">${t.a>0?'+':'−'}${GBP2(Math.abs(t.a))}</span><span class="act">${look?`<button class="btn" data-act="rvok" data-m="${r.m}" data-id="${esc(t.id)}">${/Not the usual/.test(t.why||'')?'It was an extra':'Approve'}</button>`:`<button class="chk" data-act="rvok" data-m="${r.m}" data-id="${esc(t.id)}" aria-label="Approve" title="Approve">✓</button>`}</span></div>`}
+   <span class="cat">${(t.c&&t.c[0]==='_'&&!['_skip','_inc'].includes(t.c))?esc(rvLabel(t)):`<select>${opts}</select>`}</span><span class="why"><i class="flag" style="background:${flagc}"></i>${esc(rvWhy(t))}</span>
+   <span class="am ${t.a>0?'pos':''}">${t.a>0?'+':'−'}${GBP2(Math.abs(t.a))}</span><span class="act">${look?`<button class="btn" data-act="rvok" data-m="${r.m}" data-id="${esc(t.id)}">${rvExtra(t)?'It was an extra':'Approve'}</button>`:`<button class="chk" data-act="rvok" data-m="${r.m}" data-id="${esc(t.id)}" aria-label="Approve" title="Approve">✓</button>`}</span></div>`}
 function reviewPanel(){const rows=reviewRows();if(!rows.length)return'';
   const look=rows.filter(r=>rvLook(r.t)),sure=rows.filter(r=>!rvLook(r.t));
   return`<div class="panel c8 rvp"><div class="row" style="justify-content:space-between"><h2>Review new transactions ${look.length?`<span class="pill warn">${look.length} need a look</span>`:'<span class="pill good">all look right</span>'}</h2></div>
@@ -23,7 +26,7 @@ function reviewPanel(){const rows=reviewRows();if(!rows.length)return'';
 function approveRow(m,id,cv,learn){const t=(TX[m]||[]).find(x=>x.id===id);if(!t)return;
   if(cv!=null&&cv!==''){const c=cv.split(':')[0],sc=cv.split(':')[1];if(c!==t.c||(sc||undefined)!==t.sc){audit('Re-categorised in review',`${GBP2(Math.abs(t.a))} "${(t.t||'').slice(0,40)}": ${rvLabel(t)} to ${c==='_skip'?'Bill, debt or transfer':c==='_inc'?'Money in':(catName({vars:allVars()},c)||c)}`);t.c=c;t.sc=sc||undefined}if(learn)learnRule(t,t.c,t.sc)}
   else if(!t.c){toast('Choose a category first');return false}
-  if(/Not the usual/.test(t.why||'')){t.note=t.note||'Extra this month';t.why='Approved as an extra'}
+  if(rvExtra(t)){t.note=t.note||'Extra this month';t.why='Approved as an extra'}
   delete t.rv;t.how=t.how||'approved';saveTx(m)}
 function reviewApproveAll(){let n=0;const touched=new Set();reviewRows().filter(r=>!rvLook(r.t)).forEach(r=>{delete r.t.rv;touched.add(r.m);n++});touched.forEach(m=>saveTx(m));audit('Approved suggested categories',n+' lines');invalidate();persistAll();toast(n+' approved');render()}
 /* one-off repair: payments wrongly filed as a bill (a short keyword such as "car" matched "card") */
