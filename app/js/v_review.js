@@ -29,6 +29,11 @@ function approveRow(m,id,cv,learn){const t=(TX[m]||[]).find(x=>x.id===id);if(!t)
   if(rvExtra(t)){t.note=t.note||'Extra this month';t.why='Approved as an extra'}
   delete t.rv;t.how=t.how||'approved';saveTx(m)}
 function reviewApproveAll(){let n=0;const touched=new Set();reviewRows().filter(r=>!rvLook(r.t)).forEach(r=>{delete r.t.rv;touched.add(r.m);n++});touched.forEach(m=>saveTx(m));audit('Approved suggested categories',n+' lines');invalidate();persistAll();toast(n+' approved');render()}
+/* a payment that matches one of your bills but was filed as shopping by a general rule (for example "AMAZON , PRIME*..." filed by the Amazon rule) */
+function fixBillMatches(){let any=false;Object.keys(TX).forEach(m=>{let ch=false;(TX[m]||[]).forEach(t=>{
+  if(t.cb||t.s!=='nw'||!(t.a<0)||t.c==='_skip'||!['rule','builtin','none'].includes(t.how))return;t.cb=1;
+  const r=classifyWhy(t.t,t.a);if(r.c==='_skip'&&r.how==='bill'&&/^Matches your bill/.test(r.why)){t.c='_skip';t.sc=undefined;t.how=r.how;t.why=r.why;ch=true}});
+  if(ch){saveTx(m);any=true}});if(any)invalidate();return any}
 /* one-off repair: payments wrongly filed as a bill (a short keyword such as "car" matched "card") */
 function fixWeakClass(){let any=false;const P=curPlan();
   const weak=D=>P.bills.some(b=>{const k=bkey(b);return k&&D.includes(k)&&!keyHit(D,k)})&&!P.bills.some(b=>bkey(b)&&keyHit(D,bkey(b)));

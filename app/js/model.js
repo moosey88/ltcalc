@@ -164,8 +164,10 @@ function migratePlan(p){
 /* income actually received, by month and stream (STATE.incAct[month][id]); falls back to the planned amount */
 const incFromTx=(k,id)=>{if(k>=thisMonthK()||!(TX[k]&&TX[k].length))return null;const r=TX[k].filter(t=>t.c==='_inc'&&t.sc===id&&t.a>0);return r.length?sum(r,t=>t.a):0};
 /* cash handed over towards an income this month (it goes into the cash pot, so the bank expects that much less) */
-const cashInFor=(k,id)=>sum((STATE.cash||[]).filter(e=>e.inc===id&&(e.d||'').slice(0,7)===k),e=>e.a);
-const incFor=(k,i)=>{const a=STATE.incAct&&STATE.incAct[k]&&STATE.incAct[k][i.id];if(a!=null)return a;const b=incFromTx(k,i.id);return b==null?Math.max(0,i.amount-cashInFor(k,i.id)):b};
+/* cash that comes in always counts as that person's contribution to the household */
+const cashIncOf=e=>e.type==='in'?(e.inc||(e.who==='Sander'?'i_sander':e.who==='Annie'?'i_annie':null)):null;
+const cashInFor=(k,id)=>sum((STATE.cash||[]).filter(e=>cashIncOf(e)===id&&(e.d||'').slice(0,7)===k),e=>e.a);
+const incFor=(k,i)=>{const cs=cashInFor(k,i.id),b=incFromTx(k,i.id);if(b!=null&&(b>0||cs>0))return b+cs;const a=STATE.incAct&&STATE.incAct[k]&&STATE.incAct[k][i.id];if(a!=null)return a;return b==null?Math.max(0,i.amount-cs):b};
 const incActualTotal=(k,P)=>sum((P||planFor(k)).income,i=>incFor(k,i));
 function migrateAll(){
   if(!STATE.incSeed){STATE.incSeed=1;VERSIONS.forEach(v=>{if(!v.plan.income.some(i=>i.id==='i_niamh'||/niamh/i.test(i.name)))v.plan.income.push({id:'i_niamh',name:'Niamh: phone contribution',amount:15,day:1})})}

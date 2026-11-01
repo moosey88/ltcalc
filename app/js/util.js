@@ -38,7 +38,7 @@ function ord(n){const s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[
 /* matching a payee keyword against a bank description: ignore the transaction type at the start, and match whole words so "car" never matches "card" */
 const DESC_PREFIX=/^(DEBIT CARD TRANSACTION|CARD TRANSACTION|DIRECT DEBIT|STANDING ORDER|ONLINE TRANSACTION|MOBILE\/ONLINE TRANSACTION|AUTOMATED CREDIT|AUTOMATED DEBIT|BILL PAYMENT|TRANSFER|DEBIT|CREDIT)\s+/;
 const cleanD=D=>String(D||'').toUpperCase().replace(DESC_PREFIX,'');
-const keyHit=(text,key)=>{key=String(key||'').toUpperCase().trim();if(!key)return false;const t=cleanD(text);if(key.length>=7)return t.includes(key);return new RegExp('(^|[^A-Z0-9])'+key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'($|[^A-Z0-9])').test(t)};
+const keyHit=(text,key)=>{key=String(key||'').toUpperCase().trim();if(!key)return false;const t=cleanD(text);if(key.length>=7){const n=s=>s.replace(/[^A-Z0-9&]+/g,' ').trim();return t.includes(key)||n(t).includes(n(key))}return new RegExp('(^|[^A-Z0-9])'+key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'($|[^A-Z0-9])').test(t)};
 
 /* three-way merge of plain JSON, so two people editing on two devices do not overwrite each other.
    b = what both started from, m = my copy, t = their (newer) copy. What I changed wins; what only they changed is kept.

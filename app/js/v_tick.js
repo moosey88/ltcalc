@@ -32,6 +32,14 @@ function bankRowFor(it,m){
   return it.key?rows.filter(t=>t.a<0&&keyHit(t.t,it.key)&&Math.abs(-t.a-it.amt)<=it.amt*.3+1&&(!t.item||t.item===it.id)).sort((a,b)=>Math.abs(-a.a-it.amt)-Math.abs(-b.a-it.amt))[0]||null:null}
 /* every bank line that makes up this item (a payment can arrive in two or more lines) */
 function bankRowsFor(it,m){const b=bankRowFor(it,m);if(!b)return[];const all=(TX[m]||[]).filter(t=>t.s!=='tick'&&t.s!=='man'&&t.item===it.id&&t.ticked&&t.a*it.sign>0);return all.length>1?all:[b]}
+/* "Not this month": a zero tick, so the item drops out of every list and the forecast for that month only */
+function toggleSkip(kind,id,m){
+  const it=expectedItems(m).find(x=>x.kind===kind&&x.id===id);if(!it)return;
+  const arr=TX[m]=TX[m]||[],ex=tickRow(m,id);
+  audit(ex&&ex.skip?'Back on for the month':'Not this month',`${it.name} (${fmonthLong(m)})`);
+  if(ex)arr.splice(arr.indexOf(ex),1);
+  if(!(ex&&ex.skip))arr.push({id:'tk_'+m+'_'+id,d:tickDate(m,it),t:'Not this month: '+it.name,a:0,c:it.c,sc:it.kind==='inc'?it.id:undefined,s:'tick',p:'bank',item:id,planned:it.amt,skip:1});
+  saveTx(m);invalidate();persistAll();render()}
 function tickDate(m,it){const t=todayISO();return t.slice(0,7)===m?t:m+'-'+String(it.day).padStart(2,'0')}
 function toggleTick(kind,id,m){
   const it=expectedItems(m).find(x=>x.kind===kind&&x.id===id);if(!it)return;
@@ -101,13 +109,13 @@ function anomalies(){
   const rank={bad:0,warn:1,info:2};return keep.sort((a,b)=>rank[a.sev]-rank[b.sev])}
 function tickBox(kind,id,m){m=m||thisMonthK();const it=expectedItems(m).find(x=>x.kind===kind&&x.id===id);if(!it)return'';
   const b=bankRowFor(it,m),t=tickRow(m,id);
-  return b?`<span class="pill good" title="Found on the bank file">✓ bank</span>`:`<input type="checkbox" data-act="tick" data-kind="${kind}" data-id="${id}" data-m="${m}" ${t?'checked':''} aria-label="Done this month: ${esc(it.name)}" title="${kind==='inc'?'Money received':'Paid'} this month">`}
+  return b?`<span class="pill good" title="Found on the bank file">✓ bank</span>`:t&&t.skip?`<span class="pill" title="Left out for this month">skipped</span>`:`<input type="checkbox" data-act="tick" data-kind="${kind}" data-id="${id}" data-m="${m}" ${t?'checked':''} aria-label="Done this month: ${esc(it.name)}" title="${kind==='inc'?'Money received':'Paid'} this month">`}
 function tickPanel(m){
   const items=expectedItems(m),dom=m===thisMonthK()?+todayISO().slice(8):99;
   const grp=(kind,title,lab)=>{const rows=items.filter(i=>i.kind===kind);if(!rows.length)return'';
     return`<tr class="mer"><td colspan="5">${title}</td></tr>`+rows.map(it=>{const b=bankRowFor(it,m),t=tickRow(m,it.id),br=bankRowsFor(it,m);
-      const st=b?`<span class="chip in">✓ On the bank file${br.length>1?' ('+br.length+' payments)':b.ticked?' (matched your tick)':''}</span>`:t?`<span class="chip in">✓ Ticked</span>`:it.day<=dom?`<span class="chip wait">${lab} yet</span>`:`<span class="chip mv">Expected</span>`;
-      const amt=b?GBP2(sum(br,r=>Math.abs(r.a)))+(br.length>1?`<br><span class="small muted">${br.map(r=>GBP2(Math.abs(r.a))).join(' + ')}</span>`:''):t?`<input type="number" step="0.01" class="num" style="width:96px" value="${Math.abs(t.a)}" data-tickamt="${it.id}" data-m="${m}" aria-label="Amount for ${esc(it.name)}">`:'about '+GBP2(it.amt);
+      const sk=t&&t.skip,st=sk?`<span class="chip mv">Not this month</span> <button class="btn ghost sm" data-act="skip" data-kind="${kind}" data-id="${it.id}" data-m="${m}">Put back</button>`:b?`<span class="chip in">✓ On the bank file${br.length>1?' ('+br.length+' payments)':b.ticked?' (matched your tick)':''}</span>`:t?`<span class="chip in">✓ Ticked</span>`:(it.day<=dom?`<span class="chip wait">${lab} yet</span>`:`<span class="chip mv">Expected</span>`)+` <button class="btn ghost sm" data-act="skip" data-kind="${kind}" data-id="${it.id}" data-m="${m}" title="Remove it for this month only">Not this month</button>`;
+      const amt=sk?'–':b?GBP2(sum(br,r=>Math.abs(r.a)))+(br.length>1?`<br><span class="small muted">${br.map(r=>GBP2(Math.abs(r.a))).join(' + ')}</span>`:''):t?`<input type="number" step="0.01" class="num" style="width:96px" value="${Math.abs(t.a)}" data-tickamt="${it.id}" data-m="${m}" aria-label="Amount for ${esc(it.name)}">`:'about '+GBP2(it.amt);
       return`<tr><td style="width:34px">${tickBox(kind,it.id,m)}</td><td>${esc(it.name)}${it.variable?' <span class="pill warn">varies</span>':''}${it.yearly?' <span class="pill info">yearly</span>':''}</td><td class="small muted">${it.kind==='inc'?'due':'due'} the ${ord(it.day)}</td><td>${st}</td><td class="n">${amt}</td></tr>`}).join('')};
   return`<div class="panel c12"><div class="row" style="justify-content:space-between"><h2>Tick off ${fmonthLong(m)} <span class="muted small">money in, bills, debts and transfers</span></h2><button class="btn ghost sm" data-act="tickall" data-m="${m}">Tick everything due so far</button></div>
    <p class="small ink2" style="margin-top:0">Tick an item when it has happened, so you do not need to type it as a transaction. A tick counts straight away in the forecast. When you upload your NatWest file, each tick is swapped for the real bank line and anything that does not match is flagged below.</p>

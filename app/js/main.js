@@ -54,12 +54,12 @@ document.addEventListener('click',e=>{
       const best=man.sort((x,y)=>dayGap(x.d,row.d)-dayGap(y.d,row.d))[0];if(best){row.c=best.c||row.c;TX[k]=TX[k].filter(t=>t.id!==best.id)}}delete row.maybe;saveTx(k);invalidate();persistAll();render()}}
   else if(a==='note')noteTx(d.id,d.kind);
   else if(a==='addcash'){const amt=parseFloat($('#c_amt').value),date=$('#c_date').value;if(!(amt>0)||!date){toast('Add a date and an amount');return}
-    (STATE.cash=STATE.cash||[]).push({id:'c_'+uid(),d:date,type:$('#c_type').value,a:amt,who:$('#c_who').value,note:$('#c_note').value.trim(),...($('#c_type').value==='in'&&$('#c_who').value==='Sander'&&$('#c_for').value?{inc:$('#c_for').value}:{})});invalidate();persistAll();render()}
-  else if(a==='cashinc'){const e=(STATE.cash||[]).find(x=>x.id===d.id);if(e){if(e.inc)delete e.inc;else e.inc='i_sander';audit(e.inc?'Cash counted towards Sander\'s contribution':'Cash no longer counted towards Sander\'s contribution',`${GBP2(e.a)} on ${e.d}`);invalidate();persistAll();render()}}
+    (STATE.cash=STATE.cash||[]).push({id:'c_'+uid(),d:date,type:$('#c_type').value,a:amt,who:$('#c_who').value,note:$('#c_note').value.trim()});invalidate();persistAll();render()}
   else if(a==='delcash'){STATE.cash=STATE.cash.filter(e=>e.id!==d.id);persistAll();render()}
   else if(a==='setopen'){STATE.cashOpening=parseFloat($('#c_open').value)||0;STATE.cashOpenDate=todayISO();STATE.cash=[];persistAll();toast('Opening cash set to today');render()}
   else if(a==='add'){addToDraft(d.list);render()}
   else if(a==='auditcopy'){const t=AUDIT.slice().reverse().map(e=>`${e.t}\t${e.by}\t${e.act}\t${e.detail}`).join('\n')||'Nothing recorded';const o=$('#auditOut');o.style.display='block';o.value=t;o.select();try{navigator.clipboard.writeText(t);toast('Copied')}catch(err){toast('Select and copy the text below')}}
+  else if(a==='skip'){toggleSkip(d.kind,d.id,d.m)}
   else if(a==='ddmode'){(view.dd=view.dd||{chip:'month'}).mode=d.id;render()}
   else if(a==='ddall'){const A=view.ddAll=view.ddAll||{};A[d.id]=!A[d.id];render()}
   else if(a==='ddchip'){const D=view.dd=view.dd||{};D.chip=d.c;if(d.c==='month')view.m=thisMonthK();if(d.c==='last'){D.chip='month';view.m=addMonthsK(thisMonthK(),-1)}render()}
@@ -94,8 +94,8 @@ document.addEventListener('click',e=>{
   else if(a==='fixopen'){view.fixOpen=view.fixOpen===false;render()}
   else if(a==='cashintoggle'){view.cashIn=!view.cashIn;render()}
   else if(a==='cashinadd'){const v=parseFloat($('#ci_a').value),dt=$('#ci_d').value;if(!(v>0)||!dt){toast('Type the amount and date');return}
-    const inc=(planFor(d.m).income.find(x=>x.id===d.id)||{}).name||'income';(STATE.cash=STATE.cash||[]).push({id:'c_'+uid(),d:dt,type:'in',a:v,who:'Sander',note:$('#ci_n').value.trim()||'Cash from Sander',inc:d.id});
-    audit('Cash received',`${GBP2(v)} towards ${inc} on ${dt}`);invalidate();persistAll();toast('Added to your cash pot');render()}
+    const who=$('#ci_w').value,inc=who==='Annie'?'i_annie':'i_sander';(STATE.cash=STATE.cash||[]).push({id:'c_'+uid(),d:dt,type:'in',a:v,who,note:$('#ci_n').value.trim()||'Cash from '+who,inc});
+    audit('Cash received',`${GBP2(v)} from ${who} on ${dt}`);invalidate();persistAll();toast('Added to your cash pot');render()}
   else if(a==='cashindel'){const e=(STATE.cash||[]).find(x=>x.id===d.id);if(e){audit('Cash received removed',`${GBP2(e.a)} on ${e.d}`);STATE.cash=STATE.cash.filter(x=>x.id!==d.id);invalidate();persistAll();render()}}
   else if(a==='ertoggle'){view.erOpen=view.erOpen||{};view.erOpen[d.id]=!view.erOpen[d.id];render()}
   else if(a==='testdebt'){scInit();view.scen.debtSel=d.id;const e=(view.er||{})[d.id];if(e){view.scen.extra=e.extra||0;view.scen.lump=e.lump||0;if(e.date)view.scen.lumpDate=e.date}go('whatif')}
@@ -143,5 +143,5 @@ document.addEventListener('input',e=>{
   cancelAnimationFrame(view.raf);view.raf=requestAnimationFrame(()=>{scPaint()})});
 $('#themeBtn').addEventListener('click',()=>{const r=document.documentElement;const dark=r.dataset.theme==='dark';r.dataset.theme=dark?'light':'dark'});
 (function boot(){
-  const had=loadLocal();try{splitIkea();reconcileTicks();fixWeakClass();fixAdmiral();mergeTypedCredits()}catch(e){}ensureSnapshot();render();if(had)setSync('Loaded from this device','');
+  const had=loadLocal();try{splitIkea();reconcileTicks();fixWeakClass();fixBillMatches();fixAdmiral();mergeTypedCredits()}catch(e){}ensureSnapshot();render();if(had)setSync('Loaded from this device','');
   connectDb().catch(()=>{})})();
