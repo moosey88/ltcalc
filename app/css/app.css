@@ -7,11 +7,6 @@
   --need:#2a63c9; --want:#d8702a; --debt:#7a45d1; --save:#12908e;
   --f-disp:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif; --f-body:'Figtree','Segoe UI',system-ui,sans-serif;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0d171d; --surface:#15232c; --surface2:#1c2f3a; --ink:#e7eff4; --ink2:#a9bac6; --muted:#7d909d; --line:#27404e;
-  --bank:#6b9cff; --amex:#b08cf5; --good:#4cc585; --warn:#e4b04a; --bad:#f07a69;
-  --good-bg:#15382a; --warn-bg:#3b3116; --bad-bg:#431f1a; --bank-bg:#1a2c4d;
-  --need:#6b9cff; --want:#f0995a; --debt:#b08cf5; --save:#3cc3bf; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0d171d; --surface:#15232c; --surface2:#1c2f3a; --ink:#e7eff4; --ink2:#a9bac6; --muted:#7d909d; --line:#27404e;
   --bank:#6b9cff; --amex:#b08cf5; --good:#4cc585; --warn:#e4b04a; --bad:#f07a69;

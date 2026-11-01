@@ -54,7 +54,8 @@ document.addEventListener('click',e=>{
       const best=man.sort((x,y)=>dayGap(x.d,row.d)-dayGap(y.d,row.d))[0];if(best){row.c=best.c||row.c;TX[k]=TX[k].filter(t=>t.id!==best.id)}}delete row.maybe;saveTx(k);invalidate();persistAll();render()}}
   else if(a==='note')noteTx(d.id,d.kind);
   else if(a==='addcash'){const amt=parseFloat($('#c_amt').value),date=$('#c_date').value;if(!(amt>0)||!date){toast('Add a date and an amount');return}
-    (STATE.cash=STATE.cash||[]).push({id:'c_'+uid(),d:date,type:$('#c_type').value,a:amt,who:$('#c_who').value,note:$('#c_note').value.trim()});invalidate();persistAll();render()}
+    (STATE.cash=STATE.cash||[]).push({id:'c_'+uid(),d:date,type:$('#c_type').value,a:amt,who:$('#c_who').value,note:$('#c_note').value.trim(),...($('#c_type').value==='in'&&$('#c_who').value==='Sander'&&$('#c_for').value?{inc:$('#c_for').value}:{})});invalidate();persistAll();render()}
+  else if(a==='cashinc'){const e=(STATE.cash||[]).find(x=>x.id===d.id);if(e){if(e.inc)delete e.inc;else e.inc='i_sander';audit(e.inc?'Cash counted towards Sander\'s contribution':'Cash no longer counted towards Sander\'s contribution',`${GBP2(e.a)} on ${e.d}`);invalidate();persistAll();render()}}
   else if(a==='delcash'){STATE.cash=STATE.cash.filter(e=>e.id!==d.id);persistAll();render()}
   else if(a==='setopen'){STATE.cashOpening=parseFloat($('#c_open').value)||0;STATE.cashOpenDate=todayISO();STATE.cash=[];persistAll();toast('Opening cash set to today');render()}
   else if(a==='add'){addToDraft(d.list);render()}
@@ -138,7 +139,7 @@ document.addEventListener('input',e=>{
   else{const n=+v;if(id.startsWith('inc_'))sc.inc[id.slice(4)]=n;else if(id.startsWith('var_'))sc.vars[id.slice(4)]=n;else if(id.startsWith('xf_'))sc.xfer[id.slice(3)]=n;else if(id.startsWith('tax_'))sc.tax[id.slice(4)]=n;else sc[id]=n;
     const o=$('#o_'+id);if(o)o.textContent=id==='share'||id.startsWith('tax_')?pct(n):GBP(n);const rb=document.getElementById('r_'+id);if(rb)rb.hidden=Math.abs(n-(+rb.dataset.base))<1e-9}
   cancelAnimationFrame(view.raf);view.raf=requestAnimationFrame(()=>{scPaint()})});
-$('#themeBtn').addEventListener('click',()=>{const r=document.documentElement;const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;r.dataset.theme=dark?'light':'dark'});
+$('#themeBtn').addEventListener('click',()=>{const r=document.documentElement;const dark=r.dataset.theme==='dark';r.dataset.theme=dark?'light':'dark'});
 (function boot(){
   const had=loadLocal();try{splitIkea();reconcileTicks();fixWeakClass();fixAdmiral();mergeTypedCredits()}catch(e){}ensureSnapshot();render();if(had)setSync('Loaded from this device','');
   connectDb().catch(()=>{})})();
