@@ -30,6 +30,8 @@ function vSettings(){
     <div class="item"><span>Safety buffer to keep in the bank</span>${F('state','buffer','num',STATE.buffer,'style="width:100px"')}</div>
     <div class="item"><span>Joint Amex cardholder (first name as on the statement)</span>${F('state','amexJoint','str',STATE.amexJoint||'Annalisa','style="width:130px"')}</div>
     <div class="item"><span>Flag any payment over £</span>${F('state','flagLimit','num',STATE.flagLimit,'style="width:100px"')}</div></div>
+    <div class="lbl" style="margin:14px 0 6px">Paid at the end of the month</div><div class="list"><div class="item"><span>Payments in the last this many days count towards the next month</span>${F('state','eom.days','num',EOM().days,'style="width:70px" min="0" max="7"')}</div>
+     <div class="item"><span>Money in (salary, contributions)</span>${F('state','eom.inc','bool',EOM().inc)}</div><div class="item"><span>Annie's and Sander's spending money</span>${F('state','eom.spend','bool',EOM().spend)}</div><div class="item"><span>Bills, debts and planned transfers (only if they are paid early)</span>${F('state','eom.bills','bool',EOM().bills)}</div></div>
     <div class="lbl" style="margin:14px 0 6px">Don't flag payments in these categories</div>
     <div class="row" style="gap:6px 16px">${cats.map(v=>`<label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-act="flagexcl" data-v="${v.id}" ${(STATE.flagExcl||[]).includes(v.id)?'checked':''}> ${esc(v.name)}</label>`).join('')}</div>
     <p class="small muted">Shopping is left out by default so a weekly food shop doesn't ask for a note every time.</p></div>

@@ -1,11 +1,9 @@
 /* ===== Tick-off: mark income and bills as done without typing a transaction, then check them against the bank file ===== */
 const tickRow=(m,id)=>(TX[m]||[]).find(t=>t.s==='tick'&&t.item===id);
-/* spending money paid in the last three days of a month counts towards the next month's allowance */
-const allowMonth=d=>{const y=+d.slice(0,4),mo=+d.slice(5,7)-1;return +d.slice(8)>=dim(y,mo)-2?addMonthsK(d.slice(0,7),1):d.slice(0,7)};
-function allowanceRows(m,catId){const pm=addMonthsK(m,-1);return[...(TX[m]||[]),...(TX[pm]||[])].filter(t=>t.s==='nw'&&t.c===catId&&t.a<0&&allowMonth(t.d)===m)}
+function allowanceRows(m,catId){return monthRows(m).filter(t=>t.s==='nw'&&t.c===catId&&t.a<0)}
 function xferRemaining(m,x){const S=-sum(allowanceRows(m,x.catId),t=>t.a);return S>0.5&&S<x.amount-1?x.amount-S:x.amount}
 /* where a spending-money payment sits against that month's allowance: what is paid so far and how much of this line is over */
-function allowInfo(t){if(t.s!=='nw'||!(t.a<0)||!t.c)return null;const am=allowMonth(t.d),x=((planFor(am)||{}).transfers||[]).find(z=>z.catId===t.c);if(!x)return null;
+function allowInfo(t){if(t.s!=='nw'||!(t.a<0)||!t.c)return null;const am=forMonth(t),x=((planFor(am)||{}).transfers||[]).find(z=>z.catId===t.c);if(!x)return null;
   const L=allowanceRows(am,t.c).sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:a.id<b.id?-1:1);let run=0,hit=null;for(const r of L){run+=-r.a;if(r===t||r.id===t.id){hit=run;break}}
   if(hit==null)return null;const over=hit-x.amount;return{name:x.name,plan:x.amount,run:hit,over:over>1?over:0,extra:over>1?Math.min(-t.a,over):0,am}}
 /* everything the plan expects in a month: money in, bills, debts, personal transfers */
@@ -21,7 +19,7 @@ function expectedItems(m){
   return out.sort((a,b)=>a.day-b.day)}
 /* the real bank/Amex line behind an item, if one has been uploaded */
 function bankRowFor(it,m){
-  const rows=(TX[m]||[]).filter(t=>t.s!=='tick'&&t.s!=='man');
+  const rows=monthRows(m).filter(t=>t.s!=='man');
   const cl=rows.find(t=>t.item===it.id&&t.ticked&&t.a*it.sign>0);if(cl)return cl;
   if(it.kind==='inc'){const ok=t=>t.c==='_inc'&&t.a>0&&(!t.item||t.item===it.id),rel=t=>Math.abs(t.a-it.amt)/Math.max(1,it.amt);
     const c=rows.filter(t=>ok(t)&&t.sc===it.id&&(it.varies||rel(t)<=.5)).concat(rows.filter(t=>ok(t)&&t.sc!==it.id&&rel(t)<=.05));

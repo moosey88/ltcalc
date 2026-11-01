@@ -61,6 +61,7 @@ document.addEventListener('click',e=>{
   else if(a==='auditcopy'){const t=AUDIT.slice().reverse().map(e=>`${e.t}\t${e.by}\t${e.act}\t${e.detail}`).join('\n')||'Nothing recorded';const o=$('#auditOut');o.style.display='block';o.value=t;o.select();try{navigator.clipboard.writeText(t);toast('Copied')}catch(err){toast('Select and copy the text below')}}
   else if(a==='skip'){toggleSkip(d.kind,d.id,d.m)}
   else if(a==='ddmode'){(view.dd=view.dd||{chip:'month'}).mode=d.id;render()}
+  else if(a==='fm'){const t=(TX[d.m]||[]).find(x=>x.id===d.id);if(t){const own=t.d.slice(0,7),to=forMonth(t)===own?addMonthsK(own,1):own;audit('Counts towards another month',`${GBP2(Math.abs(t.a))} "${(t.t||'').slice(0,40)}" (${t.d}) now counts towards ${fmonthLong(to)}`);t.fm=to;saveTx(d.m);invalidate();persistAll();render()}}
   else if(a==='ddopen'){const A=view.ddOpen=view.ddOpen||{};A[d.id]=!A[d.id];render()}
   else if(a==='ddopenall'){const A=view.ddOpen=view.ddOpen||{};(d.ids||'').split(',').filter(Boolean).forEach(k=>A[k]=d.v==='1');render()}
   else if(a==='ddall'){const A=view.ddAll=view.ddAll||{};A[d.id]=!A[d.id];render()}
