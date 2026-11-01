@@ -162,7 +162,7 @@ function ledgerBlock(m,rec,rowsV,bud,by,unc,totB,totS,src,isNow,dom,n,P){
      ${am?`<div class="small muted">${esc(amexDueText(t))}</div>`:''}
      ${ed?`<span class="rnrow"><input type="text" id="ne_in" value="${esc(nt)}" placeholder="Add a note" data-nid="${esc(t.id)}" data-m="${t.d.slice(0,7)}"><button class="btn sm" data-act="rownotesave" data-id="${esc(t.id)}" data-m="${t.d.slice(0,7)}">Save</button></span>`:`<div class="nt2">${nt?esc(nt):''}<button class="nbtn" data-act="rownote" data-id="${esc(t.id)}" title="${nt?'Change the note':'Add a note'}">${nt?'✎':'+ note'}</button></div>`}</div>
      <span class="lc">${cat}</span><span class="la ${inc?'pos':''}">${inc?'+':'−'}${GBP2(Math.abs(t.a))}</span><span class="lx">${(t.s==='man'||t.s==='tick')?`<button class="btn ghost sm" data-act="deltx" data-m="${t.d.slice(0,7)}" data-id="${esc(t.id)}" aria-label="Remove">✕</button>`:''}</span></div>`};
-  const mode=D.mode||'day',nAtt=rec.rows.filter(attn).length;
+  const mode=D.mode||'cat',nAtt=rec.rows.filter(attn).length;
   const shown=mode==='att'?rows.filter(attn):rows;
   const showAll=(view.ddAll=view.ddAll||{});
   const catCard=(id,name,L,b,a,am,cs)=>{const lim=showAll[id]?L.length:5;return`<div class="cc"><div class="ch"><b>${esc(name)}</b><span class="${b&&a>b?'neg':''}">${GBP(a)}${b?' of '+GBP(b):' (no budget)'}</span></div>${id[0]==='_'?'':budBar(a,b,am,0,cs)}${cashNote(cs)}${am>0.005?`<div class="amxn">${GBP2(am)} on the Amex</div>`:''}${L.slice(0,lim).map(row).join('')}${L.length>lim?`<button class="more" data-act="ddall" data-id="${esc(id)}">Show ${L.length-lim} more</button>`:L.length>5?`<button class="more" data-act="ddall" data-id="${esc(id)}">Show fewer</button>`:''}</div>`};
