@@ -84,6 +84,7 @@ function budgetsOf(k){
 function catTotalsFor(k){const rec=monthRecords(k);const by={};let unc=0;rec.rows.forEach(t=>{if(!isSpendCat(t.c))return;if(!t.c){unc+=-t.a;return}by[t.c]=(by[t.c]||0)-t.a});
   const h=normHist(k);if(rec.src==='sheet'&&h)allVars().forEach(v=>{by[v.id]=h.vars[v.id]?h.vars[v.id].a:0});return{by,unc,src:rec.src}}
 function vDaily(){
+  if(view.mRoll!==thisMonthK()){view.mRoll=thisMonthK();view.m=thisMonthK()}
   const m=view.m,rec=monthRecords(m),bud=budgetsOf(m),{by,unc,src}=catTotalsFor(m);
   const P=planFor(m),xcat=new Set((P.transfers||[]).map(x=>x.catId)),isNow=m===thisMonthK(),y=+m.slice(0,4),mo=monthOf(m)-1,n=dim(y,mo),dom=isNow?+todayISO().slice(8):n;
   const rowsV=allVars().filter(v=>src==='sheet'||!xcat.has(v.id)).filter(v=>bud[v.id]>0||by[v.id]>0);
@@ -165,21 +166,28 @@ function ledgerBlock(m,rec,rowsV,bud,by,unc,totB,totS,src,isNow,dom,n,P){
   const mode=D.mode||'cat',nAtt=rec.rows.filter(attn).length;
   const shown=mode==='att'?rows.filter(attn):rows;
   const showAll=(view.ddAll=view.ddAll||{});
-  const catCard=(id,name,L,b,a,am,cs)=>{const lim=showAll[id]?L.length:5;return`<div class="cc"><div class="ch"><b>${esc(name)}</b><span class="${b&&a>b?'neg':''}">${GBP(a)}${b?' of '+GBP(b):' (no budget)'}</span></div>${id[0]==='_'?'':budBar(a,b,am,0,cs)}${cashNote(cs)}${am>0.005?`<div class="amxn">${GBP2(am)} on the Amex</div>`:''}${L.slice(0,lim).map(row).join('')}${L.length>lim?`<button class="more" data-act="ddall" data-id="${esc(id)}">Show ${L.length-lim} more</button>`:L.length>5?`<button class="more" data-act="ddall" data-id="${esc(id)}">Show fewer</button>`:''}</div>`};
+  const ddOpen=(view.ddOpen=view.ddOpen||{}),unfilt=D.chip==='month'&&!(D.q||'').trim()&&!D.pay&&mode==='cat';
+  const catRow=(id,name,L,b)=>{const isAm=t=>t.p==='amex'||t.s==='amex',a=-sum(L,t=>t.a),am=-sum(L.filter(isAm),t=>t.a),cs=-sum(L.filter(t=>t.p==='cash'),t=>t.a),op=!!ddOpen[id],real=id[0]!=='_',left=b-a;
+    return`<div class="sr${op?' open':''}"><button class="sh" data-act="ddopen" data-id="${esc(id)}" aria-expanded="${op}"><span class="car">${op?'▾':'▸'}</span><span class="snm">${esc(name)} <span class="muted small">· ${L.length} payment${L.length===1?'':'s'}</span></span><span class="sbar">${real?budBar(a,b,am,0,cs):''}</span><span class="samt ${b&&a>b?'neg':''}">${GBP(a)}${b?' of '+GBP(b):''}</span><span class="slf ${b&&left<0?'neg':''}">${b?(left>=0?GBP(left)+' left':GBP(-left)+' over'):'no budget'}</span></button>${op?`<div class="sx">${L.map(row).join('')}</div>`:''}</div>`};
   let ledger,dayG;
   if(!shown.length)ledger=`<p class="muted">${mode==='att'?'Nothing needs attention.':'Nothing matches.'}</p>`;
   else if(mode==='cat'){
     const g={};shown.forEach(t=>{const k=!t.c?'_un':allVars().some(v=>v.id===t.c)?t.c:'_oth';(g[k]=g[k]||[]).push(t)});
-    const tot=L=>-sum(L,t=>t.a),order=Object.keys(g).filter(k=>k[0]!=='_').sort((p,q)=>tot(g[q])-tot(g[p]));
-    ledger=order.map(k=>{const v=allVars().find(x=>x.id===k);return catCard(k,v?v.name:k,g[k].sort((x,y)=>x.d<y.d?1:-1),bud[k]||0,by[k]||0,amx[k]||0,csh[k])}).join('')
-      +(g._un?catCard('_un','Needs a category',g._un,0,tot(g._un),0,null):'')+(g._oth?catCard('_oth','Money in, bills and transfers',g._oth.sort((x,y)=>x.d<y.d?1:-1),0,0,0,null):'')}
+    if(unfilt)allVars().forEach(v=>{if((bud[v.id]||0)>0&&!g[v.id])g[v.id]=[]});
+    const tot=L=>-sum(L,t=>t.a),order=Object.keys(g).filter(k=>k[0]!=='_').sort((p,q)=>tot(g[q])-tot(g[p])||(bud[q]||0)-(bud[p]||0)),ids=order.concat(g._un?['_un']:[],g._oth?['_oth']:[]);
+    const nm=k=>k==='_un'?'Needs a category':k==='_oth'?'Money in, bills and transfers':(allVars().find(x=>x.id===k)||{}).name||k;
+    const allOpen=ids.length&&ids.every(k=>ddOpen[k]);
+    const sumSp=order.reduce((p,k)=>p+tot(g[k]),0),sumB=unfilt?order.reduce((p,k)=>p+(bud[k]||0),0):0;
+    ledger=`<div class="srh"><span class="muted small">${ids.length} categories. Tap one to see what is in it.</span><button class="btn ghost sm" data-act="ddopenall" data-v="${allOpen?0:1}" data-ids="${esc(ids.join(','))}">${allOpen?'Collapse all':'Expand all'}</button></div>`
+      +ids.map(k=>catRow(k,nm(k),g[k].sort((x,y)=>x.d<y.d?1:-1),unfilt?(bud[k]||0):0)).join('')
+      +(sumB?`<div class="srt"><b>Total</b><b class="${sumSp>sumB?'neg':''}">${GBP(sumSp)} of ${GBP(sumB)}</b></div>`:'')}
   else ledger=Object.keys(dayG=(()=>{const o={};shown.forEach(t=>(o[t.d]=o[t.d]||[]).push(t));return o})()).sort().reverse().map(dt=>{const L=dayG[dt],sp=-sum(L.filter(t=>t.c&&isSpendCat(t.c)),t=>t.a);return`<div class="dh"><span>${fdate(parseISO(dt))}</span><span>${sp>0?GBP2(sp):''}</span></div>${L.map(row).join('')}`}).join('');
   const sumAmx=sum(Object.values(amx),x=>x),sumCsh=sum(Object.values(csh),c=>c||0),left=totB-totS;
   const tile=(l,b,sm,cls)=>`<div class="tile2"><small>${l}</small><b class="${cls||''}">${b}</b><span>${sm}</span></div>`;
   const tiles=`<div class="tiles2">${tile('Spent in '+fmonthLong(m),GBP(totS),'of '+GBP(totB)+' budget',totS>totB?'neg':'')}${tile('How it was paid',`<span><i class="pd d"></i>${GBP(Math.max(0,totS-sumAmx-sumCsh))}</span><span><i class="pd k"></i>${GBP(sumCsh)}</span><span><i class="pd a"></i>${GBP(sumAmx)}</span>`,'debit, cash, Amex','pp')}${tile('Needs attention',nAtt,nAtt?'unsorted or waiting for approval':'all clear',nAtt?'neg':'')}${tile(left>=0?'Left this month':'Over budget by',GBP(Math.abs(left)),left>=0?'under budget':'above plan',left<0?'neg':'')}</div>`;
   const tab=(k,l)=>`<button class="chipb ${mode===k?'on':''}" data-act="ddmode" data-id="${k}">${l}</button>`;
   const filt=`<div class="ddt"><div class="chips">${tab('day','By day')}${tab('cat','By category')}${tab('att','Needs attention ('+nAtt+')')}</div>
-   <div class="ddf2"><input type="text" data-dd="q" placeholder="Search shop or note" value="${esc(D.q||'')}" aria-label="Search"><select data-dd="chip" aria-label="Period">${[['month',D.chip==='month'&&m!==thisMonthK()?fmonthLong(m):'This month'],['today','Today'],['week','This week'],['last','Last month'],['all','All']].map(([k,l])=>`<option value="${k}" ${D.chip===k?'selected':''}>${l}</option>`).join('')}</select><select data-dd="pay" aria-label="Paid with"><option value="">All payments</option><option value="amex" ${D.pay==='amex'?'selected':''}>Amex</option><option value="bank" ${D.pay==='bank'?'selected':''}>Debit</option></select><span class="small muted">${shown.length} line${shown.length===1?'':'s'}</span></div></div>`;
+   <div class="ddf2"><input type="text" data-dd="q" placeholder="Search shop or note" value="${esc(D.q||'')}" aria-label="Search"><select data-dd="chip" aria-label="Period">${(()=>{const tm=thisMonthK(),lm=addMonthsK(tm,-1),cur=D.chip==='month'?(m===tm?'month':m===lm?'last':'cur'):D.chip;return[['month','This month'],['last','Last month']].concat(cur==='cur'?[['cur',fmonthLong(m)]]:[]).concat([['today','Today'],['week','This week'],['all','All']]).map(([k,l])=>`<option value="${k}" ${cur===k?'selected':''}>${l}</option>`).join('')})()}</select><select data-dd="pay" aria-label="Paid with"><option value="">All payments</option><option value="amex" ${D.pay==='amex'?'selected':''}>Amex</option><option value="bank" ${D.pay==='bank'?'selected':''}>Debit</option></select><span class="small muted">${shown.length} line${shown.length===1?'':'s'}</span></div></div>`;
   const rail=`<div class="rail">
    ${src==='app'||isNow?`<div class="panel"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Still to tick (${pend.length})</h3>${dueNow.length?`<button class="btn ghost sm" data-act="tickall" data-m="${m}">Tick all due</button>`:''}</div>
     ${pend.slice(0,12).map(it=>`<div class="row tk" style="justify-content:space-between"><span>${tickBox(it.kind,it.id,m)} ${esc(it.name)}</span><span class="small muted">${ord(it.day)} · ${GBP2(it.amt)} <button class="btn ghost sm" data-act="skip" data-kind="${it.kind}" data-id="${it.id}" data-m="${m}" title="Remove it for this month only">Not this month</button></span></div>`).join('')||'<p class="small muted" style="margin:4px 0 0">Everything is ticked or on the bank file.</p>'}${pend.length>12?`<p class="small muted" style="margin:4px 0 0">${pend.length-12} more in the full list below.</p>`:''}</div>`:''}</div>`;

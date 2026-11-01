@@ -61,6 +61,8 @@ document.addEventListener('click',e=>{
   else if(a==='auditcopy'){const t=AUDIT.slice().reverse().map(e=>`${e.t}\t${e.by}\t${e.act}\t${e.detail}`).join('\n')||'Nothing recorded';const o=$('#auditOut');o.style.display='block';o.value=t;o.select();try{navigator.clipboard.writeText(t);toast('Copied')}catch(err){toast('Select and copy the text below')}}
   else if(a==='skip'){toggleSkip(d.kind,d.id,d.m)}
   else if(a==='ddmode'){(view.dd=view.dd||{chip:'month'}).mode=d.id;render()}
+  else if(a==='ddopen'){const A=view.ddOpen=view.ddOpen||{};A[d.id]=!A[d.id];render()}
+  else if(a==='ddopenall'){const A=view.ddOpen=view.ddOpen||{};(d.ids||'').split(',').filter(Boolean).forEach(k=>A[k]=d.v==='1');render()}
   else if(a==='ddall'){const A=view.ddAll=view.ddAll||{};A[d.id]=!A[d.id];render()}
   else if(a==='ddchip'){const D=view.dd=view.dd||{};D.chip=d.c;if(d.c==='month')view.m=thisMonthK();if(d.c==='last'){D.chip='month';view.m=addMonthsK(thisMonthK(),-1)}render()}
   else if(a==='rownote'){view.ne=d.id;render();const i=document.getElementById('ne_in');if(i)i.focus()}
@@ -115,7 +117,7 @@ document.addEventListener('change',async e=>{
   if(el.id==='e_note'){try{const p=(STATE.payMem||{})[merchKey(el.value.trim())];const s=document.getElementById('e_pay');if(p&&s)s.value=p}catch(e){}return}
   if(d.pcat){const t=(TX[d.m]||[]).find(x=>x.id===d.pcat);if(t){const c=el.value.split(':')[0],sc=el.value.split(':')[1];audit('Re-categorised in patterns',`${GBP2(Math.abs(t.a))} "${(t.t||'').slice(0,40)}" to ${c==='_skip'?'Bill, debt or transfer':(catName({vars:allVars()},c)||c)}`);t.c=c;t.sc=sc||undefined;t.how='typed';t.why='You chose this category';delete t.rv;saveTx(d.m);invalidate();toast('Category changed');render()}return}
   if(d.er){const E=(view.er=view.er||{}),e=E[d.id]=E[d.id]||{extra:0,lump:0};e[d.er]=d.er==='date'?el.value:(parseFloat(el.value)||0);render();return}
-  if(d.dd){const D=view.dd=view.dd||{chip:'month'};if(d.dd==='chip'){D.chip=el.value;if(el.value==='month')view.m=thisMonthK();if(el.value==='last'){D.chip='month';view.m=addMonthsK(thisMonthK(),-1)}render();return}D[d.dd]=el.value;if(d.dd==='from'||d.dd==='to')D.chip='custom';render();return}
+  if(d.dd){const D=view.dd=view.dd||{chip:'month'};if(d.dd==='chip'){if(el.value==='cur')return;D.chip=el.value;if(el.value==='month')view.m=thisMonthK();if(el.value==='last'){D.chip='month';view.m=addMonthsK(thisMonthK(),-1)}render();return}D[d.dd]=el.value;if(d.dd==='from'||d.dd==='to')D.chip='custom';render();return}
   if(d.r){const v=parseVal(el);if(d.r==='plan'){setPath(draft(),d.p,v);invalidate()}else{setPath(STATE,d.p,v);afterState(d.p,v);invalidate();persistAll()}updateDraftBar();if(tab==='retire'){const ae=document.activeElement,key=ae&&ae.dataset&&ae.dataset.p;render();if(key){const n=document.querySelector('[data-p="'+key+'"]');if(n)n.focus()}return}softRender();return}
   if(d.cat!==undefined){sortTx(d.cat,d.m,el.value);return}
   if(d.rc!==undefined){recatTx(d.rc,d.m,el.value);return}

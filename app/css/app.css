@@ -233,3 +233,9 @@ body:has(.draftbar){padding-bottom:110px}
 .pill{max-width:100%;white-space:normal;overflow-wrap:anywhere}
 .kpi small .pill{display:inline-block;line-height:1.3;box-sizing:border-box;text-align:left}
 select{max-width:100%}
+/* Day to day: one line per category, opens to show its payments */
+.srh{display:flex;justify-content:space-between;align-items:center;margin:8px 0}
+.sr{border-bottom:1px solid var(--line)}.sr .sh{display:grid;grid-template-columns:22px minmax(120px,1.2fr) minmax(120px,2fr) minmax(90px,auto) 90px;gap:12px;align-items:center;width:100%;background:none;border:0;padding:12px 4px;text-align:left;cursor:pointer;color:var(--ink);font:inherit}
+.sr .sh:hover{background:var(--surface2)}.sr .snm{font-weight:700}.sr .samt{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}.sr .slf{text-align:right;color:var(--muted);font-size:13px}.sr .neg{color:var(--bad)}.sr .car{color:var(--muted)}
+.sr .sbar .bar{margin:0}.sx{background:var(--bg);padding:2px 14px 8px 34px;border-top:1px solid var(--line)}.srt{display:flex;justify-content:space-between;padding:14px 4px;font-size:1.05rem}.srt .neg{color:var(--bad)}
+@media(max-width:760px){.sr .sh{grid-template-columns:18px 1fr auto}.sr .sbar{grid-column:2/4;order:3}.sr .slf{grid-column:2/4;text-align:left;order:4}}
