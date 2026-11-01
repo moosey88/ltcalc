@@ -40,6 +40,10 @@ function simulate(o={}){
       expectedItems(kA).filter(it=>it.sign<0&&it.kind!=='xfer'&&it.day<=dA&&!tickRow(kA,it.id)&&!bankRowFor(it,kA)).forEach(it=>{const amt=it.amt;bank-=amt;
         if(it.kind==='debt')M.debt+=amt;else if(it.kind==='sav'){M.sav+=amt;pots.general+=amt}else if(it.yearly)M.yearly+=amt;else M.bills+=amt;
         events.push({t,k:it.kind==='debt'?'debt':it.kind==='sav'?'save':it.yearly?'yearly':'bill',n:it.name,a:-amt,overdue:true})})}
+    /* money due on or before the balance date and not on the bank file yet is assumed to arrive today, the same as the bills above */
+    if(t===start&&o.overdue!==false&&typeof expectedItems==='function'&&!o.state){const kA=ym(parseISO(asOf)),dA=+asOf.slice(8);
+      expectedItems(kA).filter(it=>it.sign>0&&it.day<=dA&&!tickRow(kA,it.id)&&!bankRowFor(it,kA)).forEach(it=>{const amt=it.amt;bank+=amt;M.inc+=amt;
+        events.push({t,k:'in',n:it.name,a:amt,overdue:true})})}
     P.income.forEach(i=>{if(on(i.day)){const tk=tickRow(k,i.id),a=tk?tk.a:incFor(k,i);if(!tk)bank+=a;M.inc+=a;if(!tk)events.push({t,k:'in',n:i.name,a})}});
     P.bills.forEach(b=>{
       const fr=b.freq||'monthly';let due=false;

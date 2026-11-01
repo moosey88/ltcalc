@@ -67,7 +67,7 @@ function trackingData(){
 function vToday(){
   const S=fc(),T=trackingData(),buf=STATE.buffer||0;
   const d90=S.days.slice(0,90),low90=d90.reduce((a,b)=>b.bank<a.bank?b:a,d90[0]);
-  const np=S.events.find(e=>e.k==='in'&&e.a>=1000)||S.events.find(e=>e.k==='in'),ni=np?S.days.findIndex(d=>d.t===np.t):0,seg=S.days.slice(0,Math.max(1,ni)),lowSeg=seg.reduce((a,b)=>b.tru<a.tru?b:a,seg[0]);
+  const np=S.events.find(e=>e.k==='in'&&!e.overdue&&e.a>=1000)||S.events.find(e=>e.k==='in'&&!e.overdue),ni=np?S.days.findIndex(d=>d.t===np.t):0,seg=S.days.slice(0,Math.max(1,ni)),lowSeg=seg.reduce((a,b)=>b.tru<a.tru?b:a,seg[0]);
   const head=lowSeg.tru-buf,s12=S.days[Math.min(364,S.days.length-1)],cardOn=S.cardSpend>0;
   const lc=liveCheck();
   const comingAll=S.events.filter(e=>e.t<=S.start+90*DAY&&((e.k==='bill'&&(e.variable||-e.a>=200))||((e.k==='debt'||e.k==='xfer')&&-e.a>=200)||e.k==='yearly'||e.k==='one'||e.k==='goal'||e.k==='lump'||(e.k==='amex'&&-e.a>=200)));
