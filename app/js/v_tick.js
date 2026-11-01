@@ -14,7 +14,7 @@ function expectedItems(m){
     const due=fr==='monthly'||(fr==='yearly'&&mo+1===(b.month||12))||(fr==='quarterly'&&((mo+1-(b.month||1))%3+3)%3===0);
     if(due)out.push({kind:'bill',id:b.id,name:b.name,amt:b.amount,day:Math.min(b.day,n),sign:-1,c:'_skip',key:bkey(b),variable:b.variable,yearly:fr!=='monthly'})});
   P.debts.filter(d=>(d.pay||0)>0).forEach(d=>out.push({kind:'debt',id:d.id,name:d.name,amt:d.pay+(d.extra||0),day:Math.min(d.day,n),sign:-1,c:'_skip',key:(d.match||d.name.split(' ')[0]).toUpperCase(),grp:d.grp}));
-  (P.transfers||[]).forEach(x=>out.push({kind:'xfer',id:x.id,name:x.name,amt:xferRemaining(m,x),plan:x.amount,day:Math.min(x.day||2,n),sign:-1,c:x.catId}));
+  (P.transfers||[]).filter(x=>x.amount>0).forEach(x=>out.push({kind:'xfer',id:x.id,name:x.name,amt:xferRemaining(m,x),plan:x.amount,day:Math.min(x.day||2,n),sign:-1,c:x.catId}));
   if(P.savings&&P.savings.monthly>0)out.push({kind:'sav',id:'sav',name:'Transfer to savings (Premium Bonds and pots)',amt:P.savings.monthly,day:Math.min(P.savings.day||1,n),sign:-1,c:'_skip'});
   return out.sort((a,b)=>a.day-b.day)}
 /* the real bank/Amex line behind an item, if one has been uploaded */

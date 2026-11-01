@@ -28,7 +28,7 @@ function simulate(o={}){
   const sdays=[];for(let d=start;d<=end;d+=DAY){const dt=new Date(d);if(dt.getUTCDate()===Math.min(P1.savings.day,dim(dt.getUTCFullYear(),dt.getUTCMonth())))sdays.push(d)}
   const sset=new Set(sdays),xfer={};
   {let t=U(sd.getUTCFullYear(),sd.getUTCMonth(),1);while(t<=end){const dt=new Date(t),y=dt.getUTCFullYear(),m=dt.getUTCMonth(),P=planOf(ym(t));
-    (P.transfers||[]).forEach(x=>{const dd=x.rule==='day'?U(y,m,Math.min(x.day||2,dim(y,m))):Math.min(payDateOf(P,y,m)+2*DAY,U(y,m,dim(y,m)));if(dd>=start&&dd<=end)(xfer[dd]=xfer[dd]||[]).push(x)});t=U(y,m+1,1)}}
+    (P.transfers||[]).filter(x=>x.amount>0).forEach(x=>{const dd=x.rule==='day'?U(y,m,Math.min(x.day||2,dim(y,m))):Math.min(payDateOf(P,y,m)+2*DAY,U(y,m,dim(y,m)));if(dd>=start&&dd<=end)(xfer[dd]=xfer[dd]||[]).push(x)});t=U(y,m+1,1)}}
   const days=[],months={},events=[];let lowBank={v:1e12,t:0},lowTrue={v:1e12,t:0},lowAll={v:1e12,t:0};const winEnd=start+(o.window||92)*DAY; /* the headline 'lowest point' only looks 3 months ahead: a distant, unplanned future should not drive the warnings */
   const lumps=[...(st.lumps||[]),...(o.lumps||[])];
   for(let t=start;t<=end;t+=DAY){
