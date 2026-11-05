@@ -8,11 +8,11 @@ const PMON={JAN:1,FEB:2,MAR:3,APR:4,MAY:5,JUN:6,JUL:7,AUG:8,SEP:9,OCT:10,NOV:11,
 async function pdfLines(file){
   await loadPdfJs();const doc=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise,pages=[];
   for(let p=1;p<=doc.numPages;p++){const tc=await(await doc.getPage(p)).getTextContent();
-    const its=tc.items.map(i=>({s:i.str.trim(),x:i.transform[4],y:i.transform[5]})).filter(i=>i.s).sort((a,b)=>b.y-a.y||a.x-b.x),lines=[];
+    const its=tc.items.map(i=>({s:i.str.trim(),x:i.transform[4],y:i.transform[5],w:i.width||0})).filter(i=>i.s).sort((a,b)=>b.y-a.y||a.x-b.x),lines=[];
     its.forEach(i=>{const l=lines[lines.length-1];if(l&&Math.abs(l.y-i.y)<=3)l.items.push(i);else lines.push({y:i.y,items:[i]})});
     lines.forEach(l=>{l.items.sort((a,b)=>a.x-b.x);l.text=l.items.map(i=>i.s).join(' ')});pages.push(lines)}
   return pages}
-const pdfKind=pages=>{const t=pages.slice(0,2).map(p=>p.map(l=>l.text).join(' ')).join(' ');return /American Express/i.test(t)&&/Membership Number|Statement of Account/i.test(t)?'amex':/Your transactions/i.test(t)&&/Paid out \(£\)/i.test(t)?'nwtx':/NatWest|Paid In\(|Withdrawn\(|Sort Code/i.test(t)?'nw':null};
+const pdfKind=pages=>{const t=pages.slice(0,2).map(p=>p.map(l=>l.text).join(' ')).join(' ');return /American Express/i.test(t)&&/Membership Number|Statement of Account/i.test(t)?'amex':/Your transactions/i.test(t)&&/Paid out \(£\)/i.test(t)?'nwtx':/Your transactions/i.test(t)&&/Paid in/i.test(t)&&/Paid out/i.test(t)&&/Showing:/i.test(t)?'nwtx2':/NatWest|Paid In\(|Withdrawn\(|Sort Code/i.test(t)?'nw':null};
 function parseNatWestPdf(pages){
   const all=pages.flat().map(l=>l.text).join(' | '),per=all.match(/(\d{1,2})\s+([A-Z]{3})\s+(\d{4})\s+to\s+(\d{1,2})\s+([A-Z]{3})\s+(\d{4})/),
     pv=all.match(/Previous Balance\s*\|?\s*(-?£?[\d,]+\.\d{2})(\s*OD)?/i),nb=all.match(/New Balance\s*\|?\s*(-?£?[\d,]+\.\d{2})(\s*OD)?/i);
@@ -50,6 +50,33 @@ function parseNatWestTxPdf(pages){
   rows.forEach(r=>delete r.open);
   const iso=m=>`${m[3]}-${m[2]}-${m[1]}`,period={from:iso(ds[0]),to:iso(ds[1])};
   return{rows,period,warn:'This export has no balances, so the bank balance was not changed. Type or upload a file with a balance to set it.'}}
+/* the newer online-banking export: Date (04 Nov 2026), Type, Description (wrapped over two or three lines around the date line), Paid in, Paid out, Balance */
+function parseNatWestTx2Pdf(pages){
+  const txt=pages[0].map(l=>l.text).join(' | '),per=txt.match(/Showing:\s*(\d{1,2})\s+([A-Za-z]{3})\w*\s+(\d{4})\s+to\s+(\d{1,2})\s+([A-Za-z]{3})\w*\s+(\d{4})/i);
+  if(!per)throw new Error('Could not find the statement period');
+  const TY={'D/D':'Direct Debit','TFR':'Transfer','STO':'Standing Order','BAC':'Automated Credit','DPC':'Mobile/Online Transaction','CHG':'Charge'},rows=[];
+  const mo=n=>PMON[String(n).slice(0,3).toUpperCase()];
+  pages.forEach(lines=>{
+    const items=lines.flatMap(l=>l.items);
+    const hdr=lines.find(l=>/^Date\s+Type\s+Description/.test(l.text)&&/Balance/.test(l.text));if(!hdr)return;
+    const top=hdr.y-3,body=items.filter(i=>i.y<top&&!/^Page\s+\d+/i.test(i.s));
+    /* a transaction starts at its date in the left column */
+    const starts=[];body.filter(i=>i.x<100).forEach(i=>{const m=i.s.match(/^(\d{1,2})\s+([A-Za-z]{3})\w*\s+(\d{4})$/);if(m&&mo(m[2]))starts.push({y:i.y,date:`${m[3]}-${String(mo(m[2])).padStart(2,'0')}-${String(+m[1]).padStart(2,'0')}`,items:[],id:i})});
+    if(!starts.length)return;starts.sort((a,b)=>b.y-a.y);
+    body.forEach(i=>{if(starts.some(r=>r.id===i))return;
+      let best=null,bd=9e9;starts.forEach(r=>{const d=Math.abs(r.y-i.y);if(d<bd){bd=d;best=r}});if(best&&bd<=11)best.items.push(i)});
+    starts.forEach(r=>{
+      const money=r.items.filter(i=>PNUM.test(i.s)&&i.x+i.w>=380),xr=i=>i.x+i.w;
+      const pin=money.find(i=>xr(i)<430),pout=money.find(i=>xr(i)>=430&&xr(i)<500),bal=money.find(i=>xr(i)>=500);
+      if(!bal||(!pin&&!pout))return;
+      const type=r.items.filter(i=>i.x>=100&&i.x<160&&!PNUM.test(i.s)).map(i=>i.s).join(' ').trim();
+      const desc=r.items.filter(i=>i.x>=160&&i.x<360&&!PNUM.test(i.s)).sort((a,b)=>b.y-a.y||a.x-b.x).map(i=>i.s).join(' ').replace(/\s+/g,' ').trim();
+      const a=pin?Math.abs(pnum(pin.s)):-Math.abs(pnum(pout.s));
+      rows.push({d:r.date,t:`${TY[type]||''} ${desc}`.replace(/\s+/g,' ').trim(),a:Math.round(a*100)/100,b:Math.round(pnum(bal.s)*100)/100,who:undefined})})});
+  /* newest first: each line's balance minus the line below it should be its amount */
+  let bad=0;for(let k=0;k<rows.length-1;k++)if(Math.abs(rows[k].b-rows[k+1].b-rows[k].a)>.006)bad++;
+  const iso=(d,m,y)=>`${y}-${String(mo(m)).padStart(2,'0')}-${String(+d).padStart(2,'0')}`;
+  return{rows,period:{from:iso(per[1],per[2],per[3]),to:iso(per[4],per[5],per[6])},warn:bad?`${bad} line${bad>1?'s':''} did not follow on from the balance above, so check this file.`:''}}
 function parseAmexPdf(pages){
   const all=pages.flat().map(l=>l.text).join(' | '),per=all.match(/Statement Period\s*\|?\s*From\s+(\d{1,2})\s+([A-Za-z]+)\s+to\s+(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/i);
   if(!per)throw new Error('Could not find the statement period');
@@ -71,7 +98,7 @@ function parseAmexPdf(pages){
   return{rows,period,close:closeISO,jointTotal:jk?totals[jk]:0,warn:bad.length?'The lines read do not add up to the statement total, so check this file.':''}}
 async function importPdfFile(file){
   const pages=await pdfLines(file),kind=pdfKind(pages);if(!kind)throw new Error('That PDF does not look like a NatWest or Amex statement');
-  const r=kind==='amex'?parseAmexPdf(pages):kind==='nwtx'?parseNatWestTxPdf(pages):parseNatWestPdf(pages);if(!r.rows.length)throw new Error('No transactions found in that PDF');
-  const msg=importRows(r.rows,kind==='nwtx'?'nw':kind),pTxt=r.period&&r.period.from&&r.period.to?` Statement period ${fdate(parseISO(r.period.from))} to ${fdate(parseISO(r.period.to))}.`:'';
+  const r=kind==='amex'?parseAmexPdf(pages):kind==='nwtx'?parseNatWestTxPdf(pages):kind==='nwtx2'?parseNatWestTx2Pdf(pages):parseNatWestPdf(pages);if(!r.rows.length)throw new Error('No transactions found in that PDF');
+  const msg=importRows(r.rows,kind==='nwtx'||kind==='nwtx2'?'nw':kind),pTxt=r.period&&r.period.from&&r.period.to?` Statement period ${fdate(parseISO(r.period.from))} to ${fdate(parseISO(r.period.to))}.`:'';
   if(pTxt)audit('Read statement period',`${file.name}:${pTxt}`);
   if(kind==='amex'&&r.close){(STATE.amexStmt=STATE.amexStmt||{})[r.close]={total:Math.round(r.jointTotal*100)/100,src:'pdf'};audit('Amex statement total set',`${fdate(parseISO(r.close))}: ${GBP2(r.jointTotal)} (PDF)`);invalidate();persistAll()}return`${file.name}: ${kind==='amex'?'Amex':'NatWest'}${kind==='nwtx'?' transactions':''}.${pTxt} ${msg}${r.warn?' '+r.warn:''}`}
