@@ -171,10 +171,10 @@ function forMonth(t){const own=t.d.slice(0,7);if(t.fm)return t.fm;if(t.s!=='nw'|
   const ok=(o.inc&&t.c==='_inc'&&t.a>0)||(o.spend&&(t.c==='v_acash'||t.c==='v_scash')&&t.a<0)||(o.bills&&t.c==='_skip'&&t.a<0);return ok?addMonthsK(own,1):own}
 const eomZone=t=>{if(t.s!=='nw'||t.p!=='bank')return false;const n=+EOM().days||0,y=+t.d.slice(0,4),mo=+t.d.slice(5,7)-1;return n>0&&+t.d.slice(8)>=dim(y,mo)-n+1};
 function monthRows(m){const pm=addMonthsK(m,-1);return[...(TX[m]||[]),...(TX[pm]||[])].filter(t=>t.s!=='tick'&&forMonth(t)===m)}
-/* cash that comes in always counts as that person's contribution to the household */
+/* cash that comes in always counts as that person's contribution to the household, on top of what is planned from the bank */
 const cashIncOf=e=>e.type==='in'?(e.inc||(e.who==='Sander'?'i_sander':e.who==='Annie'?'i_annie':null)):null;
 const cashInFor=(k,id)=>sum((STATE.cash||[]).filter(e=>cashIncOf(e)===id&&(e.d||'').slice(0,7)===k),e=>e.a);
-const incFor=(k,i)=>{const cs=cashInFor(k,i.id),b=incFromTx(k,i.id);if(b!=null&&(b>0||cs>0))return b+cs;const a=STATE.incAct&&STATE.incAct[k]&&STATE.incAct[k][i.id];if(a!=null)return a;return b==null?Math.max(0,i.amount-cs):b};
+const incFor=(k,i)=>{const cs=cashInFor(k,i.id),b=incFromTx(k,i.id);if(b!=null&&(b>0||cs>0))return b+cs;const a=STATE.incAct&&STATE.incAct[k]&&STATE.incAct[k][i.id];if(a!=null)return a;return b==null?i.amount:b};
 const incActualTotal=(k,P)=>sum((P||planFor(k)).income,i=>incFor(k,i));
 function migrateAll(){
   if(!STATE.incSeed){STATE.incSeed=1;VERSIONS.forEach(v=>{if(!v.plan.income.some(i=>i.id==='i_niamh'||/niamh/i.test(i.name)))v.plan.income.push({id:'i_niamh',name:'Niamh: phone contribution',amount:15,day:1})})}
